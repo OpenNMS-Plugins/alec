@@ -8,7 +8,6 @@ import CONST from '@/helpers/constants'
 import { useUserStore } from '@/store/useUserStore'
 import { markRaw, ref } from 'vue'
 import { FeatherButton } from '@featherds/button'
-import { saveEngineParameter } from '@/services/AlecService'
 import { FeatherSnackbar } from '@featherds/snackbar'
 
 const Icons = markRaw({
@@ -16,7 +15,6 @@ const Icons = markRaw({
 })
 
 const userStore = useUserStore()
-const allowSave = ref(userStore.allowSave)
 const engineName = ref(userStore.engineInfo?.engineName || CONST.ENGINE_DBSCAN)
 const hellinger = ref(
 	userStore.engineInfo?.distanceMeasureName === CONST.HELLINGER_OPTION
@@ -27,8 +25,6 @@ const isError = ref(false)
 const message = ref('')
 
 const saveConfiguration = async () => {
-	const allow = Boolean(allowSave.value)
-	await userStore.savePermission(allow)
 	const savedEngine = await userStore.setEngineInfo(
 		engineName.value,
 		hellinger.value
@@ -36,7 +32,6 @@ const saveConfiguration = async () => {
 
 	showNotification.value = true
 	if (savedEngine) {
-		userStore.getAlecInfo()
 		userStore.getEngineInfo()
 		message.value = 'The settings were saved!'
 		isError.value = false
@@ -51,15 +46,6 @@ const saveConfiguration = async () => {
 	<div class="container">
 		<h3>Configuration Page</h3>
 
-		<div class="section">
-			<div class="title">
-				Allow ALEC to send anonymous usage data to The OpenNMS Group?
-			</div>
-			<FeatherRadioGroup horizontal v-model="allowSave" label="" hideLabel>
-				<FeatherRadio :value="true">Yes</FeatherRadio>
-				<FeatherRadio :value="false">No</FeatherRadio>
-			</FeatherRadioGroup>
-		</div>
 		<div class="section">
 			<div class="title">
 				Choose the correlation engine that ALEC will use (see

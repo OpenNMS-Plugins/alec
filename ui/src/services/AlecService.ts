@@ -5,32 +5,8 @@ import { TEngine } from '@/types/TUser'
 import { sendAction } from '@/services/AlarmService'
 const base = '/alec'
 const engineEndpoint = '/alec/engine/configuration'
-const endpointAgreement = '/alec/agreement/configuration'
 const situationStatusEndpoint = '/alec/situation/statusList'
 const situationEndpoint = '/alec/situation'
-
-export const savePermission = async (allowSaveValue: boolean) => {
-	try {
-		const resp = await rest.post(`${endpointAgreement}`, {
-			agreed: allowSaveValue
-		})
-		return resp.status === 200
-	} catch (err) {
-		return false
-	}
-}
-
-export const getUserInfo = async () => {
-	try {
-		const resp = await rest.get(`${endpointAgreement}`)
-		if (resp.status === 200) {
-			return resp.data
-		}
-		return false
-	} catch (err) {
-		return false
-	}
-}
 
 export const getEngineInfo = async () => {
 	try {

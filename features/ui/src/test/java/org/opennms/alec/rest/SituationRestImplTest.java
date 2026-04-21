@@ -3,11 +3,9 @@ package org.opennms.alec.rest;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -22,7 +20,6 @@ import org.junit.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -38,26 +35,10 @@ import org.opennms.alec.datasource.common.ImmutableAlarm;
 import org.opennms.alec.datasource.common.ImmutableSituation;
 import org.opennms.alec.datasource.common.StaticAlarmDatasource;
 import org.opennms.alec.datasource.common.StaticSituationDatasource;
-import org.opennms.alec.grpc.GrpcConnectionConfig;
-import org.opennms.alec.grpc.SituationClient;
-import org.opennms.integration.api.v1.distributed.KeyValueStore;
-import org.opennms.integration.api.v1.runtime.RuntimeInfo;
 
 @RunWith(MockitoJUnitRunner.class)
 @ExtendWith(MockitoExtension.class)
 public class SituationRestImplTest {
-
-    @Mock
-    KeyValueStore<String> kvStore;
-
-    @Mock
-    RuntimeInfo runtimeInfo;
-
-    @Mock
-    GrpcConnectionConfig grpcConnectionConfig;
-
-    @Mock
-    SituationClient situationClient;
 
     private SituationDatasource situationDatasource;
 
@@ -67,16 +48,14 @@ public class SituationRestImplTest {
 
     @Before
     public void setUp() {
-        //we don't want to store testing data to the cloud
         getAlarmsAndSituations();
-        when(runtimeInfo.getSystemId()).thenReturn("42");
         situationDatasource = Mockito.spy(new StaticSituationDatasource(situations));
-        underTest = new SituationRestImpl(kvStore, situationDatasource, new StaticAlarmDatasource(alarms), runtimeInfo, grpcConnectionConfig, situationClient);
+        underTest = new SituationRestImpl(situationDatasource, new StaticAlarmDatasource(alarms));
     }
 
     @After
     public void tearDown() {
-        verifyNoMoreInteractions(situationDatasource,situationClient);
+        verifyNoMoreInteractions(situationDatasource);
     }
 
     @Test
@@ -90,13 +69,6 @@ public class SituationRestImplTest {
             assertThat(situationForwardCaptor.getValue().getFeedback().get(0), equalTo("reject situation [11]"));
             assertThat(situationForwardCaptor.getValue().getAlarms().size(), equalTo(0));
             verify(situationDatasource, times(1)).getSituation(11);
-            verify(situationDatasource, times(2)).getSituations();
-            ArgumentCaptor<Situation> situationStoreCaptor = ArgumentCaptor.forClass(Situation.class);
-            verify(situationClient, times(1)).sendSituation(situationStoreCaptor.capture(), eq("42"));
-            assertThat(situationStoreCaptor.getValue().getStatus(), equalTo(Status.REJECTED));
-            assertThat(situationStoreCaptor.getValue().getFeedback().size(), equalTo(1));
-            assertThat(situationStoreCaptor.getValue().getFeedback().get(0), equalTo("reject situation [11]"));
-            assertThat(situationStoreCaptor.getValue().getAlarms().size(), equalTo(4));
         }
     }
 
@@ -114,8 +86,6 @@ public class SituationRestImplTest {
             assertThat(situationCaptor.getValue().getFeedback().size(), equalTo(1));
             assertThat(situationCaptor.getValue().getFeedback().get(0), equalTo("remove alarm(s) [[3, 4]] to situation [11]"));
             verify(situationDatasource, times(1)).getSituation(11);
-            verify(situationDatasource, times(2)).getSituations();
-            verify(situationClient, times(1)).sendSituation(situationCaptor.getValue(), "42");
         }
     }
 
@@ -133,8 +103,6 @@ public class SituationRestImplTest {
             assertThat(situationCaptor.getValue().getFeedback().size(), equalTo(1));
             assertThat(situationCaptor.getValue().getFeedback().get(0), equalTo("remove alarm(s) [[5]] to situation [11]"));
             verify(situationDatasource, times(1)).getSituation(11);
-            verify(situationDatasource, times(2)).getSituations();
-            verify(situationClient, times(1)).sendSituation(situationCaptor.getValue(), "42");
         }
     }
 
@@ -151,7 +119,6 @@ public class SituationRestImplTest {
     @Test
     public void removeAlarmsNotIntThisSituation() throws InterruptedException {
         ArgumentCaptor<Situation> situationCaptor = ArgumentCaptor.forClass(Situation.class);
-        //Trying to remove alarms from another situation
         try (Response actual = underTest.removeAlarm(AlarmSetImpl.newBuilder().situationId("11").alarmIdList(Arrays.asList("0", "1")).build())) {
             assertThat(actual.getStatus(), equalTo(204));
             verify(situationDatasource, times(0)).forwardSituation(situationCaptor.capture());
@@ -161,8 +128,6 @@ public class SituationRestImplTest {
 
     @Test
     public void addAlarmsAlreadyInSituation() throws InterruptedException {
-        ArgumentCaptor<Situation> situationCaptor = ArgumentCaptor.forClass(Situation.class);
-        // trying to add alarms from another situation
         try (Response actual = underTest.addAlarm(AlarmSetImpl.newBuilder().situationId("11").alarmIdList(Arrays.asList("0", "1")).build())) {
             assertThat(actual.getStatus(), equalTo(204));
             verify(situationDatasource, times(0)).forwardSituation(any());
@@ -185,8 +150,7 @@ public class SituationRestImplTest {
             assertThat(situationCaptor.getValue().getFeedback().size(), equalTo(1));
             assertThat(situationCaptor.getValue().getFeedback().get(0), equalTo("add alarm(s) [[7, 8]] to situation [11]"));
             verify(situationDatasource, times(1)).getSituation(11);
-            verify(situationDatasource, times(4)).getSituations();
-            verify(situationClient, times(1)).sendSituation(situationCaptor.getValue(), "42");
+            verify(situationDatasource, times(2)).getSituations();
         }
     }
 
@@ -201,14 +165,12 @@ public class SituationRestImplTest {
                     .map(Alarm::getId)
                     .collect(Collectors
                             .toList()).containsAll(Arrays.asList("7", "8")), equalTo(true));
-            verify(situationDatasource, times(4)).getSituations();
-            verify(situationClient, times(1)).sendSituation(situationCaptor.getValue(), "42");
+            verify(situationDatasource, times(2)).getSituations();
         }
     }
 
     @Test
     public void createSituationWithBadAlarms() throws InterruptedException {
-        ArgumentCaptor<Situation> situationCaptor = ArgumentCaptor.forClass(Situation.class);
         try (Response actual = underTest.createSituation(CreateSituationPayloadImpl.newBuilder().alarmIdList(Arrays.asList("1", "2")).description("description").diagnosticText("diagnostic").build())) {
             assertThat(actual.getStatus(), equalTo(204));
             verify(situationDatasource, times(0)).forwardSituation(any());
@@ -225,8 +187,6 @@ public class SituationRestImplTest {
             assertThat(situationCaptor.getValue().getAlarms().size(), equalTo(4));
             assertThat(situationCaptor.getValue().getStatus(), equalTo(Status.ACCEPTED));
             verify(situationDatasource, times(1)).getSituation(11);
-            verify(situationDatasource, times(2)).getSituations();
-            verify(situationClient, times(1)).sendSituation(situationCaptor.getValue(), "42");
         }
     }
 

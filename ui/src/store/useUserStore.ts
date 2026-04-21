@@ -1,11 +1,6 @@
 import { defineStore } from 'pinia'
 import { getUserRole } from '@/services/UserService'
-import {
-	getUserInfo,
-	savePermission,
-	getEngineInfo,
-	saveEngineParameter
-} from '@/services/AlecService'
+import { getEngineInfo, saveEngineParameter } from '@/services/AlecService'
 import CONST from '@/helpers/constants'
 
 import { TEngine } from '@/types/TUser'
@@ -13,8 +8,6 @@ import { TEngine } from '@/types/TUser'
 type TState = {
 	isAdmin: boolean
 	userId: string | null
-	firstTime: boolean
-	allowSave: boolean
 	engineInfo: TEngine | null
 }
 
@@ -28,8 +21,6 @@ export const useUserStore = defineStore('userStore', {
 	state: (): TState => ({
 		isAdmin: false,
 		userId: null,
-		firstTime: true,
-		allowSave: true,
 		engineInfo: null
 	}),
 	actions: {
@@ -40,13 +31,6 @@ export const useUserStore = defineStore('userStore', {
 				this.userId = result.id
 			}
 			return result
-		},
-		async getAlecInfo() {
-			const result = await getUserInfo()
-			if (result) {
-				this.firstTime = false
-				this.allowSave = result.agreed
-			}
 		},
 		async getEngineInfo() {
 			const result = await getEngineInfo()
@@ -70,12 +54,6 @@ export const useUserStore = defineStore('userStore', {
 				return true
 			}
 			return false
-		},
-		async savePermission(allowSaveValue: boolean) {
-			const result = await savePermission(allowSaveValue)
-			if (result) {
-				this.allowSave = allowSaveValue
-			}
 		}
 	}
 })

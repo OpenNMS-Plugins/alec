@@ -32,10 +32,7 @@ import java.util.stream.Stream;
 
 public enum KeyEnum {
     ENGINE("ENGINE"),
-    AGREEMENT("AGREEMENT"),
-    SITUATION("SITUATION"),
-    REJECTED_SITUATION("REJECTED_SITUATION"),
-    ACCEPTED_SITUATION("ACCEPTED_SITUATION");
+    SITUATION("SITUATION");
 
     private final String key;
 
