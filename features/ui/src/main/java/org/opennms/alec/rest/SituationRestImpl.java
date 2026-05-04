@@ -248,8 +248,12 @@ public class SituationRestImpl implements SituationRest {
     }
 
     private Response forwardSituation(Situation oldSituation, Set<Alarm> alarms) {
-        Situation newSituation = ImmutableSituation.newBuilderFrom(oldSituation).setAlarms(alarms).build();
-        situationDatasource.forwardSituation(newSituation);
-        return Response.ok().build();
+        try {
+            Situation newSituation = ImmutableSituation.newBuilderFrom(oldSituation).setAlarms(alarms).build();
+            situationDatasource.forwardSituation(newSituation);
+            return Response.ok().build();
+        } catch (Exception e) {
+            return ALECRestUtils.somethingWentWrong(e);
+        }
     }
 }

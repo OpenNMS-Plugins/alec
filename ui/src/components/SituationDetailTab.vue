@@ -23,8 +23,6 @@ const situationStore = useSituationsStore()
 
 const REJECTED = CONST.REJECTED
 
-const userStore = useUserStore()
-
 const props = defineProps<{
 	situationInfo: TSituation
 }>()
