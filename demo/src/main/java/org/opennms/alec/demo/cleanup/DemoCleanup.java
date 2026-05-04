@@ -100,12 +100,10 @@ public class DemoCleanup {
             }
         }
 
-        // 6. Clear all alarms AFTER nodes are gone (prevents ALEC from re-correlating)
-        try {
-            client.clearAndAckAllAlarms();
-        } catch (Exception e) {
-            LOG.warn("Failed to clear alarms: {}", e.getMessage());
-        }
+        // 6. Do not clear alarms globally here.
+        // Alarm cleanup must be limited to demo-created alarms recorded in demo state;
+        // clearing every alarm on the system would affect unrelated operational alarms.
+        LOG.info("Skipping global alarm clear/ack to avoid modifying alarms outside demo state.");
 
         // 7. Remove state file
         try {
