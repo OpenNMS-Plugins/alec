@@ -7,12 +7,15 @@
             <cm:property name="epsilon" value="100"/>
             <cm:property name="alpha" value="144.47117699"/>
             <cm:property name="beta" value="0.55257784"/>
+            <cm:property name="noPathDistance" value="100"/>
             <cm:property name="distanceMeasure" value="alarmInSpaceAndTimeDistanceMeasureFactory"/>
         </cm:default-properties>
     </cm:property-placeholder>
 
     <bean id="hellingerDistanceMeasureFactory" class="org.opennms.alec.engine.dbscan.HellingerDistanceMeasureFactory"/>
-    <bean id="alarmInSpaceAndTimeDistanceMeasureFactory" class="org.opennms.alec.engine.dbscan.AlarmInSpaceAndTimeDistanceMeasureFactory"/>
+    <bean id="alarmInSpaceAndTimeDistanceMeasureFactory" class="org.opennms.alec.engine.dbscan.AlarmInSpaceAndTimeDistanceMeasureFactory">
+        <property name="noPathDistance" value="${noPathDistance}"/>
+    </bean>
 
     <!-- Create and expose the engine factory -->
     <service interface="org.opennms.alec.engine.api.EngineFactory" ranking="20">

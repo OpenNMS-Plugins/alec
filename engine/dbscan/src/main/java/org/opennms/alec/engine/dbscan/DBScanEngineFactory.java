@@ -73,6 +73,7 @@ public class DBScanEngineFactory implements EngineFactory {
                 .add("epsilon=" + epsilon)
                 .add("alpha=" + alpha)
                 .add("beta=" + beta)
+                .add("noPathDistance=" + getNoPathDistance())
                 .add("distanceMeasure='" + distanceMeasureFactoryName + "'")
                 .toString();
     }
@@ -96,8 +97,8 @@ public class DBScanEngineFactory implements EngineFactory {
 
     @Override
     public String getParameters() {
-        return String.format("engine: %s, alpha: %s, beta: %s, epsilon: %s, distanceMeasure: %s",
-                getName(), getAlpha(), getBeta(), getEpsilon(), getDistanceMeasureFactoryName());
+        return String.format("engine: %s, alpha: %s, beta: %s, epsilon: %s, noPathDistance: %s, distanceMeasure: %s",
+                getName(), getAlpha(), getBeta(), getEpsilon(), getNoPathDistance(), getDistanceMeasureFactoryName());
     }
 
     public double getEpsilon() {
@@ -130,5 +131,13 @@ public class DBScanEngineFactory implements EngineFactory {
 
     public String getDistanceMeasureFactoryName() {
         return distanceMeasureFactoryName;
+    }
+
+    public double getNoPathDistance() {
+        return alarmInSpaceAndTimeDistanceMeasureFactory.getNoPathDistance();
+    }
+
+    public void setNoPathDistance(double noPathDistance) {
+        alarmInSpaceAndTimeDistanceMeasureFactory.setNoPathDistance(noPathDistance);
     }
 }

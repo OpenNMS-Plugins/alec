@@ -28,7 +28,11 @@
 
 package org.opennms.alec.engine.dbscan;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.lessThan;
+import static org.hamcrest.number.IsCloseTo.closeTo;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.opennms.alec.datasource.api.InventoryObject.DEFAULT_WEIGHT;
 
 import java.util.concurrent.TimeUnit;
@@ -63,5 +67,51 @@ public class AlarmInSpaceTimeDistanceMeasureTest {
         final AbstractClusterEngine clusterEngine = mock(AbstractClusterEngine.class);
         final AlarmInSpaceTimeDistanceMeasure alarmInSpaceTimeDistanceMeasure = new AlarmInSpaceTimeDistanceMeasure(clusterEngine, DBScanEngine.DEFAULT_ALPHA, DBScanEngine.DEFAULT_BETA);
         return alarmInSpaceTimeDistanceMeasure.compute(0, timeDeltaMs, spatialDistance);
+    }
+
+    @Test
+    public void noPathBetweenVerticesUsesConfiguredNoPathDistance() {
+        // ALEC-297: when the spatial calculator returns Integer.MAX_VALUE
+        // (the no-path sentinel), the measure must substitute the configured
+        // noPathDistance instead — otherwise no realistic epsilon ever clusters
+        // alarms across devices.
+        final AbstractClusterEngine clusterEngine = mock(AbstractClusterEngine.class);
+        when(clusterEngine.getSpatialDistanceBetween(1L, 2L))
+                .thenReturn((double) Integer.MAX_VALUE);
+
+        final AlarmInSpaceTimeDistanceMeasure measure = new AlarmInSpaceTimeDistanceMeasure(
+                clusterEngine,
+                DBScanEngine.DEFAULT_ALPHA,
+                DBScanEngine.DEFAULT_BETA,
+                100d);
+
+        // a/b structure: [time, vertexId, firstTime]
+        double distance = measure.compute(new double[]{0d, 1d, 0d}, new double[]{1000d, 2d, 1000d});
+
+        // With noPathDistance=100 and 1s time delta, distance ~= 66.
+        // Critically: < default epsilon (100). Pre-fix this would have been ~10^9.
+        assertThat(distance, lessThan(AlarmInSpaceTimeDistanceMeasure.DEFAULT_EPSILON));
+        assertThat(distance, closeTo(65.96d, 1d));
+    }
+
+    @Test
+    public void noPathBetweenVerticesWithLargePenalty_preservesOldBehaviour() {
+        // Operators who rely on the pre-fix "cross-device alarms never cluster"
+        // behaviour can opt back into it by setting noPathDistance to a very large
+        // value (e.g. Integer.MAX_VALUE).
+        final AbstractClusterEngine clusterEngine = mock(AbstractClusterEngine.class);
+        when(clusterEngine.getSpatialDistanceBetween(1L, 2L))
+                .thenReturn((double) Integer.MAX_VALUE);
+
+        final AlarmInSpaceTimeDistanceMeasure measure = new AlarmInSpaceTimeDistanceMeasure(
+                clusterEngine,
+                DBScanEngine.DEFAULT_ALPHA,
+                DBScanEngine.DEFAULT_BETA,
+                Integer.MAX_VALUE);
+
+        double distance = measure.compute(new double[]{0d, 1d, 0d}, new double[]{1000d, 2d, 1000d});
+
+        // Distance dwarfs default epsilon (100) — alarms remain unclustered.
+        assertThat(distance > 1e8, org.hamcrest.Matchers.equalTo(true));
     }
 }

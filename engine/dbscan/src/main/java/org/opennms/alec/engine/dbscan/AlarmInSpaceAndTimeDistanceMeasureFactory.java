@@ -33,6 +33,9 @@ import org.opennms.alec.engine.api.DistanceMeasureFactory;
 import org.opennms.alec.engine.cluster.SpatialDistanceCalculator;
 
 public class AlarmInSpaceAndTimeDistanceMeasureFactory implements DistanceMeasureFactory {
+
+    private double noPathDistance = AlarmInSpaceTimeDistanceMeasure.DEFAULT_NO_PATH_DISTANCE;
+
     @Override
     public String getName() {
         return "alarminspaceandtimedistance";
@@ -40,6 +43,15 @@ public class AlarmInSpaceAndTimeDistanceMeasureFactory implements DistanceMeasur
 
     @Override
     public DistanceMeasure createDistanceMeasure(Object spatialDistanceCalculator, double alpha, double beta) {
-        return new AlarmInSpaceTimeDistanceMeasure((SpatialDistanceCalculator) spatialDistanceCalculator, alpha, beta);
+        return new AlarmInSpaceTimeDistanceMeasure(
+                (SpatialDistanceCalculator) spatialDistanceCalculator, alpha, beta, noPathDistance);
+    }
+
+    public double getNoPathDistance() {
+        return noPathDistance;
+    }
+
+    public void setNoPathDistance(double noPathDistance) {
+        this.noPathDistance = noPathDistance;
     }
 }

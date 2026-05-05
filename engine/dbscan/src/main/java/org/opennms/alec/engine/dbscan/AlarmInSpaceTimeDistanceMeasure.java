@@ -38,15 +38,22 @@ import org.opennms.alec.engine.cluster.SpatialDistanceCalculator;
 
 public class AlarmInSpaceTimeDistanceMeasure implements DistanceMeasure {
     public static final double  DEFAULT_EPSILON = 100d;
+    public static final double  DEFAULT_NO_PATH_DISTANCE = 100d;
 
     private final SpatialDistanceCalculator spatialDistanceCalculator;
     private final double alpha;
     private final double beta;
+    private final double noPathDistance;
 
     public AlarmInSpaceTimeDistanceMeasure(SpatialDistanceCalculator SpatialDistanceCalculator, double alpha, double beta) {
+        this(SpatialDistanceCalculator, alpha, beta, DEFAULT_NO_PATH_DISTANCE);
+    }
+
+    public AlarmInSpaceTimeDistanceMeasure(SpatialDistanceCalculator SpatialDistanceCalculator, double alpha, double beta, double noPathDistance) {
         this.spatialDistanceCalculator = Objects.requireNonNull(SpatialDistanceCalculator);
         this.alpha = alpha;
         this.beta = beta;
+        this.noPathDistance = noPathDistance;
     }
 
     @Override
@@ -60,9 +67,13 @@ public class AlarmInSpaceTimeDistanceMeasure implements DistanceMeasure {
         double spatialDistance = 0;
         if (vertexIdA != vertexIdB) {
             spatialDistance = spatialDistanceCalculator.getSpatialDistanceBetween(vertexIdA, vertexIdB);
-            if (spatialDistance == 0) {
-                // No path
-                spatialDistance = Integer.MAX_VALUE;
+            if (spatialDistance == 0 || spatialDistance >= Integer.MAX_VALUE) {
+                // No path between the two vertices in the topology graph.
+                // SpatialDistanceCalculator may return either 0 or Integer.MAX_VALUE
+                // for the no-path case (depending on caller); we treat both the same.
+                // The substituted value bounds how punishing the cross-device case is.
+                // Configurable via DBScanEngineFactory#setNoPathDistance (ALEC-297).
+                spatialDistance = noPathDistance;
             }
         }
 
@@ -88,6 +99,10 @@ public class AlarmInSpaceTimeDistanceMeasure implements DistanceMeasure {
     @Override
     public double getBeta() {
         return beta;
+    }
+
+    public double getNoPathDistance() {
+        return noPathDistance;
     }
 
     @Override

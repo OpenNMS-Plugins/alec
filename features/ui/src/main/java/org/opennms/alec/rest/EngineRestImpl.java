@@ -140,6 +140,7 @@ public class EngineRestImpl implements EngineRest {
         dbScanEngineFactory.setAlpha(engineParameter.getAlpha());
         dbScanEngineFactory.setBeta(engineParameter.getBeta());
         dbScanEngineFactory.setEpsilon(engineParameter.getEpsilon());
+        dbScanEngineFactory.setNoPathDistance(engineParameter.getNoPathDistance());
         dbScanEngineFactory.setDistanceMeasureFactoryName(engineParameter.getDistanceMeasureName());
         driver.setEngineFactory(dbScanEngineFactory);
         Response response = driverInit(driver);
@@ -151,6 +152,7 @@ public class EngineRestImpl implements EngineRest {
                     .alpha(dbScanEngineFactory.getAlpha())
                     .beta(dbScanEngineFactory.getBeta())
                     .epsilon(dbScanEngineFactory.getEpsilon())
+                    .noPathDistance(dbScanEngineFactory.getNoPathDistance())
                     .distanceMeasureName(dbScanEngineFactory.getDistanceMeasureFactoryName())
                     .engineName(dbScanEngineFactory.getName())
                     .build());

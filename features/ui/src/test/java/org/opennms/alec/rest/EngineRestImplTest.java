@@ -199,6 +199,33 @@ public class EngineRestImplTest {
         assertThat(argumentCaptor.getValue(), equalTo(getParameterAsString(getParameter().alpha(DBScanEngine.DEFAULT_ALPHA).build())));
     }
 
+    @Test
+    public void testSetDbScanAppliesNoPathDistanceToFactory() throws JsonProcessingException {
+        EngineRestImpl underTest = new EngineRestImpl(kvStore, engineRegistry, engineFactories);
+
+        when(kvStore.putAsync(anyString(), anyString(), anyString())).thenReturn(future);
+        when(future.join()).thenReturn(1L);
+
+        EngineParameter custom = EngineParameterImpl.newBuilder()
+                .alpha(144.47117699d)
+                .beta(0.55257784d)
+                .epsilon(100d)
+                .noPathDistance(42d)
+                .distanceMeasureName("alarminspaceandtimedistance")
+                .engineName("dbscan")
+                .build();
+
+        try (Response result = underTest.setEngineConfiguration(custom)) {
+            assertThat(result.getStatus(), equalTo(Response.Status.OK.getStatusCode()));
+        }
+
+        DBScanEngineFactory dbScanFactory = (DBScanEngineFactory) engineFactories.stream()
+                .filter(f -> "dbscan".equals(f.getName()))
+                .findFirst()
+                .orElseThrow();
+        assertThat(dbScanFactory.getNoPathDistance(), equalTo(42d));
+    }
+
     private EngineParameterImpl.Builder getParameter() {
         return EngineParameterImpl.newBuilder()
                 .alpha(1d)

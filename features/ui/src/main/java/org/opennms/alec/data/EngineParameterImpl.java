@@ -16,6 +16,7 @@ public class EngineParameterImpl implements EngineParameter {
     private final Double alpha;
     private final Double beta;
     private final Double epsilon;
+    private final Double noPathDistance;
     private final String distanceMeasureName;
     private final String engineName;
     private final String remoteUri;
@@ -26,6 +27,7 @@ public class EngineParameterImpl implements EngineParameter {
         alpha = builder.alpha;
         beta = builder.beta;
         epsilon = builder.epsilon;
+        noPathDistance = builder.noPathDistance;
         distanceMeasureName = builder.distanceMeasureName;
         engineName = builder.engineName;
         remoteUri = builder.remoteUri;
@@ -42,6 +44,7 @@ public class EngineParameterImpl implements EngineParameter {
         builder.alpha = copy.getAlpha();
         builder.beta = copy.getBeta();
         builder.epsilon = copy.getEpsilon();
+        builder.noPathDistance = copy.getNoPathDistance();
         builder.distanceMeasureName = copy.getDistanceMeasureName();
         builder.engineName = copy.getEngineName();
         builder.remoteUri = copy.getRemoteUri();
@@ -94,6 +97,17 @@ public class EngineParameterImpl implements EngineParameter {
     }
 
     @Override
+    public Double getNoPathDistance() {
+        if (Optional.ofNullable(noPathDistance).isEmpty()) {
+            if (DBSCAN.equals(getEngineName())) {
+                return AlarmInSpaceTimeDistanceMeasure.DEFAULT_NO_PATH_DISTANCE;
+            }
+            return null;
+        }
+        return noPathDistance;
+    }
+
+    @Override
     public String getDistanceMeasureName() {
         if (Optional.ofNullable(distanceMeasureName).isEmpty()) {
             if (DBSCAN.equals(engineName)) {
@@ -129,6 +143,7 @@ public class EngineParameterImpl implements EngineParameter {
         private Double alpha;
         private Double beta;
         private Double epsilon;
+        private Double noPathDistance;
         private String distanceMeasureName;
         private String engineName;
         private String remoteUri;
@@ -154,6 +169,11 @@ public class EngineParameterImpl implements EngineParameter {
 
         public Builder epsilon(Double val) {
             epsilon = val;
+            return this;
+        }
+
+        public Builder noPathDistance(Double val) {
+            noPathDistance = val;
             return this;
         }
 
@@ -193,6 +213,7 @@ public class EngineParameterImpl implements EngineParameter {
                 .add("alpha=" + alpha)
                 .add("beta=" + beta)
                 .add("epsilon=" + epsilon)
+                .add("noPathDistance=" + noPathDistance)
                 .add("distanceMeasureName='" + distanceMeasureName + "'")
                 .add("engineName='" + engineName + "'")
                 .add("remoteUri='" + remoteUri + "'")
