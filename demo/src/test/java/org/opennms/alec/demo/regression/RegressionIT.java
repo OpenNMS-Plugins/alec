@@ -36,6 +36,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.junit.After;
 import org.junit.Before;
@@ -72,12 +74,24 @@ public class RegressionIT {
     @After
     public void tearDown() {
         if (state != null) {
-            try {
-                new DemoCleanup(client, state, stateFile).cleanup();
-            } catch (Exception e) {
-                System.err.println("Cleanup failed: " + e.getMessage());
+            // Don't swallow cleanup failures: if cleanup leaves demo
+            // resources behind, the next test on this shared OpenNMS will
+            // observe a polluted environment. Failing fast forces the
+            // operator (or a follow-up nuke run) to fix the leftovers
+            // before more tests pile up on top of them.
+            boolean ok = new DemoCleanup(client, state, stateFile).cleanup();
+            if (!ok) {
+                throw new IllegalStateException(
+                        "Demo cleanup did not complete cleanly; see earlier WARN logs. "
+                        + "Re-run with the cleanup or nuke command before the next test.");
             }
         }
+    }
+
+    private static Set<Integer> demoNodeIds(DemoState s) {
+        return s.getNodes().stream()
+                .map(DemoState.NodeRecord::getNodeId)
+                .collect(Collectors.toSet());
     }
 
     @Test
@@ -89,11 +103,15 @@ public class RegressionIT {
 
         AlarmInjector injector = new AlarmInjector(client, state);
         injector.injectLinearChainFailure();
-        injector.waitForAlarms(3, Duration.ofMinutes(1));
+        // linear-3 injects 3 alarms on each of 2 nodes — wait for all 6 so
+        // the situation count below is checked against the final state, not
+        // a partial mid-injection snapshot.
+        injector.waitForAlarms(6, Duration.ofMinutes(1));
 
         SituationVerifier verifier = new SituationVerifier(client);
-        List<Alarm> situations = verifier.waitForSituation(SITUATION_TIMEOUT);
-        assertThat("Expected at least 1 situation", situations, hasSize(greaterThanOrEqualTo(1)));
+        List<Alarm> situations = verifier.waitForSituation(demoNodeIds(state), SITUATION_TIMEOUT);
+        assertThat("linear-3 should produce at least 1 situation involving demo nodes",
+                situations, hasSize(greaterThanOrEqualTo(1)));
     }
 
     @Test
@@ -106,11 +124,13 @@ public class RegressionIT {
 
         AlarmInjector injector = new AlarmInjector(client, state);
         injector.injectStarFailure();
-        injector.waitForAlarms(3, Duration.ofMinutes(1));
+        // star-5 injects 3 alarms on each of 5 nodes (hub + 4 spokes) = 15.
+        injector.waitForAlarms(15, Duration.ofMinutes(1));
 
         SituationVerifier verifier = new SituationVerifier(client);
-        List<Alarm> situations = verifier.waitForSituation(SITUATION_TIMEOUT);
-        assertThat("Expected at least 1 situation", situations, hasSize(greaterThanOrEqualTo(1)));
+        List<Alarm> situations = verifier.waitForSituation(demoNodeIds(state), SITUATION_TIMEOUT);
+        assertThat("star-5 should produce at least 1 situation involving demo nodes",
+                situations, hasSize(greaterThanOrEqualTo(1)));
     }
 
     @Test
@@ -125,7 +145,8 @@ public class RegressionIT {
         injector.waitForAlarms(3, Duration.ofMinutes(1));
 
         SituationVerifier verifier = new SituationVerifier(client);
-        List<Alarm> situations = verifier.waitForSituation(SITUATION_TIMEOUT);
-        assertThat("Expected at least 1 situation", situations, hasSize(greaterThanOrEqualTo(1)));
+        List<Alarm> situations = verifier.waitForSituation(demoNodeIds(state), SITUATION_TIMEOUT);
+        assertThat("single should produce at least 1 situation involving demo nodes",
+                situations, hasSize(greaterThanOrEqualTo(1)));
     }
 }

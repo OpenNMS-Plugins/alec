@@ -47,11 +47,12 @@ import org.opennms.alec.driver.test.MockInventoryType;
  * (total path < ~117 for default epsilon=100, alpha=144.47, beta=0.55) while routers
  * separated by 3+ hops are far enough apart to remain in separate situations.
  *
- * With PARENT_WEIGHT=10 and PEER_WEIGHT=20:
- * - Adjacent ports via link: 20+20 = 40 (clusters easily)
- * - 2 hops (R1→R2→R3): ~100 (borderline)
- * - 3+ hops: >140 (won't cluster at same time)
- * - 3+ hops with temporal gap: even larger (definitely separate)
+ * With PARENT_WEIGHT=10 and PEER_WEIGHT=40 (see constants below):
+ * - Adjacent ports via link: 40+40 = 80 — clusters at default epsilon=100
+ *   (DBScan distance ≈ 144.47 * 0.45 * 80/100 ≈ 52)
+ * - 2 hops through one intermediate router: ~220 — does not cluster
+ *   (DBScan distance ≈ 144.47 * 0.45 * 220/100 ≈ 143, > epsilon)
+ * - 3+ hops: even further apart, definitely separate situations
  */
 public class RouterTopology {
 

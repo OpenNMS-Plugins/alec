@@ -32,7 +32,9 @@ import static org.awaitility.Awaitility.await;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import org.opennms.alec.demo.client.OpenNMSClient;
 import org.opennms.alec.demo.client.model.Alarm;
@@ -49,33 +51,42 @@ public class SituationVerifier {
         this.client = client;
     }
 
-    public List<Alarm> waitForSituation(Duration timeout) {
-        LOG.info("Waiting for at least 1 active situation (timeout: {}s)...", timeout.getSeconds());
+    /**
+     * Waits for at least one active situation involving one of the given
+     * demo nodes. A situation is considered "involving" a demo node if any
+     * of its related alarms has a {@code nodeId} in the set, or its own
+     * {@code nodeId} matches. Without this scoping, an unrelated pre-existing
+     * situation in the OpenNMS instance can satisfy the wait immediately.
+     */
+    public List<Alarm> waitForSituation(Set<Integer> demoNodeIds, Duration timeout) {
+        LOG.info("Waiting for at least 1 active situation involving demo nodes {} (timeout: {}s)...",
+                demoNodeIds, timeout.getSeconds());
         await().atMost(timeout.toMillis(), TimeUnit.MILLISECONDS)
                 .pollInterval(5, TimeUnit.SECONDS)
-                .until(() -> !client.getActiveSituations().isEmpty());
-        List<Alarm> situations = client.getActiveSituations();
-        LOG.info("Found {} active situation(s)", situations.size());
+                .until(() -> !filterToDemoNodes(client.getActiveSituations(), demoNodeIds).isEmpty());
+        List<Alarm> situations = filterToDemoNodes(client.getActiveSituations(), demoNodeIds);
+        LOG.info("Found {} active situation(s) involving demo nodes", situations.size());
         return situations;
     }
 
-    public List<Alarm> waitForSituations(int count, Duration timeout) {
-        LOG.info("Waiting for at least {} active situations (timeout: {}s)...", count, timeout.getSeconds());
+    public List<Alarm> waitForSituations(Set<Integer> demoNodeIds, int count, Duration timeout) {
+        LOG.info("Waiting for at least {} active situations involving demo nodes {} (timeout: {}s)...",
+                count, demoNodeIds, timeout.getSeconds());
         await().atMost(timeout.toMillis(), TimeUnit.MILLISECONDS)
                 .pollInterval(5, TimeUnit.SECONDS)
-                .until(() -> client.getActiveSituations().size() >= count);
-        List<Alarm> situations = client.getActiveSituations();
-        LOG.info("Found {} active situation(s)", situations.size());
+                .until(() -> filterToDemoNodes(client.getActiveSituations(), demoNodeIds).size() >= count);
+        List<Alarm> situations = filterToDemoNodes(client.getActiveSituations(), demoNodeIds);
+        LOG.info("Found {} active situation(s) involving demo nodes", situations.size());
         return situations;
     }
 
-    public String getSituationSummary() {
-        List<Alarm> situations = client.getSituations();
+    public String getSituationSummary(Set<Integer> demoNodeIds) {
+        List<Alarm> situations = filterToDemoNodes(client.getSituations(), demoNodeIds);
         if (situations.isEmpty()) {
-            return "No situations found.";
+            return "No situations found involving demo nodes " + demoNodeIds + ".";
         }
         StringBuilder sb = new StringBuilder();
-        sb.append("=== Situations Summary ===\n");
+        sb.append("=== Demo Situations Summary ===\n");
         for (int i = 0; i < situations.size(); i++) {
             Alarm sit = situations.get(i);
             sb.append(String.format("Situation %d: id=%d, severity=%s, reductionKey=%s\n",
@@ -89,8 +100,29 @@ public class SituationVerifier {
                 }
             }
         }
-        List<Alarm> active = client.getActiveSituations();
-        sb.append(String.format("Total: %d situations (%d active)\n", situations.size(), active.size()));
+        List<Alarm> active = filterToDemoNodes(client.getActiveSituations(), demoNodeIds);
+        sb.append(String.format("Total: %d situations involving demo nodes (%d active)\n",
+                situations.size(), active.size()));
         return sb.toString();
+    }
+
+    private static List<Alarm> filterToDemoNodes(List<Alarm> situations, Set<Integer> demoNodeIds) {
+        return situations.stream()
+                .filter(s -> involvesAnyOf(s, demoNodeIds))
+                .collect(Collectors.toList());
+    }
+
+    private static boolean involvesAnyOf(Alarm situation, Set<Integer> demoNodeIds) {
+        if (situation.getNodeId() != null && demoNodeIds.contains(situation.getNodeId())) {
+            return true;
+        }
+        if (situation.getRelatedAlarms() != null) {
+            for (Alarm related : situation.getRelatedAlarms()) {
+                if (related.getNodeId() != null && demoNodeIds.contains(related.getNodeId())) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }

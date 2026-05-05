@@ -302,13 +302,37 @@ public class OpenNMSClient {
         Response response = postXml(
                 restTarget().path("nodes").path(String.valueOf(nodeId)).path("snmpinterfaces"),
                 iface.toXml());
-        // Tolerate 500 from unique constraint — provisioning scan may have already created it
         if (response.getStatus() == 500) {
-            LOG.debug("SNMP interface {} already exists on node {} (provisioning scan), skipping",
-                    iface.getIfDescr(), nodeId);
-            return;
+            // Treat HTTP 500 as "already exists" only when the response body
+            // confirms a unique-constraint violation. Without this guard, real
+            // server-side failures (malformed XML, transient DB errors) would
+            // be silently swallowed and the node would end up with missing
+            // interfaces.
+            String body = "";
+            try {
+                body = response.readEntity(String.class);
+            } catch (Exception ignore) {
+                // fall through — treat as not-an-already-exists case
+            }
+            if (looksLikeUniqueConstraintViolation(body)) {
+                LOG.debug("SNMP interface {} already exists on node {} (provisioning scan), skipping",
+                        iface.getIfDescr(), nodeId);
+                return;
+            }
+            throw new RuntimeException("createSnmpInterface failed (HTTP 500): " + body);
         }
         requireSuccess("createSnmpInterface", response);
+    }
+
+    private static boolean looksLikeUniqueConstraintViolation(String responseBody) {
+        if (responseBody == null) {
+            return false;
+        }
+        String lower = responseBody.toLowerCase();
+        return lower.contains("constraintviolation")
+                || lower.contains("unique constraint")
+                || lower.contains("duplicate key")
+                || lower.contains("already exists");
     }
 
     // --- User Defined Links ---

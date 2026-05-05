@@ -29,8 +29,11 @@
 package org.opennms.alec.demo.cleanup;
 
 import java.nio.file.Path;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.opennms.alec.demo.client.OpenNMSClient;
+import org.opennms.alec.demo.client.model.Alarm;
 import org.opennms.alec.demo.state.DemoState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,9 +52,18 @@ public class DemoCleanup {
         this.stateFile = stateFile;
     }
 
-    public void cleanup() {
+    /**
+     * Best-effort cleanup of demo-created resources. Returns true iff every
+     * step succeeded and the state file is safe to delete; returns false if
+     * any step failed (in which case the state file is intentionally kept so
+     * the caller can retry targeted cleanup or escalate to a brute-force
+     * pass).
+     */
+    public boolean cleanup() {
         LOG.info("Starting cleanup for scenario '{}' (foreignSource='{}')",
                 state.getScenario(), state.getForeignSource());
+
+        boolean allOk = true;
 
         // 1. Delete all UDLs (remove topology links first)
         for (int udlId : state.getUdlIds()) {
@@ -59,6 +71,7 @@ public class DemoCleanup {
                 client.deleteUDL(udlId);
             } catch (Exception e) {
                 LOG.warn("Failed to delete UDL {}: {}", udlId, e.getMessage());
+                allOk = false;
             }
         }
 
@@ -68,6 +81,7 @@ public class DemoCleanup {
                 client.deleteNodeFromRequisition(state.getForeignSource(), node.getForeignId());
             } catch (Exception e) {
                 LOG.warn("Failed to delete node {} from requisition: {}", node.getForeignId(), e.getMessage());
+                allOk = false;
             }
         }
 
@@ -76,6 +90,7 @@ public class DemoCleanup {
             client.importRequisition(state.getForeignSource());
         } catch (Exception e) {
             LOG.warn("Failed to import requisition after node deletion: {}", e.getMessage());
+            allOk = false;
         }
 
         // 4. Delete the requisition and foreign source definition
@@ -83,11 +98,13 @@ public class DemoCleanup {
             client.deleteRequisition(state.getForeignSource());
         } catch (Exception e) {
             LOG.warn("Failed to delete requisition: {}", e.getMessage());
+            allOk = false;
         }
         try {
             client.deleteForeignSourceDefinition(state.getForeignSource());
         } catch (Exception e) {
             LOG.warn("Failed to delete foreign source definition: {}", e.getMessage());
+            allOk = false;
         }
 
         // 5. Delete deployed nodes from database
@@ -97,22 +114,53 @@ public class DemoCleanup {
             } catch (Exception e) {
                 LOG.debug("Could not delete node {} from database (may already be removed): {}",
                         node.getNodeId(), e.getMessage());
+                // Not fatal — the node may already have been removed by the requisition import.
             }
         }
 
-        // 6. Do not clear alarms globally here.
-        // Alarm cleanup must be limited to demo-created alarms recorded in demo state;
-        // clearing every alarm on the system would affect unrelated operational alarms.
-        LOG.info("Skipping global alarm clear/ack to avoid modifying alarms outside demo state.");
-
-        // 7. Remove state file
-        try {
-            state.delete(stateFile);
-            LOG.info("Removed state file: {}", stateFile);
-        } catch (Exception e) {
-            LOG.warn("Failed to remove state file: {}", e.getMessage());
+        // 6. Clear alarms only for the demo's nodes — never touch alarms on
+        //    unrelated OpenNMS nodes that may belong to actual operational use.
+        Set<Integer> demoNodeIds = state.getNodes().stream()
+                .map(DemoState.NodeRecord::getNodeId)
+                .collect(Collectors.toSet());
+        int alarmsCleared = 0;
+        int alarmFailures = 0;
+        for (Alarm alarm : client.getAlarms()) {
+            if (alarm.getNodeId() == null || !demoNodeIds.contains(alarm.getNodeId())) {
+                continue;
+            }
+            try {
+                client.clearAlarm(alarm.getId());
+                client.acknowledgeAlarm(alarm.getId());
+                alarmsCleared++;
+            } catch (Exception e) {
+                LOG.warn("Failed to clear/ack demo alarm {} on node {}: {}",
+                        alarm.getId(), alarm.getNodeId(), e.getMessage());
+                alarmFailures++;
+            }
+        }
+        LOG.info("Cleared {} demo alarm(s) ({} failure(s))", alarmsCleared, alarmFailures);
+        if (alarmFailures > 0) {
+            allOk = false;
         }
 
-        LOG.info("Cleanup complete.");
+        // 7. Remove state file ONLY if everything above succeeded. If anything
+        //    failed, leave the state file in place so the caller can retry
+        //    targeted cleanup; otherwise demo resources can be stranded.
+        if (allOk) {
+            try {
+                state.delete(stateFile);
+                LOG.info("Removed state file: {}", stateFile);
+            } catch (Exception e) {
+                LOG.warn("Failed to remove state file: {}", e.getMessage());
+                allOk = false;
+            }
+        } else {
+            LOG.warn("Skipping state file deletion because earlier cleanup steps had failures; "
+                    + "state file kept at {} so cleanup can be retried.", stateFile);
+        }
+
+        LOG.info("Cleanup complete (success={}).", allOk);
+        return allOk;
     }
 }

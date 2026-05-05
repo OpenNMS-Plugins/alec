@@ -34,6 +34,8 @@ import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.opennms.alec.demo.cleanup.DemoCleanup;
 import org.opennms.alec.demo.client.OpenNMSClient;
@@ -82,7 +84,7 @@ public class DemoRunner {
                     doInject(client, stateFile);
                     break;
                 case "verify":
-                    doVerify(client);
+                    doVerify(client, stateFile);
                     break;
                 case "cleanup":
                     doCleanup(client, stateFile);
@@ -152,31 +154,63 @@ public class DemoRunner {
         }
 
         LOG.info("Alarm injection complete. Waiting for alarms to be processed...");
-        injector.waitForAlarms(3, Duration.ofMinutes(1));
+        injector.waitForAlarms(expectedAlarmCount(state.getScenario()), Duration.ofMinutes(1));
     }
 
-    static void doVerify(OpenNMSClient client) {
+    /**
+     * Total alarms each scenario injects (must match {@link AlarmInjector}).
+     * Centralised so {@code waitForAlarms} doesn't race the rest of the
+     * scenario's alarms on its way to verification.
+     */
+    static int expectedAlarmCount(String scenario) {
+        switch (scenario) {
+            case "single":
+                return 3;
+            case "linear-3":
+                return 6;     // 3 alarms on each of 2 nodes
+            case "star-5":
+                return 15;    // 3 alarms on each of 5 nodes (hub + 4 spokes)
+            default:
+                throw new IllegalArgumentException("Unknown scenario: " + scenario);
+        }
+    }
+
+    static void doVerify(OpenNMSClient client, Path stateFile) throws IOException {
+        DemoState state = loadState(stateFile);
+        Set<Integer> demoNodeIds = state.getNodes().stream()
+                .map(DemoState.NodeRecord::getNodeId)
+                .collect(Collectors.toSet());
         SituationVerifier verifier = new SituationVerifier(client);
-        List<Alarm> situations = verifier.waitForSituation(SITUATION_TIMEOUT);
-        System.out.println(verifier.getSituationSummary());
-        LOG.info("Verification complete: {} situation(s) found", situations.size());
+        List<Alarm> situations = verifier.waitForSituation(demoNodeIds, SITUATION_TIMEOUT);
+        System.out.println(verifier.getSituationSummary(demoNodeIds));
+        LOG.info("Verification complete: {} situation(s) found involving demo nodes", situations.size());
     }
 
     static void doCleanup(OpenNMSClient client, Path stateFile) throws IOException {
         DemoState state = loadState(stateFile);
-        new DemoCleanup(client, state, stateFile).cleanup();
+        boolean ok = new DemoCleanup(client, state, stateFile).cleanup();
+        if (!ok) {
+            throw new RuntimeException("Cleanup did not complete cleanly — see logs above; "
+                    + "state file kept at " + stateFile + " for retry.");
+        }
     }
 
     static void doNuke(OpenNMSClient client, Path stateFile) {
         LOG.info("Nuking all demo resources for foreign source '{}'", DEFAULT_FOREIGN_SOURCE);
 
-        // If state file exists, use it for targeted cleanup
+        // If state file exists, attempt targeted cleanup first. If it succeeds
+        // completely, we're done. If it partially fails (returns false), we
+        // continue to the brute-force pass below — partial cleanup is exactly
+        // when nuke needs to do its work.
         if (DemoState.exists(stateFile)) {
             try {
                 DemoState state = DemoState.load(stateFile);
-                new DemoCleanup(client, state, stateFile).cleanup();
-                LOG.info("Cleaned up using state file");
-                return;
+                boolean ok = new DemoCleanup(client, state, stateFile).cleanup();
+                if (ok) {
+                    LOG.info("Cleaned up using state file");
+                    return;
+                }
+                LOG.warn("Targeted cleanup did not complete cleanly; running brute-force pass.");
             } catch (Exception e) {
                 LOG.warn("State file cleanup failed, falling back to brute-force: {}", e.getMessage());
             }
@@ -214,7 +248,7 @@ public class DemoRunner {
         try {
             doSetup(client, stateFile, scenario);
             doInject(client, stateFile);
-            doVerify(client);
+            doVerify(client, stateFile);
         } finally {
             if (DemoState.exists(stateFile)) {
                 doCleanup(client, stateFile);

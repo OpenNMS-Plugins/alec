@@ -88,19 +88,47 @@ public class RouterTopologyBuilder {
     }
 
     public void createLink(int nodeIdA, int nodeIdZ, String labelA, String labelZ) {
-        try {
-            client.createUDL(nodeIdA, nodeIdZ, labelA, labelZ);
-            int udlId = client.getUDLId(nodeIdA, nodeIdZ);
-            if (udlId > 0) {
-                state.addUDL(udlId);
-                saveState();
-            }
-            LOG.info("Created link: node{}:{} <-> node{}:{}", nodeIdA, labelA, nodeIdZ, labelZ);
-        } catch (Exception e) {
-            LOG.warn("Failed to create UDL (node{}:{} <-> node{}:{}): {}",
-                    nodeIdA, labelA, nodeIdZ, labelZ, e.getMessage());
-            LOG.warn("Continuing without this link — topology will still work for alarm correlation");
+        client.createUDL(nodeIdA, nodeIdZ, labelA, labelZ);
+        int udlId = lookupUdlIdWithRetry(nodeIdA, nodeIdZ);
+        if (udlId <= 0) {
+            // The UDL was POSTed (no exception above) but cannot be located via
+            // the v2 list call — refuse to silently lose track of it. The
+            // caller almost certainly wants to know, because cleanup keys off
+            // udlIds in DemoState; without an id the link cannot be deleted.
+            throw new RuntimeException("UDL was created but could not be located via v2 API after retries; "
+                    + "topology state would be incomplete for cleanup. node" + nodeIdA + ":" + labelA
+                    + " <-> node" + nodeIdZ + ":" + labelZ);
         }
+        state.addUDL(udlId);
+        saveState();
+        LOG.info("Created link: node{}:{} <-> node{}:{} (udlId={})", nodeIdA, labelA, nodeIdZ, labelZ, udlId);
+    }
+
+    private int lookupUdlIdWithRetry(int nodeIdA, int nodeIdZ) {
+        int attempts = 5;
+        long backoffMs = 200L;
+        Exception lastError = null;
+        for (int i = 0; i < attempts; i++) {
+            try {
+                int id = client.getUDLId(nodeIdA, nodeIdZ);
+                if (id > 0) {
+                    return id;
+                }
+            } catch (Exception e) {
+                lastError = e;
+            }
+            try {
+                Thread.sleep(backoffMs);
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                return -1;
+            }
+            backoffMs *= 2;
+        }
+        if (lastError != null) {
+            LOG.warn("UDL lookup failed after {} attempts: {}", attempts, lastError.getMessage());
+        }
+        return -1;
     }
 
     private void initRequisition() {
@@ -174,7 +202,12 @@ public class RouterTopologyBuilder {
         try {
             state.save(stateFile);
         } catch (IOException e) {
-            LOG.warn("Failed to save state: {}", e.getMessage());
+            // Failing to persist state means cleanup will be unable to
+            // identify what we created — the demo could provision nodes/
+            // links and never be able to remove them. Fail loudly so the
+            // caller can fix the path before more resources are created.
+            throw new RuntimeException("Failed to persist demo state to " + stateFile
+                    + " — refusing to continue creating resources we cannot record.", e);
         }
     }
 }

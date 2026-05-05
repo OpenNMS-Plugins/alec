@@ -31,7 +31,9 @@ package org.opennms.alec.demo.inject;
 import static org.awaitility.Awaitility.await;
 
 import java.time.Duration;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import org.opennms.alec.demo.client.OpenNMSClient;
 import org.opennms.alec.demo.client.model.Event;
@@ -74,12 +76,28 @@ public class AlarmInjector {
         client.sendEvent(Event.interfaceDown(nodeIdB, ipB));
     }
 
+    /**
+     * Waits for at least {@code expectedCount} alarms whose {@code nodeId} matches
+     * one of the nodes recorded in the demo state. Other alarms in the system
+     * (operational, from prior runs, etc.) are not counted; this prevents the
+     * wait from completing immediately on a non-empty OpenNMS instance.
+     */
     public void waitForAlarms(int expectedCount, Duration timeout) {
-        LOG.info("Waiting for at least {} alarms (timeout: {}s)...", expectedCount, timeout.getSeconds());
+        Set<Integer> demoNodeIds = state.getNodes().stream()
+                .map(DemoState.NodeRecord::getNodeId)
+                .collect(Collectors.toSet());
+        LOG.info("Waiting for at least {} alarms on demo nodes {} (timeout: {}s)...",
+                expectedCount, demoNodeIds, timeout.getSeconds());
         await().atMost(timeout.toMillis(), TimeUnit.MILLISECONDS)
                 .pollInterval(3, TimeUnit.SECONDS)
-                .until(() -> client.getAlarms().size() >= expectedCount);
-        LOG.info("Found {} alarms", client.getAlarms().size());
+                .until(() -> countAlarmsOnDemoNodes(demoNodeIds) >= expectedCount);
+        LOG.info("Found {} alarms on demo nodes", countAlarmsOnDemoNodes(demoNodeIds));
+    }
+
+    private long countAlarmsOnDemoNodes(Set<Integer> demoNodeIds) {
+        return client.getAlarms().stream()
+                .filter(a -> a.getNodeId() != null && demoNodeIds.contains(a.getNodeId()))
+                .count();
     }
 
     public void injectLinearChainFailure() {

@@ -192,6 +192,27 @@ public class RouterScenarioTest {
                 situations, hasSize(2));
     }
 
+    /**
+     * 4-router ring: R1 — R2 — R3 — R4 — R1.
+     * Link failure between R1 and R2 — alarms on adjacent ports
+     * connected by a link should still cluster into 1 situation
+     * even though the closing edge (R4 — R1) gives R1 a second
+     * peer.
+     */
+    @Test
+    public void linkFailureInRingTopology() {
+        List<InventoryObject> inventory = RouterTopology.ring("R1", "R2", "R3", "R4");
+
+        List<Alarm> alarmList = alarms.linkDown("R1", 1, "R2", 0, T0);
+
+        List<Situation> situations = driver.run(alarmList, inventory);
+
+        assertThat("Adjacent link failure in a ring should produce exactly 1 situation",
+                situations, hasSize(1));
+        assertThat("Situation should contain both ifDown alarms",
+                getAlarmIds(situations.get(0)), hasSize(2));
+    }
+
     private static Set<String> getAlarmIds(Situation situation) {
         return situation.getAlarms().stream()
                 .map(Alarm::getId)
