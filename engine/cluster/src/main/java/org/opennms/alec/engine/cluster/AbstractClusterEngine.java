@@ -513,7 +513,15 @@ public abstract class AbstractClusterEngine implements Engine, GraphProvider, Sp
                 situationBuilders.size());
         situationBuilders.forEach(situationBuilder -> {
             situationBuilder.setDiagnosticText(getDiagnosticTextForSituation(situationBuilder.build()));
-            situationBuilder.setEngineParameter(Thread.currentThread().getName().substring(20));
+            // Driver names its tick thread "ALEC Driver Tick -- <params>" (prefix is 20 chars).
+            // In tests or non-driver contexts the prefix may be absent; fall back to the
+            // whole thread name rather than throwing StringIndexOutOfBoundsException.
+            String threadName = Thread.currentThread().getName();
+            String enginePrefix = "ALEC Driver Tick -- ";
+            situationBuilder.setEngineParameter(
+                    threadName.startsWith(enginePrefix)
+                            ? threadName.substring(enginePrefix.length())
+                            : threadName);
         });
         LOG.debug("{}: Done generating diagnostic texts.", context.getTimestampInMillis());
     }

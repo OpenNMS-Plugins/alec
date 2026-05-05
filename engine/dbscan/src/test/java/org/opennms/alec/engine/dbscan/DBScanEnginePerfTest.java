@@ -60,6 +60,10 @@ public class DBScanEnginePerfTest {
     @Test
     public void canRunDBScanOnLargeGraphs() {
         final DBScanEngine dbScanEngine = new DBScanEngine(new MetricRegistry(), AlarmInSpaceTimeDistanceMeasure.DEFAULT_EPSILON, DBScanEngine.DEFAULT_ALPHA, DBScanEngine.DEFAULT_BETA, new AlarmInSpaceAndTimeDistanceMeasureFactory());
+        // After ALEC-297 the default noPathDistance lets disconnected-IO alarms cluster,
+        // so this test now produces a situation; register a no-op handler (the other
+        // tests in this file do the same) instead of letting the engine NPE.
+        dbScanEngine.registerSituationHandler(mock(SituationHandler.class));
         dbScanEngine.init(Collections.emptyList(), Collections.emptyList(), Collections.emptyList(),
                 Collections.emptyList());
         final int K = 500;
