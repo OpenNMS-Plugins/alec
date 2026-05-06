@@ -81,4 +81,22 @@ public class EngineParameterImplTest {
         assertThat("hellinger", equalTo(engineParameter.getDistanceMeasureName()));
         assertThat("dbscan", equalTo(engineParameter.getEngineName()));
     }
+
+    @Test
+    public void deserializeIgnoresUnknownFields() throws JsonProcessingException {
+        // Persisted JSON from a future version (e.g. ALEC-297's noPathDistance)
+        // must not cause deserialization to fail; the unknown field is simply
+        // dropped, otherwise the alec.features.ui bundle won't start when
+        // upgraded/downgraded across schema versions.
+        String json = "{\"engineName\":\"dbscan\",\"distanceMeasureName\":\"alarminspaceandtimedistance\","
+                + "\"alpha\":1.0,\"beta\":2.0,\"epsilon\":3.0,\"noPathDistance\":100.0,"
+                + "\"someFutureField\":\"whatever\"}";
+        EngineParameter engineParameter = objectMapper.readValue(json, EngineParameter.class);
+
+        assertThat(1d, equalTo(engineParameter.getAlpha()));
+        assertThat(2d, equalTo(engineParameter.getBeta()));
+        assertThat(3d, equalTo(engineParameter.getEpsilon()));
+        assertThat("alarminspaceandtimedistance", equalTo(engineParameter.getDistanceMeasureName()));
+        assertThat("dbscan", equalTo(engineParameter.getEngineName()));
+    }
 }
