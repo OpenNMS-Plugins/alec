@@ -71,6 +71,4 @@ public interface SituationRest {
 
     @POST
     Response createSituation(CreateSituationPayload createSituationPayload);
-
-    void updateAgreement(boolean doStore);
 }

@@ -11,7 +11,6 @@ import MemoBox from '@/components/MemoBox.vue'
 
 import { FeatherButton } from '@featherds/button'
 import { ref, watch } from 'vue'
-import { useUserStore } from '@/store/useUserStore'
 import { formatDate } from '@/helpers/utils'
 import CONST from '@/helpers/constants'
 import { groupBy, size } from 'lodash'
@@ -23,8 +22,6 @@ const appStore = useAppStore()
 const situationStore = useSituationsStore()
 
 const REJECTED = CONST.REJECTED
-
-const userStore = useUserStore()
 
 const props = defineProps<{
 	situationInfo: TSituation
@@ -62,7 +59,7 @@ const handleFeedbackSituation = async (action: string) => {
 				:situation-id="props.situationInfo.id"
 			/>
 
-			<div v-if="userStore.allowSave" class="btn-row">
+			<div class="btn-row">
 				<FeatherButton
 					class="btn"
 					data-test="btn-reject"

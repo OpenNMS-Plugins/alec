@@ -40,9 +40,7 @@ import org.junit.Test;
 import org.opennms.alec.datasource.api.AlarmDatasource;
 import org.opennms.alec.datasource.api.SituationDatasource;
 import org.opennms.alec.engine.api.EngineRegistry;
-import org.opennms.alec.grpc.GrpcConnectionConfig;
 import org.opennms.integration.api.v1.distributed.KeyValueStore;
-import org.opennms.integration.api.v1.runtime.RuntimeInfo;
 
 public class BlueprintContextTest extends CamelBlueprintTestSupport {
 
@@ -71,12 +69,6 @@ public class BlueprintContextTest extends CamelBlueprintTestSupport {
 
         AlarmDatasource alarmDatasource = mock(AlarmDatasource.class);
         services.put(AlarmDatasource.class.getName(), asService(alarmDatasource, null));
-
-        RuntimeInfo runtimeInfo = mock(RuntimeInfo.class);
-        services.put(RuntimeInfo.class.getName(), asService(runtimeInfo, null));
-
-        GrpcConnectionConfig grpcConnectionConfig = mock(GrpcConnectionConfig.class);
-        services.put(GrpcConnectionConfig.class.getName(), asService(grpcConnectionConfig, null));
     }
 
     @Test

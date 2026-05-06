@@ -42,10 +42,8 @@ import java.util.stream.Collectors;
 
 import javax.ws.rs.core.Response;
 
-import org.opennms.alec.data.Agreement;
 import org.opennms.alec.data.AlarmSet;
 import org.opennms.alec.data.CreateSituationPayload;
-import org.opennms.alec.data.KeyEnum;
 import org.opennms.alec.data.SituationStatus;
 import org.opennms.alec.data.SituationStatusImpl;
 import org.opennms.alec.datasource.api.Alarm;
@@ -55,58 +53,20 @@ import org.opennms.alec.datasource.api.Situation;
 import org.opennms.alec.datasource.api.SituationDatasource;
 import org.opennms.alec.datasource.api.Status;
 import org.opennms.alec.datasource.common.ImmutableSituation;
-import org.opennms.alec.grpc.GrpcConnectionConfig;
-import org.opennms.alec.grpc.SituationClient;
-import org.opennms.integration.api.v1.distributed.KeyValueStore;
-import org.opennms.integration.api.v1.runtime.RuntimeInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class SituationRestImpl implements SituationRest {
     private static final Logger LOG = LoggerFactory.getLogger(SituationRestImpl.class);
     public static final String SITUATION_NOT_FOUND = "Situation {0} not found";
 
-    private final ObjectMapper objectMapper;
-    private final KeyValueStore<String> kvStore;
     private final SituationDatasource situationDatasource;
-    private final GrpcConnectionConfig grpcConnectionConfig;
-    private SituationClient client;
     private final AlarmDatasource alarmDatasource;
-    private final RuntimeInfo runtimeInfo;
 
-    public SituationRestImpl(KeyValueStore<String> kvStore,
-                             SituationDatasource situationDatasource,
-                             AlarmDatasource alarmDatasource,
-                             RuntimeInfo runtimeInfo,
-                             GrpcConnectionConfig grpcConnectionConfig) {
-        this.kvStore = Objects.requireNonNull(kvStore);
+    public SituationRestImpl(SituationDatasource situationDatasource,
+                             AlarmDatasource alarmDatasource) {
         this.situationDatasource = Objects.requireNonNull(situationDatasource);
         this.alarmDatasource = Objects.requireNonNull(alarmDatasource);
-        this.runtimeInfo = Objects.requireNonNull(runtimeInfo);
-        objectMapper = new ObjectMapper();
-
-        this.grpcConnectionConfig = grpcConnectionConfig;
-        client = new SituationClient(canWeStore(kvStore), this.grpcConnectionConfig);
-    }
-
-    //Only for testing
-    protected SituationRestImpl(KeyValueStore<String> kvStore,
-                             SituationDatasource situationDatasource,
-                             AlarmDatasource alarmDatasource,
-                             RuntimeInfo runtimeInfo,
-                             GrpcConnectionConfig grpcConnectionConfig,
-                             SituationClient situationClient) {
-        this.kvStore = Objects.requireNonNull(kvStore);
-        this.situationDatasource = Objects.requireNonNull(situationDatasource);
-        this.alarmDatasource = Objects.requireNonNull(alarmDatasource);
-        this.runtimeInfo = Objects.requireNonNull(runtimeInfo);
-        objectMapper = new ObjectMapper();
-
-        this.grpcConnectionConfig = grpcConnectionConfig;
-        client = situationClient;
     }
 
     @Override
@@ -115,22 +75,11 @@ public class SituationRestImpl implements SituationRest {
             Optional<Situation> situationOptional = situationDatasource.getSituation(Integer.parseInt(situationId));
             if (situationOptional.isPresent()) {
                 final Situation situation = situationOptional.get();
-                //check status
                 if (Status.REJECTED.equals(situation.getStatus())) {
                     LOG.debug("Situation {} already rejected", situationId);
                     return Response.accepted(MessageFormat.format("Situation {0} already rejected", situationId)).build();
                 }
                 feedback = String.format("reject situation [%s]", situationId);
-                //Store rejected situation to the cloud before removing related alarms
-                client.sendSituation(ImmutableSituation.newBuilderFrom(situation)
-                                .setStatus(Status.REJECTED)
-                                .setAlarms(situation.getAlarms())
-                                .addFeedback(feedback)
-                                .build(),
-                        runtimeInfo.getSystemId());
-                kvStoreSituationsByStatus();
-
-                //Free alarms and Forward situation to opennms
                 situationDatasource.forwardSituation(ImmutableSituation.newBuilderFrom(situation)
                         .setStatus(Status.REJECTED)
                         .setAlarms(Collections.emptySet())
@@ -155,13 +104,11 @@ public class SituationRestImpl implements SituationRest {
             Optional<Situation> situationOptional = situationDatasource.getSituation(Integer.parseInt(situationId));
             if (situationOptional.isPresent()) {
                 Situation situation = situationOptional.get();
-                //check status
                 if (Status.ACCEPTED.equals(situation.getStatus())) {
                     LOG.debug("Situation {} already accepted", situationId);
                     return Response.accepted(MessageFormat.format("Situation {0} already accepted", situationId)).build();
                 }
-                //Update situation
-                return forwardAndStoreSituation(ImmutableSituation.newBuilderFrom(situation).setStatus(Status.ACCEPTED).build(), situation.getAlarms());
+                return forwardSituation(ImmutableSituation.newBuilderFrom(situation).setStatus(Status.ACCEPTED).build(), situation.getAlarms());
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -209,7 +156,7 @@ public class SituationRestImpl implements SituationRest {
                     return ALECRestUtils.noContent();
                 }
                 String feedback = String.format("add alarm(s) [%s] to situation [%s]", alarm.getAlarmIdList(), alarm.getSituationId());
-                return forwardAndStoreSituation(ImmutableSituation.newBuilderFrom(oldSituation).addFeedback(feedback).build(), alarmSet);
+                return forwardSituation(ImmutableSituation.newBuilderFrom(oldSituation).addFeedback(feedback).build(), alarmSet);
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -233,7 +180,7 @@ public class SituationRestImpl implements SituationRest {
                     return ALECRestUtils.noContent();
                 } else {
                     String feedback = String.format("remove alarm(s) [%s] to situation [%s]", alarm.getAlarmIdList(), situationId);
-                    return forwardAndStoreSituation(ImmutableSituation.newBuilderFrom(oldSituation).addFeedback(feedback).setStatus(Status.REMOVED_ALARM).build(), alarmSet);
+                    return forwardSituation(ImmutableSituation.newBuilderFrom(oldSituation).addFeedback(feedback).setStatus(Status.REMOVED_ALARM).build(), alarmSet);
                 }
             }
         } catch (InterruptedException e) {
@@ -270,7 +217,7 @@ public class SituationRestImpl implements SituationRest {
                 .setStatus(Status.USER_CREATED)
                 .build();
         if (situation.getAlarms().size() >= 2) {
-            forwardAndStoreSituation(situation, alarmSetToAdd);
+            forwardSituation(situation, alarmSetToAdd);
             return Response.ok().build();
         } else {
             return ALECRestUtils.noContent();
@@ -300,58 +247,13 @@ public class SituationRestImpl implements SituationRest {
         return true;
     }
 
-    private Response forwardAndStoreSituation(Situation oldSituation, Set<Alarm> alarms) {
+    private Response forwardSituation(Situation oldSituation, Set<Alarm> alarms) {
         try {
             Situation newSituation = ImmutableSituation.newBuilderFrom(oldSituation).setAlarms(alarms).build();
-            //Forward situation to ONMS
             situationDatasource.forwardSituation(newSituation);
-            //Store  situation to the cloud
-            client.sendSituation(newSituation, runtimeInfo.getSystemId());
-
-            kvStoreSituationsByStatus();
             return Response.ok().build();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return ALECRestUtils.somethingWentWrong(e);
         } catch (Exception e) {
             return ALECRestUtils.somethingWentWrong(e);
         }
-    }
-
-    private void kvStoreSituationsByStatus() throws JsonProcessingException, InterruptedException {
-        List<Situation> acceptedSituations = situationDatasource.getSituations().stream()
-                .filter(s -> Status.ACCEPTED.equals(s.getStatus()))
-                .collect(Collectors.toList());
-        List<Situation> rejectedSituations = situationDatasource.getSituations().stream()
-                .filter(s -> Status.REJECTED.equals(s.getStatus()))
-                .collect(Collectors.toList());
-
-        kvStore.put(KeyEnum.ACCEPTED_SITUATION.toString(), objectMapper.writeValueAsString(acceptedSituations), ALECRestUtils.ALEC_CONFIG);
-        kvStore.put(KeyEnum.REJECTED_SITUATION.toString(), objectMapper.writeValueAsString(rejectedSituations), ALECRestUtils.ALEC_CONFIG);
-    }
-
-    private boolean canWeStore(KeyValueStore<String> kvStore) {
-        Optional<String> agreementConfiguration = kvStore.get(KeyEnum.AGREEMENT.toString(), ALECRestUtils.ALEC_CONFIG);
-
-        boolean doStore;
-        if (agreementConfiguration.isPresent()) {
-            try {
-                doStore = objectMapper.readValue(agreementConfiguration.get(), Agreement.class).isAgreed();
-            } catch (JsonProcessingException e) {
-                doStore = false;
-            }
-        } else {
-            doStore = false;
-        }
-        return doStore;
-    }
-
-    @Override
-    public void updateAgreement(boolean doStore) {
-        client.createChannel(doStore);
-    }
-
-    public void destroy() {
-        client.destroy();
     }
 }
