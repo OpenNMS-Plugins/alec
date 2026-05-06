@@ -7,7 +7,7 @@
             <cm:property name="epsilon" value="100"/>
             <cm:property name="alpha" value="144.47117699"/>
             <cm:property name="beta" value="0.55257784"/>
-            <cm:property name="distanceMeasure" value="alarmInSpaceAndTimeDistanceMeasureFactory"/>
+            <cm:property name="distanceMeasure" value="hellinger"/>
         </cm:default-properties>
     </cm:property-placeholder>
 

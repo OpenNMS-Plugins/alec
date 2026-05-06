@@ -45,6 +45,13 @@ test('LLM Based option is rendered, disabled, with "Coming soon" caption', () =>
 	expect(caption.text()).toBe('Coming soon')
 })
 
+test('Hellinger checkbox defaults to checked on a fresh system (no saved config)', () => {
+	const { wrapper, store } = buildWrapper()
+	// Sanity: the wrapper was built with no engineInfo persisted.
+	expect(store.engineInfo).toBeNull()
+	expect(wrapper.vm.hellinger).toBe(true)
+})
+
 test('Correlation variables section is visible when Clustering is selected', () => {
 	const { wrapper } = buildWrapper()
 	expect(wrapper.find('[data-test="variables-section"]').exists()).toBe(true)

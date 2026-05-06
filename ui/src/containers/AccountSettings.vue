@@ -31,8 +31,12 @@ const ENGINE_DEFAULTS = {
 
 const userStore = useUserStore()
 const engineName = ref(userStore.engineInfo?.engineName || CONST.ENGINE_DBSCAN)
+// Hellinger is the system default on a fresh install (no saved config).
+// If a saved config exists, honour what's persisted.
 const hellinger = ref(
-	userStore.engineInfo?.distanceMeasureName === CONST.HELLINGER_OPTION
+	userStore.engineInfo
+		? userStore.engineInfo.distanceMeasureName === CONST.HELLINGER_OPTION
+		: true
 )
 const alpha = ref(userStore.engineInfo?.alpha ?? ENGINE_DEFAULTS.alpha)
 const beta = ref(userStore.engineInfo?.beta ?? ENGINE_DEFAULTS.beta)
