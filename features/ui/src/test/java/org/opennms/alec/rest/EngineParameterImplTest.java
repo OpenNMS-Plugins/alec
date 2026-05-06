@@ -64,7 +64,13 @@ public class EngineParameterImplTest {
 
         assertThat(DBScanEngine.DEFAULT_ALPHA, equalTo(engineParameter.getAlpha()));
         assertThat(DBScanEngine.DEFAULT_BETA, equalTo(engineParameter.getBeta()));
-        assertThat(null, equalTo(engineParameter.getEpsilon()));
+        // The DBScan default distance measure is "hellinger" — its default
+        // epsilon (75.0) flows through getEpsilon()'s fallback now. Prior
+        // to ALEC-296 the default was "alarminspaceandtimedistance", which
+        // didn't match any switch case in getEpsilon() and so returned null
+        // by coincidence; that older expectation was relying on a no-match
+        // fallthrough rather than an intentional null.
+        assertThat(HellingerDistanceMeasure.DEFAULT_EPSILON, equalTo(engineParameter.getEpsilon()));
         assertThat(DBScanEngine.DEFAULT_DISTANCE_MEASURE, equalTo(engineParameter.getDistanceMeasureName()));
         assertThat("dbscan", equalTo(engineParameter.getEngineName()));
     }
