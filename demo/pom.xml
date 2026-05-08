@@ -26,7 +26,8 @@
                     <target>${java.version}</target>
                 </configuration>
             </plugin>
-            <!-- Skip integration tests by default -->
+            <!-- Skip *IT.java in surefire — they are run only by the
+                 demo-it profile via failsafe (see <profiles> below). -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
@@ -35,25 +36,6 @@
                         <exclude>**/*IT.java</exclude>
                     </excludes>
                 </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-failsafe-plugin</artifactId>
-                <configuration>
-                    <systemPropertyVariables>
-                        <opennms.url>${opennms.url}</opennms.url>
-                        <opennms.username>${opennms.username}</opennms.username>
-                        <opennms.password>${opennms.password}</opennms.password>
-                    </systemPropertyVariables>
-                </configuration>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>integration-test</goal>
-                            <goal>verify</goal>
-                        </goals>
-                    </execution>
-                </executions>
             </plugin>
             <!-- Make executable jar -->
             <plugin>
@@ -169,4 +151,44 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <!--
+        Integration tests in this module (RegressionIT) require a live
+        OpenNMS+ALEC instance to talk to. They are intentionally NOT bound
+        to the default verify lifecycle so a normal CI pipeline does not
+        try to run them. To run them locally:
+
+            mvn -pl demo -am verify -Pdemo-it \
+                -Dopennms.url=http://localhost:8980/opennms \
+                -Dopennms.username=admin \
+                -Dopennms.password=admin
+    -->
+    <profiles>
+        <profile>
+            <id>demo-it</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-failsafe-plugin</artifactId>
+                        <configuration>
+                            <systemPropertyVariables>
+                                <opennms.url>${opennms.url}</opennms.url>
+                                <opennms.username>${opennms.username}</opennms.username>
+                                <opennms.password>${opennms.password}</opennms.password>
+                            </systemPropertyVariables>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <goals>
+                                    <goal>integration-test</goal>
+                                    <goal>verify</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

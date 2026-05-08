@@ -127,10 +127,15 @@ OpenNMS topology view and ALEC's correlation graph.
 
 ## Regression Tests (Integration)
 
-Requires a running OpenNMS+ALEC instance:
+`RegressionIT` requires a live OpenNMS+ALEC instance, so it is **not** bound
+to the default `verify` lifecycle (CI pipelines won't try to run it). Activate
+the `demo-it` profile to opt in:
 
 ```bash
-mvn verify -pl demo -Dopennms.url=http://localhost:8980/opennms
+mvn verify -pl demo -am -Pdemo-it \
+    -Dopennms.url=http://localhost:8980/opennms \
+    -Dopennms.username=admin \
+    -Dopennms.password=admin
 ```
 
 ## Engine-Level Tests (No OpenNMS Needed)
