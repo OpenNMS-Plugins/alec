@@ -52,6 +52,6 @@ public interface EngineRest {
     Response getEngineConfiguration();
 
     @POST
-    @Path("/reEvaluate")
+    @Path("/reevaluate")
     Response reEvaluateAllOpenAlarms();
 }

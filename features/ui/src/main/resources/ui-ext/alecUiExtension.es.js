@@ -9701,13 +9701,13 @@ const w_ = /* @__PURE__ */ ue(EM, [["__scopeId", "data-v-fba500de"]]), IM = "/wh
   }
 }, TM = async () => {
   try {
-    return (await Qt.post(`${m_}/closeAll`)).status === 200;
+    return (await Qt.post(`${m_}/close-all`)).status === 200;
   } catch {
     return !1;
   }
 }, DM = async () => {
   try {
-    return (await Qt.post(`${Ya}/engine/reEvaluate`)).status === 200;
+    return (await Qt.post(`${Ya}/engine/reevaluate`)).status === 200;
   } catch {
     return !1;
   }
