@@ -212,6 +212,18 @@ public class SituationRestImplTest {
         }
     }
 
+    @Test
+    public void closeAllOpenSituations_marksAllNonClosedAsRejected() throws InterruptedException {
+        ArgumentCaptor<Situation> forwardCaptor = ArgumentCaptor.forClass(Situation.class);
+        try (Response actual = underTest.closeAllOpenSituations()) {
+            assertThat(actual.getStatus(), equalTo(200));
+            verify(situationDatasource, times(2)).forwardSituation(forwardCaptor.capture());
+            assertThat(forwardCaptor.getAllValues().get(0).getStatus(), equalTo(Status.REJECTED));
+            assertThat(forwardCaptor.getAllValues().get(1).getStatus(), equalTo(Status.REJECTED));
+            verify(situationDatasource, times(1)).getSituations();
+        }
+    }
+
     private void getAlarmsAndSituations() {
         for (int i = 0; i < 10; i++) {
             alarms.add(ImmutableAlarm.newBuilder()

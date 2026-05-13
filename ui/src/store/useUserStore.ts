@@ -38,15 +38,18 @@ export const useUserStore = defineStore('userStore', {
 				this.engineInfo = result
 			}
 		},
-		async setEngineInfo(engine: string, isHellinger: boolean) {
+		async setEngineInfo(
+			engine: string,
+			isHellinger: boolean,
+			overrides?: Partial<Pick<TEngine, 'alpha' | 'beta' | 'epsilon'>>
+		) {
 			const engineData: TEngine = {
 				...engineDefaultValues,
-				...{
-					distanceMeasureName: isHellinger
-						? CONST.HELLINGER_OPTION
-						: CONST.SPACE_DISTANCE_OPTION,
-					engineName: engine
-				}
+				...overrides,
+				distanceMeasureName: isHellinger
+					? CONST.HELLINGER_OPTION
+					: CONST.SPACE_DISTANCE_OPTION,
+				engineName: engine
 			}
 			const result = await saveEngineParameter(engineData)
 			if (result) {

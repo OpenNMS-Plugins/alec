@@ -71,4 +71,8 @@ public interface SituationRest {
 
     @POST
     Response createSituation(CreateSituationPayload createSituationPayload);
+
+    @POST
+    @Path("close-all")
+    Response closeAllOpenSituations();
 }

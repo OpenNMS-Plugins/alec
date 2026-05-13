@@ -235,6 +235,33 @@ public class SituationRestImpl implements SituationRest {
         return alarms;
     }
 
+    @Override
+    public Response closeAllOpenSituations() {
+        try {
+            List<Situation> open = situationDatasource.getSituations().stream()
+                    .filter(s -> !Status.REJECTED.equals(s.getStatus())
+                            && !Status.ACCEPTED.equals(s.getStatus()))
+                    .collect(Collectors.toList());
+            int closed = 0;
+            for (Situation situation : open) {
+                String feedback = String.format("close-all: situation [%d]", situation.getLongId());
+                situationDatasource.forwardSituation(ImmutableSituation.newBuilderFrom(situation)
+                        .setStatus(Status.REJECTED)
+                        .setAlarms(Collections.emptySet())
+                        .setSeverity(Severity.NORMAL)
+                        .addFeedback(feedback)
+                        .build());
+                closed++;
+            }
+            return Response.ok(MessageFormat.format("Closed {0} open situation(s)", closed)).build();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return ALECRestUtils.somethingWentWrong(e);
+        } catch (Exception e) {
+            return ALECRestUtils.somethingWentWrong(e);
+        }
+    }
+
     private boolean alarmIsNotInAnotherSituation(String reductionKey) throws InterruptedException {
         for (Situation situation : situationDatasource.getSituations()) {
             for (Alarm alarm : situation.getAlarms()) {

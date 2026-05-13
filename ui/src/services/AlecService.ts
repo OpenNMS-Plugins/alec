@@ -116,3 +116,21 @@ export const createSituations = async (
 		return false
 	}
 }
+
+export const closeAllOpenSituations = async (): Promise<boolean> => {
+	try {
+		const resp = await rest.post(`${situationEndpoint}/close-all`)
+		return resp.status === 200
+	} catch (err) {
+		return false
+	}
+}
+
+export const reEvaluateAllOpenAlarms = async (): Promise<boolean> => {
+	try {
+		const resp = await rest.post(`${base}/engine/reevaluate`)
+		return resp.status === 200
+	} catch (err) {
+		return false
+	}
+}

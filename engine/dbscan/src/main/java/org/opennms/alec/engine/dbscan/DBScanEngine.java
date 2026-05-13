@@ -73,7 +73,7 @@ public class DBScanEngine extends AbstractClusterEngine {
 
     public static final double DEFAULT_ALPHA = 144.47117699d;
     public static final double DEFAULT_BETA = 0.55257784d;
-    public static final String DEFAULT_DISTANCE_MEASURE = "alarminspaceandtimedistance";
+    public static final String DEFAULT_DISTANCE_MEASURE = "hellinger";
     private final double epsilon;
     private final DistanceMeasure distanceMeasure;
 

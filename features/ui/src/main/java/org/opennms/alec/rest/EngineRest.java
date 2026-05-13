@@ -50,4 +50,8 @@ public interface EngineRest {
     @GET
     @Path("/configuration")
     Response getEngineConfiguration();
+
+    @POST
+    @Path("/reevaluate")
+    Response reEvaluateAllOpenAlarms();
 }
