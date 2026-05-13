@@ -41,6 +41,7 @@
         <module>wrap</module>
         <module>processor</module>
         <module>smoke-test</module>
+        <module>demo</module>
     </modules>
 
     <properties>
@@ -96,9 +97,7 @@
         <tensorflow.version>1.13.1</tensorflow.version>
         <camel-test-blueprint.version>2.19.1</camel-test-blueprint.version>
         <jersey-client.version>2.36</jersey-client.version>
-        <grpc.version>1.46.0</grpc.version>
         <protobuf-java.version>3.19.3</protobuf-java.version>
-        <alec-gateway.version>0.3.0</alec-gateway.version>
         <json-simple.version>1.1.1</json-simple.version>
         <httpclient-osgi.version>4.5.13</httpclient-osgi.version>
         <httpcore-osgi.version>4.4.15</httpcore-osgi.version>
@@ -404,11 +403,6 @@
                 <groupId>com.sun.xml.bind</groupId>
                 <artifactId>jaxb-impl</artifactId>
                 <version>${jakarta.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.opennms.alec.wrap</groupId>
-                <artifactId>grpc</artifactId>
-                <version>${project.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

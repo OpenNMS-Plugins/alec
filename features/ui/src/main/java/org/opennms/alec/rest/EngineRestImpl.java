@@ -190,14 +190,24 @@ public class EngineRestImpl implements EngineRest {
         }
     }
 
+    @Override
+    public Response reEvaluateAllOpenAlarms() {
+        Response failure = driverInit(driver);
+        if (failure != null) {
+            return failure;
+        }
+        return Response.ok("Engine driver re-initialized; current alarms re-evaluated").build();
+    }
+
     private Response driverInit(Driver driver) {
         driver.destroy();
         CompletableFuture<Void> future = driver.initAsync();
         try {
             future.get();
         } catch (InterruptedException e) {
-            LOG.error("Engine creation failed", e.getCause());
+            LOG.error("Engine creation interrupted", e);
             Thread.currentThread().interrupt();
+            return ALECRestUtils.somethingWentWrong(e);
         } catch (ExecutionException e) {
             LOG.error("Engine creation failed", e.getCause());
             return ALECRestUtils.somethingWentWrong(e);

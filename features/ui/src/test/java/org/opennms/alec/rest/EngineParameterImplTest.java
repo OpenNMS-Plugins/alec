@@ -64,7 +64,13 @@ public class EngineParameterImplTest {
 
         assertThat(DBScanEngine.DEFAULT_ALPHA, equalTo(engineParameter.getAlpha()));
         assertThat(DBScanEngine.DEFAULT_BETA, equalTo(engineParameter.getBeta()));
-        assertThat(null, equalTo(engineParameter.getEpsilon()));
+        // The DBScan default distance measure is "hellinger" — its default
+        // epsilon (75.0) flows through getEpsilon()'s fallback now. Prior
+        // to ALEC-296 the default was "alarminspaceandtimedistance", which
+        // didn't match any switch case in getEpsilon() and so returned null
+        // by coincidence; that older expectation was relying on a no-match
+        // fallthrough rather than an intentional null.
+        assertThat(HellingerDistanceMeasure.DEFAULT_EPSILON, equalTo(engineParameter.getEpsilon()));
         assertThat(DBScanEngine.DEFAULT_DISTANCE_MEASURE, equalTo(engineParameter.getDistanceMeasureName()));
         assertThat("dbscan", equalTo(engineParameter.getEngineName()));
     }
@@ -79,6 +85,24 @@ public class EngineParameterImplTest {
         assertThat(DBScanEngine.DEFAULT_BETA, equalTo(engineParameter.getBeta()));
         assertThat(HellingerDistanceMeasure.DEFAULT_EPSILON, equalTo(engineParameter.getEpsilon()));
         assertThat("hellinger", equalTo(engineParameter.getDistanceMeasureName()));
+        assertThat("dbscan", equalTo(engineParameter.getEngineName()));
+    }
+
+    @Test
+    public void deserializeIgnoresUnknownFields() throws JsonProcessingException {
+        // Persisted JSON from a future version (e.g. ALEC-297's noPathDistance)
+        // must not cause deserialization to fail; the unknown field is simply
+        // dropped, otherwise the alec.features.ui bundle won't start when
+        // upgraded/downgraded across schema versions.
+        String json = "{\"engineName\":\"dbscan\",\"distanceMeasureName\":\"alarminspaceandtimedistance\","
+                + "\"alpha\":1.0,\"beta\":2.0,\"epsilon\":3.0,\"noPathDistance\":100.0,"
+                + "\"someFutureField\":\"whatever\"}";
+        EngineParameter engineParameter = objectMapper.readValue(json, EngineParameter.class);
+
+        assertThat(1d, equalTo(engineParameter.getAlpha()));
+        assertThat(2d, equalTo(engineParameter.getBeta()));
+        assertThat(3d, equalTo(engineParameter.getEpsilon()));
+        assertThat("alarminspaceandtimedistance", equalTo(engineParameter.getDistanceMeasureName()));
         assertThat("dbscan", equalTo(engineParameter.getEngineName()));
     }
 }

@@ -8,6 +8,7 @@ import org.opennms.alec.engine.dbscan.DBScanEngine;
 import org.opennms.alec.engine.dbscan.HellingerDistanceMeasure;
 import org.opennms.alec.engine.deeplearning.DeepLearningEngineConf;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 
 public class EngineParameterImpl implements EngineParameter {
@@ -138,7 +139,14 @@ public class EngineParameterImpl implements EngineParameter {
         return remote;
     }
 
+    /**
+     * The {@link JsonIgnoreProperties} is intentional: persisted JSON in the
+     * KV store may contain fields added by future versions (e.g. ALEC-297's
+     * {@code noPathDistance}) and we must be able to deserialize it instead
+     * of failing the bundle startup with an "Unrecognized field" error.
+     */
     @JsonPOJOBuilder(withPrefix = "")
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static final class Builder {
         private Double alpha;
         private Double beta;

@@ -38,11 +38,6 @@ watch(
 			<div v-else class="type">DEEP LEARNING</div>
 		</div>
 	</div>
-	<div class="optin" @click="showSettings">
-		OPT-IN
-		<div v-if="userStore.allowSave" class="optin-on">ON</div>
-		<div v-else class="optin-off">OFF</div>
-	</div>
 </template>
 
 <style lang="scss" scoped>
