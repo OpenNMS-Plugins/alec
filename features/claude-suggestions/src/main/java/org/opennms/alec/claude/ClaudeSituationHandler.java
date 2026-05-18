@@ -107,22 +107,26 @@ public class ClaudeSituationHandler implements SituationHandler {
     @Override
     public void onSituation(Situation situation) {
         if (situation == null) {
+            // INFO-level until we've confirmed the auto-eval pipeline is healthy on real deploys.
+            LOG.info("Claude integration: onSituation called with null; skipping");
             return;
         }
         final String situationId = keyFor(situation);
+        LOG.info("Claude integration: onSituation called for situation {}", situationId);
 
         Optional<ClaudeConfigReader.Config> maybeConfig = configReader.read();
         if (maybeConfig.isEmpty()) {
-            LOG.debug("Claude integration: no config persisted; skipping situation {}", situationId);
+            LOG.info("Claude integration: no config persisted; skipping situation {}", situationId);
             return;
         }
         ClaudeConfigReader.Config config = maybeConfig.get();
         if (!config.isEnabled() || !config.hasApiKey()) {
-            LOG.debug("Claude integration: disabled or no key; skipping situation {}", situationId);
+            LOG.info("Claude integration: disabled or no key ({}); skipping situation {}",
+                    config, situationId);
             return;
         }
         if (!config.isAutoEvaluate()) {
-            LOG.debug("Claude integration: autoEvaluate is off; skipping situation {} (Re-evaluate still works)",
+            LOG.info("Claude integration: autoEvaluate is off; skipping situation {} (Re-evaluate still works)",
                     situationId);
             return;
         }
@@ -132,7 +136,7 @@ public class ClaudeSituationHandler implements SituationHandler {
             String status = existing.get().getStatus();
             if (SuggestionRecord.STATUS_PENDING.equals(status)
                     || SuggestionRecord.STATUS_READY.equals(status)) {
-                LOG.debug("Claude integration: already {} for situation {}; not re-firing",
+                LOG.info("Claude integration: already {} for situation {}; not re-firing",
                         status, situationId);
                 return;
             }
