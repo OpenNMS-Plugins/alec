@@ -1,10 +1,17 @@
 <blueprint xmlns="http://www.osgi.org/xmlns/blueprint/v1.0.0">
 
+    <!-- Shared KV store published by OpenNMS / the integration API. Optional
+         because it can be absent during unit-test bring-up; downstream beans
+         that need it accept it directly and will fail loudly if it isn't there. -->
+    <reference id="keyValueStore"
+               interface="org.opennms.integration.api.v1.distributed.KeyValueStore"
+               availability="optional"/>
+
+    <bean id="claudeObjectMapper" class="com.fasterxml.jackson.databind.ObjectMapper"/>
+
     <!--
         ClaudeSuggestionService — calls api.anthropic.com to produce up to 3
         probable root causes + 3 possible resolutions for a given Situation.
-        The listener that wires this into new situations arrives in slice 4
-        (along with the sidecar suggestion storage).
     -->
     <bean id="claudeSuggestionService"
           class="org.opennms.alec.claude.ClaudeSuggestionServiceImpl"
@@ -12,5 +19,44 @@
 
     <service ref="claudeSuggestionService"
              interface="org.opennms.alec.claude.ClaudeSuggestionService"/>
+
+    <!-- Reads the slice-1 config record {enabled, apiKey} from KV. -->
+    <bean id="claudeConfigReader" class="org.opennms.alec.claude.ClaudeConfigReader">
+        <argument ref="keyValueStore"/>
+        <argument ref="claudeObjectMapper"/>
+    </bean>
+
+    <!-- Sidecar storage for suggestion records, keyed by situation id. -->
+    <bean id="suggestionStore" class="org.opennms.alec.claude.SuggestionStore">
+        <argument ref="keyValueStore"/>
+        <argument ref="claudeObjectMapper"/>
+    </bean>
+
+    <!--
+        Bridge between the engine's situation-emission and Claude. Registered as
+        a SituationHandler service with role=engine-listener so the composite
+        handler in driver/main (slice 2) picks it up automatically — no engine
+        or driver code changes required.
+    -->
+    <bean id="claudeSituationHandler" class="org.opennms.alec.claude.ClaudeSituationHandler">
+        <argument ref="claudeConfigReader"/>
+        <argument ref="claudeSuggestionService"/>
+        <argument ref="suggestionStore"/>
+    </bean>
+
+    <service ref="claudeSituationHandler"
+             interface="org.opennms.alec.datasource.api.SituationHandler">
+        <service-properties>
+            <entry key="role" value="engine-listener"/>
+        </service-properties>
+    </service>
+
+    <!-- Daily prune of records older than 90 days. -->
+    <bean id="suggestionPruner"
+          class="org.opennms.alec.claude.SuggestionPruner"
+          init-method="start"
+          destroy-method="stop">
+        <argument ref="suggestionStore"/>
+    </bean>
 
 </blueprint>

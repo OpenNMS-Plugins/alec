@@ -1,0 +1,214 @@
+/*******************************************************************************
+ * This file is part of OpenNMS(R).
+ *
+ * Copyright (C) 2026 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2026 The OpenNMS Group, Inc.
+ *
+ * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
+ *
+ * OpenNMS(R) is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License,
+ * or (at your option) any later version.
+ *
+ * OpenNMS(R) is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with OpenNMS(R).  If not, see:
+ *      http://www.gnu.org/licenses/
+ *
+ * For more information contact:
+ *     OpenNMS(R) Licensing <license@opennms.org>
+ *     http://www.opennms.org/
+ *     http://www.opennms.com/
+ *******************************************************************************/
+
+package org.opennms.alec.claude;
+
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.is;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertFalse;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.util.Arrays;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+
+import org.junit.Before;
+import org.junit.Test;
+import org.opennms.alec.datasource.api.Situation;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+public class ClaudeSituationHandlerTest {
+
+    private InMemoryKVStore kv;
+    private ClaudeConfigReader configReader;
+    private SuggestionStore store;
+    private ClaudeSuggestionService service;
+    private ClaudeSituationHandler handler;
+    private long mockNow;
+
+    @Before
+    public void setUp() {
+        kv = new InMemoryKVStore();
+        ObjectMapper om = new ObjectMapper();
+        configReader = new ClaudeConfigReader(kv, om);
+        store = new SuggestionStore(kv, om);
+        service = mock(ClaudeSuggestionService.class);
+        mockNow = 1_000L;
+        handler = new ClaudeSituationHandler(configReader, service, store, () -> mockNow);
+    }
+
+    // --- guardrails ---
+
+    @Test
+    public void nullSituationIsANoOp() {
+        handler.onSituation(null);
+        verify(service, never()).requestSuggestions(any(), any());
+    }
+
+    @Test
+    public void situationWithNullIdIsANoOp() {
+        Situation s = mock(Situation.class);
+        when(s.getId()).thenReturn(null);
+        handler.onSituation(s);
+        verify(service, never()).requestSuggestions(any(), any());
+    }
+
+    @Test
+    public void skipsWhenNoConfigPersisted() {
+        handler.onSituation(stubSituation("sit-1"));
+        verify(service, never()).requestSuggestions(any(), any());
+        assertThat(store.get("sit-1").isPresent(), is(false));
+    }
+
+    @Test
+    public void skipsWhenConfigDisabledEvenWithApiKey() {
+        writeConfig(false, "sk-ant-key");
+        handler.onSituation(stubSituation("sit-1"));
+        verify(service, never()).requestSuggestions(any(), any());
+        // Disabled = clean off-switch. We don't even leave a 'pending' breadcrumb.
+        assertFalse(store.get("sit-1").isPresent());
+    }
+
+    @Test
+    public void skipsWhenConfigEnabledButApiKeyMissing() {
+        writeConfig(true, "");
+        handler.onSituation(stubSituation("sit-1"));
+        verify(service, never()).requestSuggestions(any(), any());
+    }
+
+    // --- existing-record gates ---
+
+    @Test
+    public void skipsWhenExistingRecordIsPending() {
+        writeConfig(true, "sk-ant-key");
+        store.putPending("sit-1", 500L, ClaudeSuggestionServiceImpl.MODEL);
+        handler.onSituation(stubSituation("sit-1"));
+        verify(service, never()).requestSuggestions(any(), any());
+    }
+
+    @Test
+    public void skipsWhenExistingRecordIsReady() {
+        writeConfig(true, "sk-ant-key");
+        store.putReady("sit-1", 500L, 600L, ClaudeSuggestionServiceImpl.MODEL,
+                Arrays.asList("c"), Arrays.asList("r"));
+        handler.onSituation(stubSituation("sit-1"));
+        verify(service, never()).requestSuggestions(any(), any());
+    }
+
+    @Test
+    public void retriesWhenExistingRecordIsFailed() {
+        writeConfig(true, "sk-ant-key");
+        store.putFailed("sit-1", 500L, 600L, ClaudeSuggestionServiceImpl.MODEL, "old error");
+        when(service.requestSuggestions(any(), eq("sk-ant-key")))
+                .thenReturn(new CompletableFuture<>()); // pending, never completes
+
+        handler.onSituation(stubSituation("sit-1"));
+
+        verify(service).requestSuggestions(any(), eq("sk-ant-key"));
+        // Pending record overwrites the previous failed one.
+        SuggestionRecord r = store.get("sit-1").orElseThrow();
+        assertThat(r.getStatus(), equalTo(SuggestionRecord.STATUS_PENDING));
+        assertThat(r.getRequestedAt(), equalTo(1_000L));
+    }
+
+    // --- happy path: pending -> ready ---
+
+    @Test
+    public void writesPendingSynchronouslyAndThenReadyWhenServiceCompletes() {
+        writeConfig(true, "sk-ant-key");
+        CompletableFuture<Suggestions> future = new CompletableFuture<>();
+        when(service.requestSuggestions(any(), eq("sk-ant-key"))).thenReturn(future);
+
+        // Step 1: pending appears immediately, before the future resolves.
+        handler.onSituation(stubSituation("sit-1"));
+        SuggestionRecord pending = store.get("sit-1").orElseThrow();
+        assertThat(pending.getStatus(), equalTo(SuggestionRecord.STATUS_PENDING));
+        assertThat(pending.getRequestedAt(), equalTo(1_000L));
+        assertThat(pending.getModel(), equalTo(ClaudeSuggestionServiceImpl.MODEL));
+
+        // Step 2: simulate the service completing.
+        mockNow = 1_500L;
+        future.complete(new Suggestions(
+                Arrays.asList("link saturation", "QoS misconfig"),
+                Arrays.asList("check counters", "open vendor ticket"),
+                Suggestions.TokenUsage.empty()));
+
+        SuggestionRecord ready = store.get("sit-1").orElseThrow();
+        assertThat(ready.getStatus(), equalTo(SuggestionRecord.STATUS_READY));
+        assertThat(ready.getRootCauses().size(), equalTo(2));
+        assertThat(ready.getResolutions().size(), equalTo(2));
+        assertThat(ready.getCompletedAt(), equalTo(1_500L));
+        assertThat("requestedAt is preserved across the transition",
+                ready.getRequestedAt(), equalTo(1_000L));
+    }
+
+    // --- failure path: pending -> failed ---
+
+    @Test
+    public void writesFailedWhenServiceFutureCompletesExceptionally() {
+        writeConfig(true, "sk-ant-key");
+        CompletableFuture<Suggestions> future = new CompletableFuture<>();
+        when(service.requestSuggestions(any(), eq("sk-ant-key"))).thenReturn(future);
+
+        handler.onSituation(stubSituation("sit-1"));
+        mockNow = 1_500L;
+        future.completeExceptionally(new ClaudeApiException("HTTP 401: invalid api key"));
+
+        SuggestionRecord failed = store.get("sit-1").orElseThrow();
+        assertThat(failed.getStatus(), equalTo(SuggestionRecord.STATUS_FAILED));
+        assertThat(failed.getError(), containsString("HTTP 401"));
+        assertThat(failed.getCompletedAt(), equalTo(1_500L));
+        assertThat(failed.getRootCauses().isEmpty(), is(true));
+    }
+
+    // --- helpers ---
+
+    private void writeConfig(boolean enabled, String apiKey) {
+        String json = "{\"enabled\":" + enabled + ",\"apiKey\":\"" + apiKey + "\"}";
+        kv.put(ClaudeConfigReader.CONFIG_KEY, json, ClaudeConfigReader.CONFIG_CONTEXT);
+    }
+
+    private static Situation stubSituation(String id) {
+        Situation s = mock(Situation.class);
+        when(s.getId()).thenReturn(id);
+        return s;
+    }
+
+    @SuppressWarnings("unused")
+    private static <T> Optional<T> unused() {
+        return Optional.empty();
+    }
+}
