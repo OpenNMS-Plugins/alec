@@ -23,7 +23,7 @@ const buildWrapper = () => {
 	store.setClaudeConfig = vi.fn().mockResolvedValue(true)
 	store.getClaudeConfig = vi
 		.fn()
-		.mockResolvedValue({ enabled: false, apiKeyPresent: false })
+		.mockResolvedValue({ enabled: false, autoEvaluate: true, apiKeyPresent: false })
 	// Default: no usage data so the rollup panel is hidden in most existing
 	// tests. The slice-5 rollup tests below seed claudeUsage explicitly.
 	store.getClaudeUsage = vi.fn().mockResolvedValue(null)
@@ -310,6 +310,7 @@ test('Save sends new API key + enabled flag when both provided', async () => {
 	expect(store.setClaudeConfig).toHaveBeenCalledTimes(1)
 	expect((store.setClaudeConfig as any).mock.calls[0][0]).toEqual({
 		enabled: true,
+		autoEvaluate: true,
 		apiKey: 'sk-ant-new-key'
 	})
 })
@@ -322,7 +323,8 @@ test('Save omits apiKey when the input is blank so server preserves stored key',
 
 	expect(store.setClaudeConfig).toHaveBeenCalledTimes(1)
 	expect((store.setClaudeConfig as any).mock.calls[0][0]).toEqual({
-		enabled: false
+		enabled: false,
+		autoEvaluate: true
 	})
 })
 
@@ -341,7 +343,26 @@ test('Clear Key sends clearApiKey=true and forces enabled=false', async () => {
 	await wrapper.find('[data-test="save-btn"]').trigger('click')
 	expect((store.setClaudeConfig as any).mock.calls[0][0]).toEqual({
 		enabled: false,
+		autoEvaluate: true,
 		clearApiKey: true
+	})
+})
+
+test('Auto-evaluate checkbox is exposed, defaults to true, and rides along on Save', async () => {
+	const { wrapper, store } = buildWrapper()
+	expect(wrapper.find('[data-test="claude-auto-evaluate"]').exists()).toBe(true)
+	// Default state: checked, mirroring the server-side default.
+	expect(wrapper.vm.claudeAutoEvaluate).toBe(true)
+
+	wrapper.vm.claudeApiKey = 'sk-ant-fresh'
+	wrapper.vm.claudeEnabled = true
+	wrapper.vm.claudeAutoEvaluate = false
+	await wrapper.find('[data-test="save-btn"]').trigger('click')
+
+	expect((store.setClaudeConfig as any).mock.calls[0][0]).toEqual({
+		enabled: true,
+		autoEvaluate: false,
+		apiKey: 'sk-ant-fresh'
 	})
 })
 
@@ -447,7 +468,7 @@ test('Input is scrubbed and cleared-flag reset after a successful save', async (
 	const { wrapper, store } = buildWrapper()
 	// Pretend the server stored the key and now reports it back.
 	;(store.setClaudeConfig as any).mockImplementation(async () => {
-		store.claudeConfig = { enabled: true, apiKeyPresent: true }
+		store.claudeConfig = { enabled: true, autoEvaluate: true, apiKeyPresent: true }
 		return true
 	})
 	wrapper.vm.claudeApiKey = 'sk-ant-new'

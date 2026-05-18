@@ -51,6 +51,24 @@ import org.opennms.alec.datasource.api.Situation;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+/**
+ * No test in this class makes a network call. Coverage is split into:
+ *
+ * <ul>
+ *   <li>{@code buildRequestBody*} — exercises the static request-body
+ *       builder; pure JSON output, no I/O.</li>
+ *   <li>{@code parseResponse*} — exercises the static response parser;
+ *       fed hand-crafted JSON strings, no I/O.</li>
+ *   <li>{@code requestSuggestions*} — exercises the public API's
+ *       guardrails (null situation, empty key). All fail at the
+ *       guardrail before any HTTP call is constructed.</li>
+ * </ul>
+ *
+ * <strong>Policy:</strong> unit/integration tests in this module must
+ * never require a real Anthropic API key. The "sk-ant-…" strings below
+ * are literal fixtures only. Live-API exercise is a future opt-in IT
+ * gated behind the demo-it Maven profile (see demo/README.md).
+ */
 public class ClaudeSuggestionServiceImplTest {
 
     private final ObjectMapper om = new ObjectMapper();

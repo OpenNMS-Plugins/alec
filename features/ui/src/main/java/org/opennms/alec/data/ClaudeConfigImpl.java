@@ -36,11 +36,13 @@ import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 public class ClaudeConfigImpl implements ClaudeConfig {
 
     private final boolean enabled;
+    private final boolean autoEvaluate;
     private final String apiKey;
     private final boolean clearApiKey;
 
     private ClaudeConfigImpl(Builder builder) {
         this.enabled = builder.enabled;
+        this.autoEvaluate = builder.autoEvaluate;
         this.apiKey = builder.apiKey;
         this.clearApiKey = builder.clearApiKey;
     }
@@ -52,6 +54,7 @@ public class ClaudeConfigImpl implements ClaudeConfig {
     public static Builder newBuilder(ClaudeConfig copy) {
         Builder builder = new Builder();
         builder.enabled = copy.isEnabled();
+        builder.autoEvaluate = copy.isAutoEvaluate();
         builder.apiKey = copy.getApiKey();
         builder.clearApiKey = copy.isClearApiKey();
         return builder;
@@ -60,6 +63,11 @@ public class ClaudeConfigImpl implements ClaudeConfig {
     @Override
     public boolean isEnabled() {
         return enabled;
+    }
+
+    @Override
+    public boolean isAutoEvaluate() {
+        return autoEvaluate;
     }
 
     @Override
@@ -76,6 +84,14 @@ public class ClaudeConfigImpl implements ClaudeConfig {
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static final class Builder {
         private boolean enabled;
+        /**
+         * Default true so existing config records (persisted before the field
+         * was added) keep their previous behavior — auto-evaluate every new
+         * situation. Jackson would otherwise initialize this to false and
+         * silently flip every existing installation into manual-only mode on
+         * the first deserialization.
+         */
+        private boolean autoEvaluate = true;
         private String apiKey;
         private boolean clearApiKey;
 
@@ -84,6 +100,11 @@ public class ClaudeConfigImpl implements ClaudeConfig {
 
         public Builder enabled(boolean val) {
             enabled = val;
+            return this;
+        }
+
+        public Builder autoEvaluate(boolean val) {
+            autoEvaluate = val;
             return this;
         }
 
@@ -107,6 +128,7 @@ public class ClaudeConfigImpl implements ClaudeConfig {
         // Never include apiKey in toString — it ends up in log lines.
         return new StringJoiner(", ", ClaudeConfigImpl.class.getSimpleName() + "[", "]")
                 .add("enabled=" + enabled)
+                .add("autoEvaluate=" + autoEvaluate)
                 .add("apiKeyPresent=" + (apiKey != null && !apiKey.isEmpty()))
                 .add("clearApiKey=" + clearApiKey)
                 .toString();

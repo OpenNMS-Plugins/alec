@@ -106,8 +106,32 @@ public class ClaudeConfigReaderTest {
     }
 
     @Test
+    public void autoEvaluateDefaultsToTrueWhenFieldMissingFromJson() {
+        // Records persisted before the autoEvaluate field existed must keep
+        // their original automatic behavior — otherwise upgrading the bundle
+        // would silently flip every install into manual-only mode.
+        kv.put(ClaudeConfigReader.CONFIG_KEY,
+                "{\"enabled\":true,\"apiKey\":\"sk\"}",
+                ClaudeConfigReader.CONFIG_CONTEXT);
+
+        ClaudeConfigReader.Config c = reader.read().orElseThrow(AssertionError::new);
+        assertThat("missing autoEvaluate defaults to true (preserve existing behavior)",
+                c.isAutoEvaluate(), is(true));
+    }
+
+    @Test
+    public void autoEvaluateHonoredWhenExplicitlyFalse() {
+        kv.put(ClaudeConfigReader.CONFIG_KEY,
+                "{\"enabled\":true,\"autoEvaluate\":false,\"apiKey\":\"sk\"}",
+                ClaudeConfigReader.CONFIG_CONTEXT);
+
+        ClaudeConfigReader.Config c = reader.read().orElseThrow(AssertionError::new);
+        assertThat(c.isAutoEvaluate(), is(false));
+    }
+
+    @Test
     public void configToStringNeverIncludesApiKey() {
-        ClaudeConfigReader.Config c = new ClaudeConfigReader.Config(true, "sk-ant-leaktest");
+        ClaudeConfigReader.Config c = new ClaudeConfigReader.Config(true, true, "sk-ant-leaktest");
         String s = c.toString();
         assertThat(s, not(containsString("sk-ant-leaktest")));
         assertThat(s, containsString("apiKeyPresent=true"));

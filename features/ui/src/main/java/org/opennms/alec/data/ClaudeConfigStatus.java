@@ -37,27 +37,39 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
  * cannot accidentally be serialized into a response — only its presence is
  * reported.
  */
-@JsonPropertyOrder({"enabled", "apiKeyPresent"})
+@JsonPropertyOrder({"enabled", "autoEvaluate", "apiKeyPresent"})
 public class ClaudeConfigStatus {
 
     private final boolean enabled;
+    private final boolean autoEvaluate;
     private final boolean apiKeyPresent;
 
-    public ClaudeConfigStatus(boolean enabled, boolean apiKeyPresent) {
+    public ClaudeConfigStatus(boolean enabled, boolean autoEvaluate, boolean apiKeyPresent) {
         this.enabled = enabled;
+        this.autoEvaluate = autoEvaluate;
         this.apiKeyPresent = apiKeyPresent;
     }
 
     public static ClaudeConfigStatus from(ClaudeConfig config) {
         if (config == null) {
-            return new ClaudeConfigStatus(false, false);
+            // Auto-evaluate defaults to true so a user enabling Claude for the
+            // first time gets the automatic-suggestions-on-new-situations
+            // behavior without an extra checkbox click.
+            return new ClaudeConfigStatus(false, true, false);
         }
         String key = config.getApiKey();
-        return new ClaudeConfigStatus(config.isEnabled(), key != null && !key.isEmpty());
+        return new ClaudeConfigStatus(
+                config.isEnabled(),
+                config.isAutoEvaluate(),
+                key != null && !key.isEmpty());
     }
 
     public boolean isEnabled() {
         return enabled;
+    }
+
+    public boolean isAutoEvaluate() {
+        return autoEvaluate;
     }
 
     public boolean isApiKeyPresent() {

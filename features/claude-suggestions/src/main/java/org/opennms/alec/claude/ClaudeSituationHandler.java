@@ -113,10 +113,17 @@ public class ClaudeSituationHandler implements SituationHandler {
 
         Optional<ClaudeConfigReader.Config> maybeConfig = configReader.read();
         if (maybeConfig.isEmpty()) {
+            LOG.debug("Claude integration: no config persisted; skipping situation {}", situationId);
             return;
         }
         ClaudeConfigReader.Config config = maybeConfig.get();
         if (!config.isEnabled() || !config.hasApiKey()) {
+            LOG.debug("Claude integration: disabled or no key; skipping situation {}", situationId);
+            return;
+        }
+        if (!config.isAutoEvaluate()) {
+            LOG.debug("Claude integration: autoEvaluate is off; skipping situation {} (Re-evaluate still works)",
+                    situationId);
             return;
         }
 
@@ -125,11 +132,14 @@ public class ClaudeSituationHandler implements SituationHandler {
             String status = existing.get().getStatus();
             if (SuggestionRecord.STATUS_PENDING.equals(status)
                     || SuggestionRecord.STATUS_READY.equals(status)) {
+                LOG.debug("Claude integration: already {} for situation {}; not re-firing",
+                        status, situationId);
                 return;
             }
             // status == failed → fall through and retry once
         }
 
+        LOG.info("Claude integration: requesting suggestions for situation {}", situationId);
         analyzeAndStore(situation, situationId, config);
     }
 

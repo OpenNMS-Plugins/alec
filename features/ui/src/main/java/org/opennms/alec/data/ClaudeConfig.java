@@ -43,9 +43,17 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
  * persisted key; it is not persisted itself.
  */
 @JsonDeserialize(builder = ClaudeConfigImpl.Builder.class)
-@JsonPropertyOrder({"enabled", "apiKey", "clearApiKey"})
+@JsonPropertyOrder({"enabled", "autoEvaluate", "apiKey", "clearApiKey"})
 public interface ClaudeConfig {
     boolean isEnabled();
+
+    /**
+     * When true (the default), the SituationHandler fires a Claude analysis
+     * automatically for every new situation. When false, no automatic
+     * analysis runs — the user must click the Re-evaluate button on the AI
+     * Suggestions tab to trigger one per situation.
+     */
+    boolean isAutoEvaluate();
 
     String getApiKey();
 

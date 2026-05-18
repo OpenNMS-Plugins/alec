@@ -116,6 +116,33 @@ public class ClaudeConfigImplTest {
     }
 
     @Test
+    public void autoEvaluateDefaultsToTrueOnFreshBuilder() {
+        ClaudeConfig c = ClaudeConfigImpl.newBuilder().enabled(true).apiKey("k").build();
+        assertThat("autoEvaluate is opt-out, not opt-in — default true preserves the original "
+                        + "automatic behavior for new and pre-existing installs",
+                c.isAutoEvaluate(), is(true));
+    }
+
+    @Test
+    public void autoEvaluateSurfacesOnStatus() {
+        ClaudeConfig c = ClaudeConfigImpl.newBuilder()
+                .enabled(true)
+                .autoEvaluate(false)
+                .apiKey("k")
+                .build();
+        ClaudeConfigStatus s = ClaudeConfigStatus.from(c);
+        assertThat(s.isAutoEvaluate(), is(false));
+    }
+
+    @Test
+    public void statusFromNullConfigDefaultsAutoEvaluateTrue() {
+        // Pre-config / fresh install: surface auto-evaluate as true so the UI
+        // shows the checkbox checked by default (matches enabling-Claude UX).
+        ClaudeConfigStatus s = ClaudeConfigStatus.from(null);
+        assertThat(s.isAutoEvaluate(), is(true));
+    }
+
+    @Test
     public void deserializeIgnoresUnknownFields() throws JsonProcessingException {
         // Persisted JSON from a future version may include fields we don't know
         // about yet (e.g. a model selector); we must tolerate them.

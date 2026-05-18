@@ -211,6 +211,45 @@ public class ClaudeSituationHandlerTest {
         assertThat(failed.getRootCauses().isEmpty(), is(true));
     }
 
+    // --- autoEvaluate flag ---
+
+    @Test
+    public void onSituationSkipsWhenAutoEvaluateIsFalse() {
+        // User opted out of automatic analysis — handler must not fire even
+        // though everything else (enabled + key) is in place.
+        writeConfigWithAutoEval(true, "sk-ant-key", false);
+        handler.onSituation(stubSituation(1L));
+        verify(service, never()).requestSuggestions(any(), any());
+        assertThat("no record written when auto-eval is off",
+                store.get("1").isPresent(), is(false));
+    }
+
+    @Test
+    public void forceReanalyzeBypassesAutoEvaluateFlag() {
+        // Re-evaluate button must work even when auto-eval is disabled —
+        // that's the whole point of having the manual fallback.
+        writeConfigWithAutoEval(true, "sk-ant-key", false);
+        CompletableFuture<Suggestions> future = new CompletableFuture<>();
+        when(service.requestSuggestions(any(), eq("sk-ant-key"))).thenReturn(future);
+
+        Situation s = stubSituation(7L);
+        handler.forceReanalyze(s);
+
+        verify(service).requestSuggestions(any(), eq("sk-ant-key"));
+        assertThat(store.get("7").orElseThrow().getStatus(),
+                equalTo(SuggestionRecord.STATUS_PENDING));
+    }
+
+    @Test
+    public void forceReanalyzeStillRespectsDisabledOrMissingKey() {
+        // Re-evaluate is not a back door — if the integration is disabled
+        // or the key is missing, the REST endpoint already 400s, and this
+        // method is a defense in depth.
+        writeConfig(false, "sk-ant-key");
+        handler.forceReanalyze(stubSituation(1L));
+        verify(service, never()).requestSuggestions(any(), any());
+    }
+
     // --- usage recording on completion ---
 
     @Test
@@ -259,7 +298,16 @@ public class ClaudeSituationHandlerTest {
     // --- helpers ---
 
     private void writeConfig(boolean enabled, String apiKey) {
-        String json = "{\"enabled\":" + enabled + ",\"apiKey\":\"" + apiKey + "\"}";
+        // Existing tests assume auto-evaluate is on (the project default), so
+        // writeConfig keeps that behavior; writeConfigWithAutoEval is the
+        // explicit form for the new field.
+        writeConfigWithAutoEval(enabled, apiKey, true);
+    }
+
+    private void writeConfigWithAutoEval(boolean enabled, String apiKey, boolean autoEvaluate) {
+        String json = "{\"enabled\":" + enabled
+                + ",\"autoEvaluate\":" + autoEvaluate
+                + ",\"apiKey\":\"" + apiKey + "\"}";
         kv.put(ClaudeConfigReader.CONFIG_KEY, json, ClaudeConfigReader.CONFIG_CONTEXT);
     }
 

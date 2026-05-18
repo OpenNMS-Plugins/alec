@@ -17,8 +17,11 @@ export type TEngine = {
 
 // Server-returned shape of the Claude integration config (GET /alec/claude/configuration).
 // The API key itself is never returned — only whether one is currently stored.
+// autoEvaluate gates the auto-fire-on-new-situation behavior; the Re-evaluate
+// button works regardless.
 export type TClaudeConfigStatus = {
 	enabled: boolean
+	autoEvaluate: boolean
 	apiKeyPresent: boolean
 }
 
@@ -28,6 +31,7 @@ export type TClaudeConfigStatus = {
 // Set clearApiKey: true to wipe the stored key (also forces enabled=false server-side).
 export type TClaudeConfigRequest = {
 	enabled: boolean
+	autoEvaluate: boolean
 	apiKey?: string
 	clearApiKey?: boolean
 }

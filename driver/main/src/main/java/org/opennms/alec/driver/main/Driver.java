@@ -30,7 +30,6 @@ package org.opennms.alec.driver.main;
 
 import static com.codahale.metrics.MetricRegistry.name;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Hashtable;
@@ -154,16 +153,18 @@ public class Driver implements EngineRegistry {
         // Register the situation processor responsible for accepting and processing all situations generated via the
         // engine. Wrap the core processor + any external listeners in a composite so multiple bundles can subscribe
         // (the engine itself holds only a single-slot handler reference).
+        //
+        // We pass externalSituationHandlers DIRECTLY to the composite (not a snapshot) so external bundles whose
+        // SituationHandler services register after Driver init still get picked up — the OSGi reference-list is
+        // live, and the composite iterates it (with a per-callback defensive copy) at each callback.
         SituationHandler coreProcessorForwarder = new SituationHandler() {
             @Override
             public void onSituation(Situation situation) {
                 situationProcessor.accept(situation);
             }
         };
-        List<SituationHandler> allHandlers = new ArrayList<>(externalSituationHandlers.size() + 1);
-        allHandlers.add(coreProcessorForwarder);
-        allHandlers.addAll(externalSituationHandlers);
-        engine.registerSituationHandler(new CompositeSituationHandler(allHandlers));
+        engine.registerSituationHandler(
+                new CompositeSituationHandler(coreProcessorForwarder, externalSituationHandlers));
 
         timer = new Timer();
         // The get methods on the datasources may block, so we do this on a separate thread

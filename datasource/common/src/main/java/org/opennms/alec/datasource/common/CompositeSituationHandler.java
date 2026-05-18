@@ -58,15 +58,53 @@ import org.slf4j.LoggerFactory;
 public class CompositeSituationHandler implements SituationHandler {
     private static final Logger LOG = LoggerFactory.getLogger(CompositeSituationHandler.class);
 
-    private final List<SituationHandler> delegates;
+    /**
+     * Always invoked first (pre-existing engine processing path); not part of
+     * the dynamic OSGi reference-list. Null is allowed for the legacy
+     * single-arg constructor used by tests.
+     */
+    private final SituationHandler primary;
 
+    /**
+     * Held by REFERENCE — typically an OSGi reference-list. Handlers that
+     * register AFTER this composite is constructed must still be invoked on
+     * the next callback, which is why we don't copy at construction time.
+     * The per-callback snapshot via {@code new ArrayList<>(...)} is the only
+     * defensive copy, and it's there to avoid {@link java.util.ConcurrentModificationException}
+     * during iteration, not to freeze membership.
+     */
+    private final List<SituationHandler> dynamicDelegates;
+
+    /**
+     * Two-arg form for the Driver case: a known primary handler that should
+     * always fire, plus a live list of dynamic delegates injected from OSGi.
+     * Use this constructor when membership of {@code dynamicDelegates} can
+     * change after construction (e.g. blueprint reference-lists).
+     */
+    public CompositeSituationHandler(SituationHandler primary, List<SituationHandler> dynamicDelegates) {
+        this.primary = primary;
+        this.dynamicDelegates = dynamicDelegates == null ? Collections.emptyList() : dynamicDelegates;
+    }
+
+    /**
+     * Single-list constructor preserved for callers that already pass a fully
+     * assembled list. The list is still held by reference so live mutations
+     * propagate.
+     */
     public CompositeSituationHandler(List<SituationHandler> delegates) {
-        this.delegates = delegates == null ? Collections.emptyList() : delegates;
+        this(null, delegates);
     }
 
     @Override
     public void onSituation(Situation situation) {
-        for (SituationHandler h : new ArrayList<>(delegates)) {
+        if (primary != null) {
+            try {
+                primary.onSituation(situation);
+            } catch (Exception e) {
+                LOG.error("Error occurred on primary situation handler {}: {}", primary, e.getMessage(), e);
+            }
+        }
+        for (SituationHandler h : new ArrayList<>(dynamicDelegates)) {
             try {
                 h.onSituation(situation);
             } catch (Exception e) {
@@ -77,7 +115,14 @@ public class CompositeSituationHandler implements SituationHandler {
 
     @Override
     public void onSituationDeleted(String situationId) {
-        for (SituationHandler h : new ArrayList<>(delegates)) {
+        if (primary != null) {
+            try {
+                primary.onSituationDeleted(situationId);
+            } catch (Exception e) {
+                LOG.error("Error occurred on primary situation handler {}: {}", primary, e.getMessage(), e);
+            }
+        }
+        for (SituationHandler h : new ArrayList<>(dynamicDelegates)) {
             try {
                 h.onSituationDeleted(situationId);
             } catch (Exception e) {

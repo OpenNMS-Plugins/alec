@@ -70,6 +70,10 @@ const showHellingerVars = computed(() => isClustering.value && hellinger.value)
 // Claude integration (ALEC-299). API key is write-only from the UI; the
 // server returns only `apiKeyPresent` so a stored key is never echoed back.
 const claudeEnabled = ref(userStore.claudeConfig?.enabled ?? false)
+// Auto-evaluate default true matches server-side (preserves existing automatic
+// behavior). When false, new situations get no Claude call until the user clicks
+// Re-evaluate on the AI Suggestions tab.
+const claudeAutoEvaluate = ref(userStore.claudeConfig?.autoEvaluate ?? true)
 const claudeApiKey = ref('')
 const claudeApiKeyPresent = ref(userStore.claudeConfig?.apiKeyPresent ?? false)
 const claudeApiKeyCleared = ref(false)
@@ -105,6 +109,7 @@ onMounted(async () => {
 		const result = await userStore.getClaudeConfig()
 		if (result) {
 			claudeEnabled.value = result.enabled
+			claudeAutoEvaluate.value = result.autoEvaluate
 			claudeApiKeyPresent.value = result.apiKeyPresent
 		}
 	}
@@ -129,10 +134,19 @@ const notify = (msg: string, error: boolean) => {
 const buildClaudeRequest = (): TClaudeConfigRequest => {
 	if (claudeApiKeyCleared.value) {
 		// Clearing wins regardless of any text in the input — server forces enabled=false.
-		return { enabled: false, clearApiKey: true }
+		// Carry the user's autoEvaluate preference through so re-enabling later
+		// doesn't surprise them with a different default.
+		return {
+			enabled: false,
+			autoEvaluate: claudeAutoEvaluate.value,
+			clearApiKey: true
+		}
 	}
 	const trimmedKey = claudeApiKey.value.trim()
-	const request: TClaudeConfigRequest = { enabled: claudeEnabled.value }
+	const request: TClaudeConfigRequest = {
+		enabled: claudeEnabled.value,
+		autoEvaluate: claudeAutoEvaluate.value
+	}
 	if (trimmedKey.length > 0) {
 		request.apiKey = trimmedKey
 	}
@@ -170,6 +184,7 @@ const saveConfiguration = async () => {
 		claudeApiKeyCleared.value = false
 		claudeApiKeyPresent.value = userStore.claudeConfig?.apiKeyPresent ?? false
 		claudeEnabled.value = userStore.claudeConfig?.enabled ?? false
+		claudeAutoEvaluate.value = userStore.claudeConfig?.autoEvaluate ?? true
 		// Refresh the usage rollup — enabling/disabling doesn't generate calls
 		// immediately, but the next render should reflect any usage that
 		// arrived since the page loaded.
@@ -331,6 +346,19 @@ const handleReEvaluate = async () => {
 				data-test="claude-enabled"
 			>
 				<strong>Claude Enabled Root Cause Analysis</strong>
+			</FeatherCheckbox>
+			<FeatherCheckbox
+				v-model="claudeAutoEvaluate"
+				:disabled="!claudeEnabled"
+				class="checkbox sub-checkbox"
+				data-test="claude-auto-evaluate"
+			>
+				Automatically AI Evaluate new situations
+				<div class="caption-inline">
+					When off, new situations are not analyzed automatically — click
+					Re-evaluate on the AI Suggestions tab to trigger an analysis on
+					demand.
+				</div>
 			</FeatherCheckbox>
 			<div
 				v-if="claudeNoKeyAvailable"
@@ -619,6 +647,21 @@ const handleReEvaluate = async () => {
 .checkbox {
 	margin-left: var(--feather-spacing-l);
 	margin-bottom: var(--feather-spacing-l) !important;
+}
+
+.sub-checkbox {
+	margin-left: calc(var(--feather-spacing-l) * 2);
+	margin-top: 4px;
+	margin-bottom: 8px !important;
+}
+
+.caption-inline {
+	display: block;
+	font-size: 12px;
+	color: #666;
+	font-weight: 400;
+	margin-top: 2px;
+	max-width: 540px;
 }
 
 .caption {

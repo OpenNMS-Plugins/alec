@@ -82,26 +82,41 @@ public class ClaudeConfigReader {
         try {
             JsonNode node = objectMapper.readTree(raw.get());
             boolean enabled = node.path("enabled").asBoolean(false);
+            // Older config records (persisted before the field was added)
+            // default autoEvaluate to true so they keep the original automatic
+            // behavior. Explicit false in the JSON disables auto-eval.
+            boolean autoEvaluate = node.path("autoEvaluate").asBoolean(true);
             String apiKey = node.path("apiKey").asText("");
-            return Optional.of(new Config(enabled, apiKey));
+            return Optional.of(new Config(enabled, autoEvaluate, apiKey));
         } catch (IOException e) {
             LOG.warn("Malformed Claude config at {}/{}: {}", CONFIG_CONTEXT, CONFIG_KEY, e.getMessage());
             return Optional.empty();
         }
     }
 
-    /** Snapshot of the two fields the handler cares about. */
+    /** Snapshot of the fields the handler cares about. */
     public static final class Config {
         private final boolean enabled;
+        private final boolean autoEvaluate;
         private final String apiKey;
 
-        public Config(boolean enabled, String apiKey) {
+        public Config(boolean enabled, boolean autoEvaluate, String apiKey) {
             this.enabled = enabled;
+            this.autoEvaluate = autoEvaluate;
             this.apiKey = apiKey == null ? "" : apiKey;
         }
 
         public boolean isEnabled() {
             return enabled;
+        }
+
+        /**
+         * When false, {@link ClaudeSituationHandler#onSituation} short-
+         * circuits — no automatic analysis on new situations. The Re-evaluate
+         * REST path bypasses this flag intentionally.
+         */
+        public boolean isAutoEvaluate() {
+            return autoEvaluate;
         }
 
         public String getApiKey() {
@@ -115,7 +130,9 @@ public class ClaudeConfigReader {
         @Override
         public String toString() {
             // Never include the API key in toString — it ends up in log lines.
-            return "Config[enabled=" + enabled + ", apiKeyPresent=" + hasApiKey() + "]";
+            return "Config[enabled=" + enabled
+                    + ", autoEvaluate=" + autoEvaluate
+                    + ", apiKeyPresent=" + hasApiKey() + "]";
         }
     }
 }

@@ -103,13 +103,22 @@ public class ClaudeRestImpl implements ClaudeRest {
      *   <li>A non-empty {@code apiKey} in the request replaces the stored key.</li>
      *   <li>An empty/null {@code apiKey} leaves the stored key untouched — UI can
      *       toggle the enabled flag without re-sending the secret.</li>
+     *   <li>{@code autoEvaluate} is carried through from the request (the UI
+     *       always sends the current checkbox state, so we trust it directly).</li>
      * </ul>
      */
     static ClaudeConfig merge(ClaudeConfig existing, ClaudeConfig request) {
         ClaudeConfigImpl.Builder builder = ClaudeConfigImpl.newBuilder();
 
         if (request.isClearApiKey()) {
-            return builder.enabled(false).apiKey(null).build();
+            // Clearing the key disables Claude but preserves the user's
+            // autoEvaluate preference so re-enabling later doesn't surprise
+            // them with a different default.
+            return builder
+                    .enabled(false)
+                    .autoEvaluate(request.isAutoEvaluate())
+                    .apiKey(null)
+                    .build();
         }
 
         String requestKey = request.getApiKey();
@@ -119,6 +128,7 @@ public class ClaudeRestImpl implements ClaudeRest {
             builder.apiKey(existing.getApiKey());
         }
         builder.enabled(request.isEnabled());
+        builder.autoEvaluate(request.isAutoEvaluate());
         return builder.build();
     }
 
