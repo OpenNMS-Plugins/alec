@@ -70,22 +70,26 @@ public class ClaudeSituationHandler implements SituationHandler {
     private final ClaudeConfigReader configReader;
     private final ClaudeSuggestionService suggestionService;
     private final SuggestionStore store;
+    private final UsageStore usageStore;
     private final TimeSource timeSource;
 
     public ClaudeSituationHandler(ClaudeConfigReader configReader,
                                   ClaudeSuggestionService suggestionService,
-                                  SuggestionStore store) {
-        this(configReader, suggestionService, store, System::currentTimeMillis);
+                                  SuggestionStore store,
+                                  UsageStore usageStore) {
+        this(configReader, suggestionService, store, usageStore, System::currentTimeMillis);
     }
 
     // Visible for testing — lets the test inject deterministic timestamps.
     ClaudeSituationHandler(ClaudeConfigReader configReader,
                            ClaudeSuggestionService suggestionService,
                            SuggestionStore store,
+                           UsageStore usageStore,
                            TimeSource timeSource) {
         this.configReader = Objects.requireNonNull(configReader);
         this.suggestionService = Objects.requireNonNull(suggestionService);
         this.store = Objects.requireNonNull(store);
+        this.usageStore = Objects.requireNonNull(usageStore);
         this.timeSource = Objects.requireNonNull(timeSource);
     }
 
@@ -130,12 +134,31 @@ public class ClaudeSituationHandler implements SituationHandler {
                         LOG.warn("Claude suggestion failed for situation {}: {}", situationId, reason);
                         store.putFailed(situationId, requestedAt, completedAt,
                                 ClaudeSuggestionServiceImpl.MODEL, reason);
+                        // Record the failed attempt too — call count and success rate matter
+                        // for the dashboard even when no tokens were billed.
+                        usageStore.record(UsageRecord.newBuilder()
+                                .ts(completedAt)
+                                .situationId(situationId)
+                                .model(ClaudeSuggestionServiceImpl.MODEL)
+                                .success(false)
+                                .build());
                         return;
                     }
                     store.putReady(situationId, requestedAt, completedAt,
                             ClaudeSuggestionServiceImpl.MODEL,
                             suggestions.getRootCauses(),
                             suggestions.getResolutions());
+                    Suggestions.TokenUsage u = suggestions.getUsage();
+                    usageStore.record(UsageRecord.newBuilder()
+                            .ts(completedAt)
+                            .situationId(situationId)
+                            .model(ClaudeSuggestionServiceImpl.MODEL)
+                            .success(true)
+                            .inputTokens(u.getInputTokens())
+                            .outputTokens(u.getOutputTokens())
+                            .cacheReadInputTokens(u.getCacheReadInputTokens())
+                            .cacheCreationInputTokens(u.getCacheCreationInputTokens())
+                            .build());
                 });
     }
 

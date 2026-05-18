@@ -52,6 +52,10 @@
             <version>${jackson.version}</version>
         </dependency>
         <dependency>
+            <groupId>javax.ws.rs</groupId>
+            <artifactId>javax.ws.rs-api</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
         </dependency>
@@ -69,6 +73,13 @@
         <dependency>
             <groupId>org.hamcrest</groupId>
             <artifactId>hamcrest-library</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- JAX-RS RuntimeDelegate provider needed when our REST tests build Response objects. -->
+        <dependency>
+            <groupId>org.glassfish.jersey.core</groupId>
+            <artifactId>jersey-client</artifactId>
+            <version>${jersey-client.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

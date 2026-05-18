@@ -32,6 +32,12 @@
         <argument ref="claudeObjectMapper"/>
     </bean>
 
+    <!-- Per-call token-usage log; aggregated by /alec/claude/usage. -->
+    <bean id="usageStore" class="org.opennms.alec.claude.UsageStore">
+        <argument ref="keyValueStore"/>
+        <argument ref="claudeObjectMapper"/>
+    </bean>
+
     <!--
         Bridge between the engine's situation-emission and Claude. Registered as
         a SituationHandler service with role=engine-listener so the composite
@@ -42,6 +48,7 @@
         <argument ref="claudeConfigReader"/>
         <argument ref="claudeSuggestionService"/>
         <argument ref="suggestionStore"/>
+        <argument ref="usageStore"/>
     </bean>
 
     <service ref="claudeSituationHandler"
@@ -51,12 +58,40 @@
         </service-properties>
     </service>
 
-    <!-- Daily prune of records older than 90 days. -->
+    <!-- Daily prune of suggestion records older than 90 days. -->
     <bean id="suggestionPruner"
           class="org.opennms.alec.claude.SuggestionPruner"
           init-method="start"
           destroy-method="stop">
         <argument ref="suggestionStore"/>
     </bean>
+
+    <!-- Daily prune of usage rows older than 90 days. -->
+    <bean id="usagePruner"
+          class="org.opennms.alec.claude.UsagePruner"
+          init-method="start"
+          destroy-method="stop">
+        <argument ref="usageStore"/>
+    </bean>
+
+    <!-- REST endpoints (same /alec/claude root as the slice-1 config endpoint
+         in features/ui; JAX-RS routes by sub-path). -->
+    <bean id="suggestionsRest" class="org.opennms.alec.claude.SuggestionsRestImpl">
+        <argument ref="suggestionStore"/>
+    </bean>
+    <service ref="suggestionsRest" interface="org.opennms.alec.claude.SuggestionsRest">
+        <service-properties>
+            <entry key="application-path" value="/rest"/>
+        </service-properties>
+    </service>
+
+    <bean id="usageRest" class="org.opennms.alec.claude.UsageRestImpl">
+        <argument ref="usageStore"/>
+    </bean>
+    <service ref="usageRest" interface="org.opennms.alec.claude.UsageRest">
+        <service-properties>
+            <entry key="application-path" value="/rest"/>
+        </service-properties>
+    </service>
 
 </blueprint>

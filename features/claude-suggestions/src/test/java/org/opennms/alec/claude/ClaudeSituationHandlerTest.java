@@ -55,6 +55,7 @@ public class ClaudeSituationHandlerTest {
     private InMemoryKVStore kv;
     private ClaudeConfigReader configReader;
     private SuggestionStore store;
+    private UsageStore usageStore;
     private ClaudeSuggestionService service;
     private ClaudeSituationHandler handler;
     private long mockNow;
@@ -65,9 +66,10 @@ public class ClaudeSituationHandlerTest {
         ObjectMapper om = new ObjectMapper();
         configReader = new ClaudeConfigReader(kv, om);
         store = new SuggestionStore(kv, om);
+        usageStore = new UsageStore(kv, om);
         service = mock(ClaudeSuggestionService.class);
         mockNow = 1_000L;
-        handler = new ClaudeSituationHandler(configReader, service, store, () -> mockNow);
+        handler = new ClaudeSituationHandler(configReader, service, store, usageStore, () -> mockNow);
     }
 
     // --- guardrails ---
@@ -192,6 +194,51 @@ public class ClaudeSituationHandlerTest {
         assertThat(failed.getError(), containsString("HTTP 401"));
         assertThat(failed.getCompletedAt(), equalTo(1_500L));
         assertThat(failed.getRootCauses().isEmpty(), is(true));
+    }
+
+    // --- usage recording on completion ---
+
+    @Test
+    public void recordsSuccessUsageRowOnReady() {
+        writeConfig(true, "sk-ant-key");
+        CompletableFuture<Suggestions> future = new CompletableFuture<>();
+        when(service.requestSuggestions(any(), eq("sk-ant-key"))).thenReturn(future);
+
+        // Use real wall-clock for usage recording — UsageStore.aggregate filters
+        // by ts vs System.currentTimeMillis(), so a 1970-era mockNow would fall
+        // outside the 1-day window even immediately after writing it.
+        mockNow = System.currentTimeMillis();
+        handler.onSituation(stubSituation("sit-1"));
+        future.complete(new Suggestions(
+                Arrays.asList("cause"),
+                Arrays.asList("res"),
+                new Suggestions.TokenUsage(200L, 50L, 100L, 20L)));
+
+        UsageReport report = usageStore.aggregate(1);
+        assertThat(report.getCalls(), equalTo(1L));
+        assertThat(report.getSuccessfulCalls(), equalTo(1L));
+        assertThat(report.getFailedCalls(), equalTo(0L));
+        assertThat(report.getInputTokens(), equalTo(200L));
+        assertThat(report.getOutputTokens(), equalTo(50L));
+        assertThat(report.getCacheReadInputTokens(), equalTo(100L));
+        assertThat(report.getCacheCreationInputTokens(), equalTo(20L));
+    }
+
+    @Test
+    public void recordsFailureUsageRowWithZeroTokens() {
+        writeConfig(true, "sk-ant-key");
+        CompletableFuture<Suggestions> future = new CompletableFuture<>();
+        when(service.requestSuggestions(any(), eq("sk-ant-key"))).thenReturn(future);
+
+        mockNow = System.currentTimeMillis();
+        handler.onSituation(stubSituation("sit-2"));
+        future.completeExceptionally(new ClaudeApiException("timeout"));
+
+        UsageReport report = usageStore.aggregate(1);
+        assertThat(report.getCalls(), equalTo(1L));
+        assertThat(report.getSuccessfulCalls(), equalTo(0L));
+        assertThat(report.getFailedCalls(), equalTo(1L));
+        assertThat("failure rows carry zero tokens", report.getTotalTokens(), equalTo(0L));
     }
 
     // --- helpers ---
