@@ -10,6 +10,7 @@
     <packaging>pom</packaging>
 
     <modules>
+        <module>claude-suggestions</module>
         <module>deeplearning</module>
         <module>graph</module>
         <module>score</module>

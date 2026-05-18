@@ -1,0 +1,16 @@
+<blueprint xmlns="http://www.osgi.org/xmlns/blueprint/v1.0.0">
+
+    <!--
+        ClaudeSuggestionService — calls api.anthropic.com to produce up to 3
+        probable root causes + 3 possible resolutions for a given Situation.
+        The listener that wires this into new situations arrives in slice 4
+        (along with the sidecar suggestion storage).
+    -->
+    <bean id="claudeSuggestionService"
+          class="org.opennms.alec.claude.ClaudeSuggestionServiceImpl"
+          destroy-method="shutdown"/>
+
+    <service ref="claudeSuggestionService"
+             interface="org.opennms.alec.claude.ClaudeSuggestionService"/>
+
+</blueprint>
