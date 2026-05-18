@@ -71,8 +71,8 @@ import edu.uci.ics.jung.graph.Graph;
 public class DBScanEngine extends AbstractClusterEngine {
     private static final Logger LOG = LoggerFactory.getLogger(DBScanEngine.class);
 
-    public static final double DEFAULT_ALPHA = 144.47117699d;
-    public static final double DEFAULT_BETA = 0.55257784d;
+    public static final double DEFAULT_ALPHA = 145d;
+    public static final double DEFAULT_BETA = 0.55d;
     public static final String DEFAULT_DISTANCE_MEASURE = "hellinger";
     private final double epsilon;
     private final DistanceMeasure distanceMeasure;

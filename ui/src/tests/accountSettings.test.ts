@@ -78,6 +78,27 @@ test('Save passes alpha/beta/epsilon to setEngineInfo', async () => {
 	expect(store.setEngineInfo).toHaveBeenCalledTimes(1)
 	const args = (store.setEngineInfo as any).mock.calls[0]
 	expect(args[0]).toBe(CONST.ENGINE_DBSCAN)
+	// Hellinger is the fresh-install default, so save sends w/bias too.
+	expect(args[2]).toEqual({
+		alpha: 200,
+		beta: 0.7,
+		epsilon: 500,
+		hellingerW: 4851.28,
+		hellingerBias: -1986.0
+	})
+})
+
+test('Save omits Hellinger params when Hellinger is unchecked', async () => {
+	const { wrapper, store } = buildWrapper()
+	wrapper.vm.hellinger = false
+	wrapper.vm.alpha = 200
+	wrapper.vm.beta = 0.7
+	wrapper.vm.epsilon = 500
+	await wrapper.find('[data-test="save-btn"]').trigger('click')
+
+	expect(store.setEngineInfo).toHaveBeenCalledTimes(1)
+	const args = (store.setEngineInfo as any).mock.calls[0]
+	expect(args[1]).toBe(false)
 	expect(args[2]).toEqual({ alpha: 200, beta: 0.7, epsilon: 500 })
 })
 
@@ -97,14 +118,19 @@ test('Help popover toggles on click and contains bullets + defaults', async () =
 	await help.trigger('click')
 	const popover = wrapper.find('[data-test="variables-help-popover"]')
 	expect(popover.exists()).toBe(true)
-	expect(popover.findAll('li').length).toBe(3)
+	// Hellinger is on by default, so popover lists 5 items (3 DBScan + 2 Hellinger).
+	expect(popover.findAll('li').length).toBe(5)
 	const html = popover.html()
 	expect(html).toContain('Alpha')
 	expect(html).toContain('Beta')
 	expect(html).toContain('Epsilon')
-	expect(html).toContain('144.47117699')
-	expect(html).toContain('0.55257784')
-	expect(html).toContain('100')
+	expect(html).toContain('145')
+	expect(html).toContain('0.55')
+	expect(html).toContain('150')
+	expect(html).toContain('Hellinger w')
+	expect(html).toContain('Hellinger bias')
+	expect(html).toContain('4851.28')
+	expect(html).toContain('-1986')
 
 	await help.trigger('click')
 	expect(wrapper.find('[data-test="variables-help-popover"]').exists()).toBe(
@@ -112,17 +138,47 @@ test('Help popover toggles on click and contains bullets + defaults', async () =
 	)
 })
 
-test('Reset button restores alpha/beta/epsilon to defaults', async () => {
+test('Help popover drops Hellinger entries when Hellinger is unchecked', async () => {
+	const { wrapper } = buildWrapper()
+	wrapper.vm.hellinger = false
+	await wrapper.vm.$nextTick()
+	await wrapper.find('[data-test="variables-help"]').trigger('click')
+	const popover = wrapper.find('[data-test="variables-help-popover"]')
+	expect(popover.findAll('li').length).toBe(3)
+	expect(popover.find('[data-test="help-hellinger-w"]').exists()).toBe(false)
+	expect(popover.find('[data-test="help-hellinger-bias"]').exists()).toBe(false)
+})
+
+test('Hellinger w/bias inputs render only when Hellinger is checked', async () => {
+	const { wrapper } = buildWrapper()
+	expect(wrapper.find('[data-test="variable-hellinger-w"]').exists()).toBe(true)
+	expect(wrapper.find('[data-test="variable-hellinger-bias"]').exists()).toBe(
+		true
+	)
+
+	wrapper.vm.hellinger = false
+	await wrapper.vm.$nextTick()
+	expect(wrapper.find('[data-test="variable-hellinger-w"]').exists()).toBe(false)
+	expect(wrapper.find('[data-test="variable-hellinger-bias"]').exists()).toBe(
+		false
+	)
+})
+
+test('Reset button restores all correlation variables to defaults', async () => {
 	const { wrapper } = buildWrapper()
 	wrapper.vm.alpha = 999
 	wrapper.vm.beta = 0.99
 	wrapper.vm.epsilon = 9999
+	wrapper.vm.hellingerW = 1
+	wrapper.vm.hellingerBias = 1
 
 	await wrapper.find('[data-test="variables-reset"]').trigger('click')
 
-	expect(wrapper.vm.alpha).toBeCloseTo(144.47117699)
-	expect(wrapper.vm.beta).toBeCloseTo(0.55257784)
-	expect(wrapper.vm.epsilon).toBe(100)
+	expect(wrapper.vm.alpha).toBe(145)
+	expect(wrapper.vm.beta).toBe(0.55)
+	expect(wrapper.vm.epsilon).toBe(150)
+	expect(wrapper.vm.hellingerW).toBe(4851.28)
+	expect(wrapper.vm.hellingerBias).toBe(-1986.0)
 })
 
 test('Close All Open Situations button confirms then calls service', async () => {

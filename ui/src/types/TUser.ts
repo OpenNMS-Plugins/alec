@@ -11,4 +11,6 @@ export type TEngine = {
 	alpha: number
 	beta: number
 	epsilon: number
+	hellingerW?: number | null
+	hellingerBias?: number | null
 }

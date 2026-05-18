@@ -38,15 +38,26 @@ import org.opennms.alec.engine.cluster.SpatialDistanceCalculator;
 
 public class HellingerDistanceMeasure implements DistanceMeasure {
     public static final double  DEFAULT_EPSILON = 75d;
+    public static final double  DEFAULT_W = 4851.28d;
+    public static final double  DEFAULT_BIAS = -1986.00d;
 
     private final SpatialDistanceCalculator spatialDistanceCalculator;
     private final double alpha;
     private final double beta;
+    private final double w;
+    private final double bias;
 
     public HellingerDistanceMeasure(SpatialDistanceCalculator SpatialDistanceCalculator, double alpha, double beta) {
+        this(SpatialDistanceCalculator, alpha, beta, DEFAULT_W, DEFAULT_BIAS);
+    }
+
+    public HellingerDistanceMeasure(SpatialDistanceCalculator SpatialDistanceCalculator, double alpha, double beta,
+                                    double w, double bias) {
         this.spatialDistanceCalculator = Objects.requireNonNull(SpatialDistanceCalculator);
         this.alpha = alpha;
         this.beta = beta;
+        this.w = w;
+        this.bias = bias;
     }
 
     @Override
@@ -74,8 +85,6 @@ public class HellingerDistanceMeasure implements DistanceMeasure {
 
     @Override
     public double compute(double timeA, double timeB, double firstTimeA, double firstTimeB, double spatialDistance) {
-        double w = 4851.28;
-        double bias = -1986.00;
         double var_a = Math.pow(((timeA - firstTimeA) * w) + bias, 2);
         double mean_a = 0.5 * (timeA + firstTimeA);
         double var_b = Math.pow(((timeB - firstTimeB) * w) + bias, 2);
@@ -95,6 +104,14 @@ public class HellingerDistanceMeasure implements DistanceMeasure {
     @Override
     public double getBeta() {
         return beta;
+    }
+
+    public double getW() {
+        return w;
+    }
+
+    public double getBias() {
+        return bias;
     }
 
     @Override

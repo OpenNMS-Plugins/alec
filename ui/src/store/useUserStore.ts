@@ -12,9 +12,11 @@ type TState = {
 }
 
 const engineDefaultValues = {
-	alpha: 144.47117699,
-	beta: 0.55257784,
-	epsilon: 100
+	alpha: 145,
+	beta: 0.55,
+	epsilon: 150,
+	hellingerW: 4851.28,
+	hellingerBias: -1986.00
 }
 
 export const useUserStore = defineStore('userStore', {
@@ -41,7 +43,9 @@ export const useUserStore = defineStore('userStore', {
 		async setEngineInfo(
 			engine: string,
 			isHellinger: boolean,
-			overrides?: Partial<Pick<TEngine, 'alpha' | 'beta' | 'epsilon'>>
+			overrides?: Partial<
+				Pick<TEngine, 'alpha' | 'beta' | 'epsilon' | 'hellingerW' | 'hellingerBias'>
+			>
 		) {
 			const engineData: TEngine = {
 				...engineDefaultValues,
@@ -50,6 +54,10 @@ export const useUserStore = defineStore('userStore', {
 					? CONST.HELLINGER_OPTION
 					: CONST.SPACE_DISTANCE_OPTION,
 				engineName: engine
+			}
+			if (!isHellinger) {
+				engineData.hellingerW = null
+				engineData.hellingerBias = null
 			}
 			const result = await saveEngineParameter(engineData)
 			if (result) {

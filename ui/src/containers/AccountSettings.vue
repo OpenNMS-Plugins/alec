@@ -24,9 +24,11 @@ const Icons = markRaw({
 })
 
 const ENGINE_DEFAULTS = {
-	alpha: 144.47117699,
-	beta: 0.55257784,
-	epsilon: 100
+	alpha: 145,
+	beta: 0.55,
+	epsilon: 150,
+	hellingerW: 4851.28,
+	hellingerBias: -1986.00
 }
 
 const userStore = useUserStore()
@@ -41,8 +43,15 @@ const hellinger = ref(
 const alpha = ref(userStore.engineInfo?.alpha ?? ENGINE_DEFAULTS.alpha)
 const beta = ref(userStore.engineInfo?.beta ?? ENGINE_DEFAULTS.beta)
 const epsilon = ref(userStore.engineInfo?.epsilon ?? ENGINE_DEFAULTS.epsilon)
+const hellingerW = ref(
+	userStore.engineInfo?.hellingerW ?? ENGINE_DEFAULTS.hellingerW
+)
+const hellingerBias = ref(
+	userStore.engineInfo?.hellingerBias ?? ENGINE_DEFAULTS.hellingerBias
+)
 
 const isClustering = computed(() => engineName.value === CONST.ENGINE_DBSCAN)
+const showHellingerVars = computed(() => isClustering.value && hellinger.value)
 
 const showHelp = ref(false)
 const showNotification = ref(false)
@@ -53,6 +62,8 @@ const resetVariablesToDefaults = () => {
 	alpha.value = ENGINE_DEFAULTS.alpha
 	beta.value = ENGINE_DEFAULTS.beta
 	epsilon.value = ENGINE_DEFAULTS.epsilon
+	hellingerW.value = ENGINE_DEFAULTS.hellingerW
+	hellingerBias.value = ENGINE_DEFAULTS.hellingerBias
 }
 
 const notify = (msg: string, error: boolean) => {
@@ -62,14 +73,25 @@ const notify = (msg: string, error: boolean) => {
 }
 
 const saveConfiguration = async () => {
+	const overrides: {
+		alpha: number
+		beta: number
+		epsilon: number
+		hellingerW?: number
+		hellingerBias?: number
+	} = {
+		alpha: Number(alpha.value),
+		beta: Number(beta.value),
+		epsilon: Number(epsilon.value)
+	}
+	if (hellinger.value) {
+		overrides.hellingerW = Number(hellingerW.value)
+		overrides.hellingerBias = Number(hellingerBias.value)
+	}
 	const savedEngine = await userStore.setEngineInfo(
 		engineName.value,
 		hellinger.value,
-		{
-			alpha: Number(alpha.value),
-			beta: Number(beta.value),
-			epsilon: Number(epsilon.value)
-		}
+		overrides
 	)
 
 	if (savedEngine) {
@@ -193,6 +215,18 @@ const handleReEvaluate = async () => {
 						aggressively; lower ε produces smaller, tighter clusters.
 						<em>Default: {{ ENGINE_DEFAULTS.epsilon }}</em>
 					</li>
+					<template v-if="showHellingerVars">
+						<li data-test="help-hellinger-w">
+							<strong>Hellinger w</strong> — variance scaling coefficient used
+							by the Hellinger distance measure. Larger values flatten the
+							distribution comparison. <em>Default: {{ ENGINE_DEFAULTS.hellingerW }}</em>
+						</li>
+						<li data-test="help-hellinger-bias">
+							<strong>Hellinger bias</strong> — additive offset applied inside
+							the Hellinger distance. Tunes the baseline separation between
+							alarms. <em>Default: {{ ENGINE_DEFAULTS.hellingerBias }}</em>
+						</li>
+					</template>
 				</ul>
 			</div>
 			<div class="variables">
@@ -213,6 +247,20 @@ const handleReEvaluate = async () => {
 					type="number"
 					label="Epsilon"
 					data-test="variable-epsilon"
+				/>
+				<FeatherInput
+					v-if="showHellingerVars"
+					v-model="hellingerW"
+					type="number"
+					label="Hellinger w"
+					data-test="variable-hellinger-w"
+				/>
+				<FeatherInput
+					v-if="showHellingerVars"
+					v-model="hellingerBias"
+					type="number"
+					label="Hellinger bias"
+					data-test="variable-hellinger-bias"
 				/>
 			</div>
 		</div>

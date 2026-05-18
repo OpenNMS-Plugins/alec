@@ -141,6 +141,17 @@ public class EngineRestImpl implements EngineRest {
         dbScanEngineFactory.setBeta(engineParameter.getBeta());
         dbScanEngineFactory.setEpsilon(engineParameter.getEpsilon());
         dbScanEngineFactory.setDistanceMeasureFactoryName(engineParameter.getDistanceMeasureName());
+        // Hellinger-specific tunables: only apply when the caller actually
+        // supplied them. EngineParameter#getHellingerW/Bias fall back to the
+        // Hellinger defaults when the distance measure is "hellinger", so even
+        // a non-Hellinger save won't clobber existing Hellinger values
+        // unintentionally.
+        if (engineParameter.getHellingerW() != null) {
+            dbScanEngineFactory.setHellingerW(engineParameter.getHellingerW());
+        }
+        if (engineParameter.getHellingerBias() != null) {
+            dbScanEngineFactory.setHellingerBias(engineParameter.getHellingerBias());
+        }
         driver.setEngineFactory(dbScanEngineFactory);
         Response response = driverInit(driver);
         if(response != null) {
@@ -151,6 +162,8 @@ public class EngineRestImpl implements EngineRest {
                     .alpha(dbScanEngineFactory.getAlpha())
                     .beta(dbScanEngineFactory.getBeta())
                     .epsilon(dbScanEngineFactory.getEpsilon())
+                    .hellingerW(dbScanEngineFactory.getHellingerW())
+                    .hellingerBias(dbScanEngineFactory.getHellingerBias())
                     .distanceMeasureName(dbScanEngineFactory.getDistanceMeasureFactoryName())
                     .engineName(dbScanEngineFactory.getName())
                     .build());
