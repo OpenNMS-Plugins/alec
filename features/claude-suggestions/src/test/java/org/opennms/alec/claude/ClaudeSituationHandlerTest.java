@@ -81,33 +81,48 @@ public class ClaudeSituationHandlerTest {
     }
 
     @Test
-    public void situationWithNullIdIsANoOp() {
+    public void storageKeyIsTheLongIdNotTheStringUuid() {
+        // Regression for the front-end mismatch: TSituation.id in the UI is the
+        // numeric long, so the handler must store under that exact value (as a
+        // String for KV-store compatibility). Storing under situation.getId()
+        // (a UUID-ish reduction-key string) silently 204s every UI lookup.
+        writeConfig(true, "sk-ant-key");
+        when(service.requestSuggestions(any(), eq("sk-ant-key")))
+                .thenReturn(new CompletableFuture<>());
+
         Situation s = mock(Situation.class);
-        when(s.getId()).thenReturn(null);
+        when(s.getLongId()).thenReturn(42L);
+        when(s.getId()).thenReturn("uei.opennms.org/alarms/situation:some-uuid");
+
         handler.onSituation(s);
-        verify(service, never()).requestSuggestions(any(), any());
+
+        assertThat("stored under the long id, not the UUID",
+                store.get("42").isPresent(), is(true));
+        assertThat("uuid key is NOT used",
+                store.get("uei.opennms.org/alarms/situation:some-uuid").isPresent(),
+                is(false));
     }
 
     @Test
     public void skipsWhenNoConfigPersisted() {
-        handler.onSituation(stubSituation("sit-1"));
+        handler.onSituation(stubSituation(1L));
         verify(service, never()).requestSuggestions(any(), any());
-        assertThat(store.get("sit-1").isPresent(), is(false));
+        assertThat(store.get("1").isPresent(), is(false));
     }
 
     @Test
     public void skipsWhenConfigDisabledEvenWithApiKey() {
         writeConfig(false, "sk-ant-key");
-        handler.onSituation(stubSituation("sit-1"));
+        handler.onSituation(stubSituation(1L));
         verify(service, never()).requestSuggestions(any(), any());
         // Disabled = clean off-switch. We don't even leave a 'pending' breadcrumb.
-        assertFalse(store.get("sit-1").isPresent());
+        assertFalse(store.get("1").isPresent());
     }
 
     @Test
     public void skipsWhenConfigEnabledButApiKeyMissing() {
         writeConfig(true, "");
-        handler.onSituation(stubSituation("sit-1"));
+        handler.onSituation(stubSituation(1L));
         verify(service, never()).requestSuggestions(any(), any());
     }
 
@@ -116,32 +131,32 @@ public class ClaudeSituationHandlerTest {
     @Test
     public void skipsWhenExistingRecordIsPending() {
         writeConfig(true, "sk-ant-key");
-        store.putPending("sit-1", 500L, ClaudeSuggestionServiceImpl.MODEL);
-        handler.onSituation(stubSituation("sit-1"));
+        store.putPending("1", 500L, ClaudeSuggestionServiceImpl.MODEL);
+        handler.onSituation(stubSituation(1L));
         verify(service, never()).requestSuggestions(any(), any());
     }
 
     @Test
     public void skipsWhenExistingRecordIsReady() {
         writeConfig(true, "sk-ant-key");
-        store.putReady("sit-1", 500L, 600L, ClaudeSuggestionServiceImpl.MODEL,
+        store.putReady("1", 500L, 600L, ClaudeSuggestionServiceImpl.MODEL,
                 Arrays.asList("c"), Arrays.asList("r"));
-        handler.onSituation(stubSituation("sit-1"));
+        handler.onSituation(stubSituation(1L));
         verify(service, never()).requestSuggestions(any(), any());
     }
 
     @Test
     public void retriesWhenExistingRecordIsFailed() {
         writeConfig(true, "sk-ant-key");
-        store.putFailed("sit-1", 500L, 600L, ClaudeSuggestionServiceImpl.MODEL, "old error");
+        store.putFailed("1", 500L, 600L, ClaudeSuggestionServiceImpl.MODEL, "old error");
         when(service.requestSuggestions(any(), eq("sk-ant-key")))
                 .thenReturn(new CompletableFuture<>()); // pending, never completes
 
-        handler.onSituation(stubSituation("sit-1"));
+        handler.onSituation(stubSituation(1L));
 
         verify(service).requestSuggestions(any(), eq("sk-ant-key"));
         // Pending record overwrites the previous failed one.
-        SuggestionRecord r = store.get("sit-1").orElseThrow();
+        SuggestionRecord r = store.get("1").orElseThrow();
         assertThat(r.getStatus(), equalTo(SuggestionRecord.STATUS_PENDING));
         assertThat(r.getRequestedAt(), equalTo(1_000L));
     }
@@ -155,8 +170,8 @@ public class ClaudeSituationHandlerTest {
         when(service.requestSuggestions(any(), eq("sk-ant-key"))).thenReturn(future);
 
         // Step 1: pending appears immediately, before the future resolves.
-        handler.onSituation(stubSituation("sit-1"));
-        SuggestionRecord pending = store.get("sit-1").orElseThrow();
+        handler.onSituation(stubSituation(1L));
+        SuggestionRecord pending = store.get("1").orElseThrow();
         assertThat(pending.getStatus(), equalTo(SuggestionRecord.STATUS_PENDING));
         assertThat(pending.getRequestedAt(), equalTo(1_000L));
         assertThat(pending.getModel(), equalTo(ClaudeSuggestionServiceImpl.MODEL));
@@ -168,7 +183,7 @@ public class ClaudeSituationHandlerTest {
                 Arrays.asList("check counters", "open vendor ticket"),
                 Suggestions.TokenUsage.empty()));
 
-        SuggestionRecord ready = store.get("sit-1").orElseThrow();
+        SuggestionRecord ready = store.get("1").orElseThrow();
         assertThat(ready.getStatus(), equalTo(SuggestionRecord.STATUS_READY));
         assertThat(ready.getRootCauses().size(), equalTo(2));
         assertThat(ready.getResolutions().size(), equalTo(2));
@@ -185,11 +200,11 @@ public class ClaudeSituationHandlerTest {
         CompletableFuture<Suggestions> future = new CompletableFuture<>();
         when(service.requestSuggestions(any(), eq("sk-ant-key"))).thenReturn(future);
 
-        handler.onSituation(stubSituation("sit-1"));
+        handler.onSituation(stubSituation(1L));
         mockNow = 1_500L;
         future.completeExceptionally(new ClaudeApiException("HTTP 401: invalid api key"));
 
-        SuggestionRecord failed = store.get("sit-1").orElseThrow();
+        SuggestionRecord failed = store.get("1").orElseThrow();
         assertThat(failed.getStatus(), equalTo(SuggestionRecord.STATUS_FAILED));
         assertThat(failed.getError(), containsString("HTTP 401"));
         assertThat(failed.getCompletedAt(), equalTo(1_500L));
@@ -208,7 +223,7 @@ public class ClaudeSituationHandlerTest {
         // by ts vs System.currentTimeMillis(), so a 1970-era mockNow would fall
         // outside the 1-day window even immediately after writing it.
         mockNow = System.currentTimeMillis();
-        handler.onSituation(stubSituation("sit-1"));
+        handler.onSituation(stubSituation(1L));
         future.complete(new Suggestions(
                 Arrays.asList("cause"),
                 Arrays.asList("res"),
@@ -231,7 +246,7 @@ public class ClaudeSituationHandlerTest {
         when(service.requestSuggestions(any(), eq("sk-ant-key"))).thenReturn(future);
 
         mockNow = System.currentTimeMillis();
-        handler.onSituation(stubSituation("sit-2"));
+        handler.onSituation(stubSituation(2L));
         future.completeExceptionally(new ClaudeApiException("timeout"));
 
         UsageReport report = usageStore.aggregate(1);
@@ -248,9 +263,13 @@ public class ClaudeSituationHandlerTest {
         kv.put(ClaudeConfigReader.CONFIG_KEY, json, ClaudeConfigReader.CONFIG_CONTEXT);
     }
 
-    private static Situation stubSituation(String id) {
+    private static Situation stubSituation(long longId) {
         Situation s = mock(Situation.class);
-        when(s.getId()).thenReturn(id);
+        when(s.getLongId()).thenReturn(longId);
+        // getId is still mocked (with a UUID-shaped string) so any code that
+        // logs or otherwise touches it gets something sensible, even though
+        // the handler keys off getLongId now.
+        when(s.getId()).thenReturn("uei.opennms.org/alarms/situation:test-" + longId);
         return s;
     }
 

@@ -83,6 +83,27 @@ export const getClaudeSuggestion = async (
 	}
 }
 
+// POST /alec/claude/suggestions/{id}/reanalyze — force a fresh Claude call
+// even if a ready/pending record already exists. Returns the new pending
+// record (server writes it synchronously before kicking off the async LLM
+// request); 400 if the integration is disabled / has no key; 404 if the
+// situation doesn't exist.
+export const reanalyzeClaudeSuggestion = async (
+	situationId: number | string
+): Promise<TClaudeSuggestion | false> => {
+	try {
+		const resp = await rest.post(
+			`${claudeSuggestionsEndpoint}/${situationId}/reanalyze`
+		)
+		if (resp.status === 202 || resp.status === 200) {
+			return resp.data as TClaudeSuggestion
+		}
+		return false
+	} catch (err) {
+		return false
+	}
+}
+
 export const getClaudeUsage = async (
 	days: number = 30
 ): Promise<TClaudeUsage | false> => {

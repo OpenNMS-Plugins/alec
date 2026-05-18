@@ -93,12 +93,23 @@ public class ClaudeSituationHandler implements SituationHandler {
         this.timeSource = Objects.requireNonNull(timeSource);
     }
 
+    /**
+     * KV-store key for a situation. We deliberately use the numeric long ID
+     * (not the String UUID returned by {@link Situation#getId()}) because the
+     * front-end's {@code TSituation.id} is the numeric long, and the REST
+     * endpoint receives that value as the path parameter. Storing under the
+     * UUID would silently 204 every front-end lookup — see ALEC-299 fixes.
+     */
+    static String keyFor(Situation situation) {
+        return String.valueOf(situation.getLongId());
+    }
+
     @Override
     public void onSituation(Situation situation) {
-        if (situation == null || situation.getId() == null) {
+        if (situation == null) {
             return;
         }
-        final String situationId = situation.getId();
+        final String situationId = keyFor(situation);
 
         Optional<ClaudeConfigReader.Config> maybeConfig = configReader.read();
         if (maybeConfig.isEmpty()) {
@@ -119,6 +130,32 @@ public class ClaudeSituationHandler implements SituationHandler {
             // status == failed → fall through and retry once
         }
 
+        analyzeAndStore(situation, situationId, config);
+    }
+
+    /**
+     * Force a fresh analysis, bypassing the "skip if already pending/ready"
+     * guard {@link #onSituation} uses. Called by the {@code /reanalyze} REST
+     * endpoint when a user clicks Re-evaluate.
+     */
+    public void forceReanalyze(Situation situation) {
+        if (situation == null) {
+            return;
+        }
+        final String situationId = keyFor(situation);
+        Optional<ClaudeConfigReader.Config> maybeConfig = configReader.read();
+        if (maybeConfig.isEmpty()) {
+            return;
+        }
+        ClaudeConfigReader.Config config = maybeConfig.get();
+        if (!config.isEnabled() || !config.hasApiKey()) {
+            return;
+        }
+        analyzeAndStore(situation, situationId, config);
+    }
+
+    private void analyzeAndStore(Situation situation, String situationId,
+                                 ClaudeConfigReader.Config config) {
         final long requestedAt = timeSource.now();
         store.putPending(situationId, requestedAt, ClaudeSuggestionServiceImpl.MODEL);
 

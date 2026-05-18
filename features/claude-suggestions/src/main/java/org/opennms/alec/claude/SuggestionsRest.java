@@ -30,6 +30,7 @@ package org.opennms.alec.claude;
 
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
+import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
@@ -53,4 +54,18 @@ public interface SuggestionsRest {
     @GET
     @Path("/suggestions/{situationId}")
     Response getSuggestion(@PathParam("situationId") String situationId);
+
+    /**
+     * Force a fresh Claude analysis for the given situation, bypassing the
+     * handler's "skip if already pending/ready" guard. Used by the Re-evaluate
+     * button on the AI Suggestions tab.
+     *
+     * @return 202 Accepted with the new pending {@link SuggestionRecord}
+     *         body (callers poll {@link #getSuggestion} to see completion),
+     *         404 if no situation with that id exists,
+     *         400 if Claude integration is disabled or no API key is set
+     */
+    @POST
+    @Path("/suggestions/{situationId}/reanalyze")
+    Response reanalyze(@PathParam("situationId") String situationId);
 }

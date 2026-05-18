@@ -74,10 +74,18 @@
         <argument ref="usageStore"/>
     </bean>
 
+    <!-- Situation datasource needed by the reanalyze endpoint to load a
+         situation by id and pass it back to the handler. -->
+    <reference id="situationDatasource"
+               interface="org.opennms.alec.datasource.api.SituationDatasource"/>
+
     <!-- REST endpoints (same /alec/claude root as the slice-1 config endpoint
          in features/ui; JAX-RS routes by sub-path). -->
     <bean id="suggestionsRest" class="org.opennms.alec.claude.SuggestionsRestImpl">
         <argument ref="suggestionStore"/>
+        <argument ref="situationDatasource"/>
+        <argument ref="claudeSituationHandler"/>
+        <argument ref="claudeConfigReader"/>
     </bean>
     <service ref="suggestionsRest" interface="org.opennms.alec.claude.SuggestionsRest">
         <service-properties>

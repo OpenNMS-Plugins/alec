@@ -2,22 +2,37 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { FeatherSpinner } from '@featherds/progress'
 import { FeatherButton } from '@featherds/button'
-import { getClaudeSuggestion } from '@/services/AlecService'
+import {
+	getClaudeSuggestion,
+	reanalyzeClaudeSuggestion
+} from '@/services/AlecService'
+import { useUserStore } from '@/store/useUserStore'
 import { TClaudeSuggestion } from '@/types/TUser'
 
 const props = defineProps<{
 	situationId: number | string
 }>()
 
+const userStore = useUserStore()
+
 // Server states: pending (Claude call in flight), ready (suggestions
-// available), failed (last attempt errored). Plus three UI-only states:
-//   absent  — server returned 204; feature is off or call hasn't fired
+// available), failed (last attempt errored). Plus four UI-only states:
+//   absent  — server returned 204; no record exists yet
 //   loading — initial fetch in progress
 //   error   — the GET itself failed (network / 500)
-type UiState = 'loading' | 'absent' | 'pending' | 'ready' | 'failed' | 'error'
+//   reanalyzing — user clicked Re-evaluate; awaiting POST response
+type UiState =
+	| 'loading'
+	| 'absent'
+	| 'pending'
+	| 'ready'
+	| 'failed'
+	| 'error'
+	| 'reanalyzing'
 
 const state = ref<UiState>('loading')
 const record = ref<TClaudeSuggestion | null>(null)
+const reanalyzeError = ref<string | null>(null)
 
 // Poll cadence and cap. We pick 5s because Claude calls with prompt caching
 // usually complete in 5–30s, and 5 minutes is a generous ceiling — anything
@@ -41,8 +56,6 @@ const startPollingIfPending = () => {
 	pollStartedAt = Date.now()
 	pollHandle = setInterval(async () => {
 		if (Date.now() - pollStartedAt > POLL_TIMEOUT_MS) {
-			// We've polled for 5 min without a terminal state. Stop and let the
-			// user trigger a manual refresh — better than burning HTTP forever.
 			stopPolling()
 			return
 		}
@@ -75,7 +88,34 @@ const handleRefresh = async () => {
 	startPollingIfPending()
 }
 
+const handleReanalyze = async () => {
+	reanalyzeError.value = null
+	state.value = 'reanalyzing'
+	stopPolling()
+	const result = await reanalyzeClaudeSuggestion(props.situationId)
+	if (result === false) {
+		// Most commonly: 400 because the integration is disabled or key missing.
+		// We can't see the response body from the helper, so fall back to a
+		// generic message that nudges the user to the config page.
+		state.value = 'absent'
+		reanalyzeError.value =
+			'Could not start a new analysis. Make sure Claude is enabled on the configuration page and an API key is saved.'
+		// Re-fetch claudeConfig so the empty-state copy below stays in sync
+		// with whatever the server thinks the current state is.
+		await userStore.getClaudeConfig()
+		return
+	}
+	record.value = result
+	state.value = result.status as UiState
+	startPollingIfPending()
+}
+
 onMounted(async () => {
+	// Make sure we know the current Claude config so the empty-state copy is
+	// accurate (slightly different message for disabled vs no-key vs ready).
+	if (userStore.claudeConfig === null) {
+		await userStore.getClaudeConfig()
+	}
 	await fetchOnce()
 	startPollingIfPending()
 })
@@ -86,19 +126,49 @@ const requestedAtFormatted = computed(() => {
 	if (!record.value?.requestedAt) return ''
 	return new Date(record.value.requestedAt).toLocaleString()
 })
+
+// Empty-state copy branches on what the server config says, so the user
+// always sees the right next step instead of a generic message.
+type AbsentReason = 'disabled' | 'no-key' | 'not-yet-run'
+const absentReason = computed<AbsentReason>(() => {
+	const cfg = userStore.claudeConfig
+	if (!cfg || !cfg.enabled) return 'disabled'
+	if (!cfg.apiKeyPresent) return 'no-key'
+	return 'not-yet-run'
+})
+
+// Re-evaluate is only meaningful when the integration is actually wired up.
+// When disabled or no key, the button would 400 — so hide it and point the
+// user at the configuration page instead.
+const canReanalyze = computed(
+	() =>
+		userStore.claudeConfig?.enabled === true &&
+		userStore.claudeConfig?.apiKeyPresent === true
+)
 </script>
 
 <template>
 	<div class="ai-panel" data-test="ai-suggestions-panel">
 		<div class="header">
 			<h3>AI Suggestions</h3>
-			<FeatherButton
-				secondary
-				data-test="ai-refresh"
-				@click="handleRefresh"
-			>
-				Refresh
-			</FeatherButton>
+			<div class="header-actions">
+				<FeatherButton
+					v-if="canReanalyze"
+					primary
+					data-test="ai-reanalyze"
+					:disabled="state === 'reanalyzing' || state === 'pending'"
+					@click="handleReanalyze"
+				>
+					Re-evaluate
+				</FeatherButton>
+				<FeatherButton
+					secondary
+					data-test="ai-refresh"
+					@click="handleRefresh"
+				>
+					Refresh
+				</FeatherButton>
+			</div>
 		</div>
 
 		<div v-if="state === 'loading'" class="state-row" data-test="ai-loading">
@@ -106,11 +176,40 @@ const requestedAtFormatted = computed(() => {
 			<span>Loading…</span>
 		</div>
 
+		<div
+			v-else-if="state === 'reanalyzing'"
+			class="state-row"
+			data-test="ai-reanalyzing"
+		>
+			<FeatherSpinner />
+			<span>Requesting a fresh analysis…</span>
+		</div>
+
 		<div v-else-if="state === 'absent'" class="state-row" data-test="ai-absent">
-			No AI suggestions are available for this situation. The Claude
-			integration may be disabled, or the analysis has not run yet — check
-			the
-			<router-link to="/settings">configuration page</router-link> to enable it.
+			<template v-if="absentReason === 'disabled'">
+				<span data-test="ai-absent-disabled">
+					The Claude integration is currently disabled. Enable it on the
+					<router-link to="/settings">configuration page</router-link> to start
+					generating suggestions for new situations.
+				</span>
+			</template>
+			<template v-else-if="absentReason === 'no-key'">
+				<span data-test="ai-absent-no-key">
+					No Anthropic API key is configured. Add one on the
+					<router-link to="/settings">configuration page</router-link> to enable
+					AI suggestions.
+				</span>
+			</template>
+			<template v-else>
+				<span data-test="ai-absent-not-yet-run">
+					No analysis has run for this situation yet. New situations are
+					analyzed automatically — click <strong>Re-evaluate</strong> above to
+					trigger one now.
+				</span>
+			</template>
+			<div v-if="reanalyzeError" class="reanalyze-error" data-test="ai-reanalyze-error">
+				{{ reanalyzeError }}
+			</div>
 		</div>
 
 		<div v-else-if="state === 'pending'" class="state-row" data-test="ai-pending">
@@ -208,6 +307,11 @@ const requestedAtFormatted = computed(() => {
 	}
 }
 
+.header-actions {
+	display: flex;
+	gap: 8px;
+}
+
 .state-row {
 	display: flex;
 	align-items: center;
@@ -226,11 +330,18 @@ const requestedAtFormatted = computed(() => {
 	}
 
 	code {
+		font-family: monospace;
+		font-size: 12px;
 		background: #f5f0e6;
 		padding: 1px 5px;
 		border-radius: 2px;
-		font-size: 12px;
 	}
+}
+
+.reanalyze-error {
+	margin-top: 8px;
+	color: #b91c1c;
+	font-size: 13px;
 }
 
 .meta {

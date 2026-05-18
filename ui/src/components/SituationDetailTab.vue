@@ -10,8 +10,8 @@ import AlarmsListContainer from '@/components/AlarmsListContainer.vue'
 import MemoBox from '@/components/MemoBox.vue'
 
 import { FeatherButton } from '@featherds/button'
-import { ref, watch } from 'vue'
-import { formatDate } from '@/helpers/utils'
+import { computed, ref, watch } from 'vue'
+import { decodeHtmlEntities, formatDate } from '@/helpers/utils'
 import CONST from '@/helpers/constants'
 import { groupBy, size } from 'lodash'
 import AlarmActionBtns from '@/components/AlarmActionBtns.vue'
@@ -33,6 +33,14 @@ watch(props, () => {
 	status.value = props.situationInfo.status || ''
 	situationInfo.value = props.situationInfo
 })
+
+// OpenNMS returns the situation description either as raw HTML or as
+// entity-encoded HTML; in the latter case the browser shows literal "<p>"
+// text instead of paragraphs when we drop it into v-html. Decoding entities
+// first lets v-html render the markup as intended.
+const renderedDescription = computed(() =>
+	decodeHtmlEntities(situationInfo.value?.description || '')
+)
 
 const handleFeedbackSituation = async (action: string) => {
 	const result = await sendFeedbackAcceptSituation(
@@ -91,7 +99,7 @@ const handleFeedbackSituation = async (action: string) => {
 					</div>
 					<SeverityStatus :severity="situationInfo?.severity" />
 				</div>
-				<span v-html="situationInfo.description"></span>
+				<span v-html="renderedDescription" data-test="situation-description"></span>
 				<p></p>
 				<div class="boxes">
 					<InformationBox
