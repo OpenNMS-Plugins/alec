@@ -94,35 +94,41 @@ java -jar demo/target/alec-demo.jar nuke
 ### Realistic Outage Scenario (ALEC-299)
 
 `realistic-outage` simulates the timeline of a real incident — an edge
-router's uplink optic degrades, the interface starts flapping, BGP transitions
-to Idle, traffic shifts to the backup link which saturates, and the
+router's uplink optic degrades, the interface starts flapping, the BGP
+service drops, traffic shifts to the backup link which saturates, and the
 downstream node sees its own interface flap as the topology re-converges.
 
-This scenario produces alarms with **rich descriptive parameters**
-(interface name, peer IP, optical receive power, utilization percentage, …)
-designed to give the Claude integration meaningful context to reason about.
+**Works out of the box** — the scenario uses OpenNMS Horizon's built-in
+event UEIs (`threshold/lowThresholdExceeded`, `threshold/highThresholdExceeded`,
+`nodes/nodeLostService`, `nodes/interfaceDown`) whose stock description
+templates substitute the parameters the demo attaches (interface label,
+datasource, threshold value, service name). The LLM sees genuinely-shaped
+ops alarms without any extra configuration on the OpenNMS side.
 
-**For full-fidelity descriptions** (so Claude sees richly templated text
-instead of generic OpenNMS fallback strings), install the event definitions
-that ship with the demo:
+**Optional: install custom event definitions for even richer descriptions.**
+The demo also ships an event file with hand-written `<descr>` blocks that
+include domain-specific framing (e.g. "Possible causes: dirty connector,
+failing optic, bent or damaged fiber"). If you install it, the custom-UEI
+factories (`Event.opticalDegrade`, `Event.bgpBackwardTransition`,
+`Event.linkSaturation`, `Event.interfaceFlapping`) become useful for crafting
+your own scenarios:
 
 ```bash
-# On the OpenNMS host:
 cp demo/src/main/resources/events/alec-demo.events.xml \
    $OPENNMS_HOME/etc/events.d/
 
 # Reference it from eventconf.xml (add this <event-file/> entry):
 #   <event-file>events.d/alec-demo.events.xml</event-file>
 
-# Reload eventd:
 $OPENNMS_HOME/bin/send-event.pl \
     uei.opennms.org/internal/reloadDaemonConfig -p 'daemonName Eventd'
 ```
 
-Without the event file, the demo still works and ALEC still groups the
-alarms into situations, but the descriptions Claude sees will be generic
-"event uei.opennms.org/alec-demo/... received" strings — the LLM has little
-to work with and its suggestions will be correspondingly vague.
+Note: in OpenNMS Horizon installs that load eventconf from the database
+(`<!-- Event conf files are loaded directly from DB -->` in eventconf.xml),
+the `<event-file>` entry must be added through the OpenNMS admin UI or via
+direct DB migration — copying the XML into `etc/events.d/` alone won't be
+picked up.
 
 ## Cleanup
 

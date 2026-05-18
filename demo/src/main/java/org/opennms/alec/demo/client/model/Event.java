@@ -123,6 +123,62 @@ public class Event {
                 .addParm(new Parameter("windowSeconds", Integer.toString(windowSeconds)));
     }
 
+    // --- Built-in OpenNMS UEIs (no events file install required) ---
+    //
+    // These map to event definitions that ship with OpenNMS Horizon out of
+    // the box, so the alarms they produce have rich, parameter-substituted
+    // descriptions regardless of whether alec-demo.events.xml is installed.
+    // Parameter names below are the standard ones OpenNMS's stock event
+    // templates reference (label, ds, value, threshold, service).
+
+    /**
+     * Standard OpenNMS threshold-exceeded-low event. Stock description
+     * template: "Low threshold exceeded for %parm[ds]% (current %parm[value]%,
+     * threshold %parm[threshold]%) on interface %parm[label]%..."
+     */
+    public static Event lowThresholdExceeded(int nodeId, String ifLabel, String ds,
+                                              double value, double threshold) {
+        return new Event()
+                .setUei("uei.opennms.org/threshold/lowThresholdExceeded")
+                .setNodeid(nodeId)
+                .setSeverity("MINOR")
+                .addParm(new Parameter("label", ifLabel))
+                .addParm(new Parameter("ifLabel", ifLabel))
+                .addParm(new Parameter("ds", ds))
+                .addParm(new Parameter("value", String.format("%.2f", value)))
+                .addParm(new Parameter("threshold", String.format("%.2f", threshold)));
+    }
+
+    /**
+     * Standard OpenNMS threshold-exceeded-high event. Stock description
+     * template substitutes the same parameters as the low variant.
+     */
+    public static Event highThresholdExceeded(int nodeId, String ifLabel, String ds,
+                                               double value, double threshold) {
+        return new Event()
+                .setUei("uei.opennms.org/threshold/highThresholdExceeded")
+                .setNodeid(nodeId)
+                .setSeverity("MINOR")
+                .addParm(new Parameter("label", ifLabel))
+                .addParm(new Parameter("ifLabel", ifLabel))
+                .addParm(new Parameter("ds", ds))
+                .addParm(new Parameter("value", String.format("%.2f", value)))
+                .addParm(new Parameter("threshold", String.format("%.2f", threshold)));
+    }
+
+    /**
+     * Standard OpenNMS service-lost event. Stock description template:
+     * "A %parm[service]% outage was identified on interface %interface% on
+     * node %nodelabel%..."
+     */
+    public static Event lostService(int nodeId, String service) {
+        return new Event()
+                .setUei("uei.opennms.org/nodes/nodeLostService")
+                .setNodeid(nodeId)
+                .setSeverity("MAJOR")
+                .addParm(new Parameter("service", service));
+    }
+
     public String getUei() {
         return uei;
     }

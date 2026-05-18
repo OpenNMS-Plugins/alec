@@ -100,6 +100,44 @@ public class EventTest {
         assertThat(p.get("windowSeconds"), equalTo("60"));
     }
 
+    // --- Built-in OpenNMS UEI factories (ALEC-299 slice 7 follow-up) ---
+
+    @Test
+    public void lowThresholdExceededUsesStandardOpennmsUeiAndParamNames() {
+        Event e = Event.lowThresholdExceeded(5, "TenGigE0/0/0/1", "rxPowerDbm", -19.5, -18.0);
+        assertThat("uei must match the stock OpenNMS threshold daemon's emission",
+                e.getUei(), equalTo("uei.opennms.org/threshold/lowThresholdExceeded"));
+        assertThat(e.getSeverity(), equalTo("MINOR"));
+        Map<String, String> p = params(e);
+        // Stock OpenNMS templates reference %parm[label]%, %parm[ds]%, %parm[value]%,
+        // %parm[threshold]% — the param NAMES matter, not just the values.
+        assertThat(p.get("label"), equalTo("TenGigE0/0/0/1"));
+        assertThat(p.get("ifLabel"), equalTo("TenGigE0/0/0/1"));
+        assertThat(p.get("ds"), equalTo("rxPowerDbm"));
+        assertThat(p.get("value"), equalTo("-19.50"));
+        assertThat(p.get("threshold"), equalTo("-18.00"));
+    }
+
+    @Test
+    public void highThresholdExceededMirrorsLowVariantShape() {
+        Event e = Event.highThresholdExceeded(7, "TenGigE0/0/0/2", "ifInOctets", 94.0, 80.0);
+        assertThat(e.getUei(), equalTo("uei.opennms.org/threshold/highThresholdExceeded"));
+        Map<String, String> p = params(e);
+        assertThat(p.get("ds"), equalTo("ifInOctets"));
+        assertThat(p.get("value"), equalTo("94.00"));
+        assertThat(p.get("threshold"), equalTo("80.00"));
+    }
+
+    @Test
+    public void lostServiceUsesNodeLostServiceUeiAndServiceParam() {
+        Event e = Event.lostService(11, "BGP");
+        assertThat(e.getUei(), equalTo("uei.opennms.org/nodes/nodeLostService"));
+        assertThat(e.getSeverity(), equalTo("MAJOR"));
+        // The stock template substitutes %parm[service]% into the description —
+        // calling the param anything else would render as literal "%parm[service]%".
+        assertThat(params(e).get("service"), equalTo("BGP"));
+    }
+
     @Test
     public void existingFactoriesUnchanged() {
         // Defensive: the slice-7 additions must not alter the existing
