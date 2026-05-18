@@ -18,11 +18,12 @@ java -jar demo/target/alec-demo.jar run --scenario star-5
 
 With **default ALEC configuration**, the current behavior is:
 
-| Scenario   | Alarms Injected           | Situations Created | Meaning                                             |
-|------------|---------------------------|--------------------|-----------------------------------------------------|
-| `single`   | 3 alarms on Router-01     | **1**              | All 3 alarms grouped into one situation             |
-| `linear-3` | 3 alarms on each of 2 routers (6 total) | **2**   | Each node's alarms grouped separately               |
-| `star-5`   | 3 alarms on each of 5 routers (15 total) | **5**  | Each node's alarms grouped separately               |
+| Scenario           | Alarms Injected           | Situations Created | Meaning                                             |
+|--------------------|---------------------------|--------------------|-----------------------------------------------------|
+| `single`           | 3 alarms on Router-01     | **1**              | All 3 alarms grouped into one situation             |
+| `linear-3`         | 3 alarms on each of 2 routers (6 total) | **2**   | Each node's alarms grouped separately               |
+| `star-5`           | 3 alarms on each of 5 routers (15 total) | **5**  | Each node's alarms grouped separately               |
+| `realistic-outage` | 5 correlated alarms (optical / flap / BGP / saturation) across 2 routers | **2** | Realistic ops scenario for exercising the Claude suggestion path (ALEC-299) |
 
 ### Why one situation per node (not cross-node)?
 
@@ -83,11 +84,45 @@ java -jar demo/target/alec-demo.jar nuke
 
 ## Scenarios
 
-| Name       | Topology                                          | Alarms                                    |
-|------------|---------------------------------------------------|-------------------------------------------|
-| `linear-3` | 3 routers in a chain (Router-01 — Router-02 — Router-03) | 3 generic alarms on Router-01 and Router-02 each |
-| `star-5`   | Core-Router-01 + 4 edge routers in a star         | 3 generic alarms on each of the 5 routers |
-| `single`   | 1 router (Router-01)                              | 3 generic alarms on Router-01             |
+| Name               | Topology                                          | Alarms                                    |
+|--------------------|---------------------------------------------------|-------------------------------------------|
+| `linear-3`         | 3 routers in a chain (Router-01 — Router-02 — Router-03) | 3 generic alarms on Router-01 and Router-02 each |
+| `star-5`           | Core-Router-01 + 4 edge routers in a star         | 3 generic alarms on each of the 5 routers |
+| `single`           | 1 router (Router-01)                              | 3 generic alarms on Router-01             |
+| `realistic-outage` | Edge-Router-East — Core-Router-01                 | Optical degrade → interface flap → BGP transition → link saturation → downstream flap (5 alarms total) |
+
+### Realistic Outage Scenario (ALEC-299)
+
+`realistic-outage` simulates the timeline of a real incident — an edge
+router's uplink optic degrades, the interface starts flapping, BGP transitions
+to Idle, traffic shifts to the backup link which saturates, and the
+downstream node sees its own interface flap as the topology re-converges.
+
+This scenario produces alarms with **rich descriptive parameters**
+(interface name, peer IP, optical receive power, utilization percentage, …)
+designed to give the Claude integration meaningful context to reason about.
+
+**For full-fidelity descriptions** (so Claude sees richly templated text
+instead of generic OpenNMS fallback strings), install the event definitions
+that ship with the demo:
+
+```bash
+# On the OpenNMS host:
+cp demo/src/main/resources/events/alec-demo.events.xml \
+   $OPENNMS_HOME/etc/events.d/
+
+# Reference it from eventconf.xml (add this <event-file/> entry):
+#   <event-file>events.d/alec-demo.events.xml</event-file>
+
+# Reload eventd:
+$OPENNMS_HOME/bin/send-event.pl \
+    uei.opennms.org/internal/reloadDaemonConfig -p 'daemonName Eventd'
+```
+
+Without the event file, the demo still works and ALEC still groups the
+alarms into situations, but the descriptions Claude sees will be generic
+"event uei.opennms.org/alec-demo/... received" strings — the LLM has little
+to work with and its suggestions will be correspondingly vague.
 
 ## Cleanup
 

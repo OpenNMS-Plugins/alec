@@ -131,4 +131,39 @@ public class AlarmInjector {
         DemoState.NodeRecord node = state.getNodes().get(0);
         injectGenericAlarms(node.getNodeId(), 3);
     }
+
+    /**
+     * A realistic correlated outage suitable for exercising the Claude
+     * suggestion path (ALEC-299). Simulates the timeline of a real incident:
+     * <ol>
+     *   <li>An optical receive-power degradation on an edge router's uplink</li>
+     *   <li>The uplink interface starts flapping</li>
+     *   <li>The BGP session over that interface transitions to Idle</li>
+     *   <li>Traffic shifts to the secondary uplink, which now saturates</li>
+     *   <li>The downstream node sees its own uplink flap as the topology re-converges</li>
+     * </ol>
+     * Five alarms across two nodes, all in a short window — enough alarms for
+     * DBSCAN to cluster, enough context for an LLM to reason about cause.
+     *
+     * Requires the demo topology to have at least 2 nodes.
+     */
+    public void injectRealisticOutage() {
+        LOG.info("Injecting realistic correlated outage scenario");
+        if (state.getNodes().size() < 2) {
+            throw new IllegalStateException("Realistic outage requires at least 2 nodes");
+        }
+        DemoState.NodeRecord edge = state.getNodes().get(0);
+        DemoState.NodeRecord downstream = state.getNodes().get(1);
+
+        // 1. Optical degrade (early signal)
+        client.sendEvent(Event.opticalDegrade(edge.getNodeId(), "TenGigE0/0/0/1", -19.5));
+        // 2. Interface starts flapping as the optic degrades further
+        client.sendEvent(Event.interfaceFlapping(edge.getNodeId(), "TenGigE0/0/0/1", 7, 60));
+        // 3. BGP peering on that interface drops to Idle
+        client.sendEvent(Event.bgpBackwardTransition(edge.getNodeId(), "10.0.0.2", 65501));
+        // 4. Traffic shifts to the backup uplink, which saturates
+        client.sendEvent(Event.linkSaturation(edge.getNodeId(), "TenGigE0/0/0/2", 94));
+        // 5. Downstream node sees its own interface flap as the path re-converges
+        client.sendEvent(Event.interfaceFlapping(downstream.getNodeId(), "TenGigE0/0/0/1", 4, 60));
+    }
 }

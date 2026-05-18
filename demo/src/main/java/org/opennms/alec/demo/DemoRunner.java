@@ -124,9 +124,12 @@ public class DemoRunner {
             case "single":
                 topology.buildSingleRouter("Router-01");
                 break;
+            case "realistic-outage":
+                topology.buildLinearChain("Edge-Router-East", "Core-Router-01");
+                break;
             default:
                 throw new IllegalArgumentException("Unknown scenario: " + scenario +
-                        ". Available: linear-3, star-5, single");
+                        ". Available: linear-3, star-5, single, realistic-outage");
         }
 
         state.save(stateFile);
@@ -149,6 +152,9 @@ public class DemoRunner {
             case "single":
                 injector.injectSingleRouterFailure();
                 break;
+            case "realistic-outage":
+                injector.injectRealisticOutage();
+                break;
             default:
                 throw new IllegalArgumentException("Unknown scenario: " + state.getScenario());
         }
@@ -170,6 +176,8 @@ public class DemoRunner {
                 return 6;     // 3 alarms on each of 2 nodes
             case "star-5":
                 return 15;    // 3 alarms on each of 5 nodes (hub + 4 spokes)
+            case "realistic-outage":
+                return 5;     // optical degrade + flap + bgp + saturation + downstream flap
             default:
                 throw new IllegalArgumentException("Unknown scenario: " + scenario);
         }
@@ -294,8 +302,12 @@ public class DemoRunner {
         System.out.println("  --scenario  Scenario name (default: " + DEFAULT_SCENARIO + ")");
         System.out.println();
         System.out.println("Scenarios:");
-        System.out.println("  linear-3   3 routers in a chain (Router-01 — Router-02 — Router-03)");
-        System.out.println("  star-5     Core router + 4 edge routers in a star topology");
-        System.out.println("  single     1 router, 3 generic alarms");
+        System.out.println("  linear-3            3 routers in a chain (Router-01 — Router-02 — Router-03)");
+        System.out.println("  star-5              Core router + 4 edge routers in a star topology");
+        System.out.println("  single              1 router, 3 generic alarms");
+        System.out.println("  realistic-outage    Edge + core, simulated optical/BGP/saturation cascade");
+        System.out.println("                      (richest data for the Claude suggestion path; install");
+        System.out.println("                      demo/src/main/resources/events/alec-demo.events.xml on");
+        System.out.println("                      OpenNMS for fully-templated alarm descriptions)");
     }
 }

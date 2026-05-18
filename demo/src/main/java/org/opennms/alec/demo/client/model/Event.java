@@ -62,6 +62,67 @@ public class Event {
                 .addParm(new Parameter("service", "service." + UUID.randomUUID()));
     }
 
+    // --- Realistic ops scenarios (ALEC-299 slice 7) ---
+    //
+    // These produce alarms whose attached parameters describe a believable
+    // network fault. The descriptions in the alarm itself only render richly
+    // when OpenNMS has the matching event definitions installed (see
+    // demo/src/main/resources/events/alec-demo.events.xml); without that file
+    // the alarm still flows and carries the parameters, but the human/LLM-
+    // facing description text falls back to the generic UEI label.
+
+    private static final String UEI_BASE = "uei.opennms.org/alec-demo/";
+
+    public static Event bgpBackwardTransition(int nodeId, String peerIp, int peerAsn) {
+        return new Event()
+                .setUei(UEI_BASE + "bgpBackwardTransition")
+                .setNodeid(nodeId)
+                .setSeverity("MAJOR")
+                .addParm(new Parameter("peerIp", peerIp))
+                .addParm(new Parameter("peerAsn", Integer.toString(peerAsn)))
+                .addParm(new Parameter("oldState", "Established"))
+                .addParm(new Parameter("newState", "Idle"));
+    }
+
+    public static Event linkSaturation(int nodeId, String ifName, int utilizationPct) {
+        return new Event()
+                .setUei(UEI_BASE + "linkSaturation")
+                .setNodeid(nodeId)
+                .setSeverity("MINOR")
+                .addParm(new Parameter("ifName", ifName))
+                .addParm(new Parameter("utilizationPct", Integer.toString(utilizationPct)))
+                .addParm(new Parameter("threshold", "80"));
+    }
+
+    public static Event cpuHigh(int nodeId, int utilizationPct) {
+        return new Event()
+                .setUei(UEI_BASE + "cpuHigh")
+                .setNodeid(nodeId)
+                .setSeverity("WARNING")
+                .addParm(new Parameter("utilizationPct", Integer.toString(utilizationPct)))
+                .addParm(new Parameter("threshold", "85"));
+    }
+
+    public static Event opticalDegrade(int nodeId, String ifName, double rxPowerDbm) {
+        return new Event()
+                .setUei(UEI_BASE + "opticalDegrade")
+                .setNodeid(nodeId)
+                .setSeverity("MINOR")
+                .addParm(new Parameter("ifName", ifName))
+                .addParm(new Parameter("rxPowerDbm", String.format("%.1f", rxPowerDbm)))
+                .addParm(new Parameter("lowThresholdDbm", "-18.0"));
+    }
+
+    public static Event interfaceFlapping(int nodeId, String ifName, int flapCount, int windowSeconds) {
+        return new Event()
+                .setUei(UEI_BASE + "interfaceFlapping")
+                .setNodeid(nodeId)
+                .setSeverity("MAJOR")
+                .addParm(new Parameter("ifName", ifName))
+                .addParm(new Parameter("flapCount", Integer.toString(flapCount)))
+                .addParm(new Parameter("windowSeconds", Integer.toString(windowSeconds)));
+    }
+
     public String getUei() {
         return uei;
     }
