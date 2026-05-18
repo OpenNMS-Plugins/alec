@@ -1,8 +1,8 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2022 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2022 The OpenNMS Group, Inc.
+ * Copyright (C) 2026 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2026 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
@@ -26,33 +26,28 @@
  *     http://www.opennms.com/
  *******************************************************************************/
 
-package org.opennms.alec.data;
+package org.opennms.alec.rest;
 
-import java.util.stream.Stream;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
 
-public enum KeyEnum {
-    ENGINE("ENGINE"),
-    SITUATION("SITUATION"),
-    CLAUDE_CONFIG("CLAUDE_CONFIG");
+import org.opennms.alec.data.ClaudeConfig;
 
-    private final String key;
+@Path("alec/claude")
+@Produces({MediaType.APPLICATION_JSON})
+@Consumes({MediaType.APPLICATION_JSON})
+public interface ClaudeRest {
 
-    /**
-     * @param key
-     */
-    KeyEnum(final String key) {
-        this.key = key;
-    }
+    @GET
+    @Path("/configuration")
+    Response getConfiguration();
 
-    /* (non-Javadoc)
-     * @see java.lang.Enum#toString()
-     */
-    @Override
-    public String toString() {
-        return key;
-    }
-
-    public static Stream<KeyEnum> stream() {
-        return Stream.of(KeyEnum.values());
-    }
+    @POST
+    @Path("/configuration")
+    Response setConfiguration(ClaudeConfig config);
 }

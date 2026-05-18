@@ -1,8 +1,8 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2022 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2022 The OpenNMS Group, Inc.
+ * Copyright (C) 2026 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2026 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
@@ -28,31 +28,39 @@
 
 package org.opennms.alec.data;
 
-import java.util.stream.Stream;
+import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
-public enum KeyEnum {
-    ENGINE("ENGINE"),
-    SITUATION("SITUATION"),
-    CLAUDE_CONFIG("CLAUDE_CONFIG");
+/**
+ * GET response shape for the Claude configuration endpoint.
+ *
+ * Deliberately separate from {@link ClaudeConfig} so the actual API key value
+ * cannot accidentally be serialized into a response — only its presence is
+ * reported.
+ */
+@JsonPropertyOrder({"enabled", "apiKeyPresent"})
+public class ClaudeConfigStatus {
 
-    private final String key;
+    private final boolean enabled;
+    private final boolean apiKeyPresent;
 
-    /**
-     * @param key
-     */
-    KeyEnum(final String key) {
-        this.key = key;
+    public ClaudeConfigStatus(boolean enabled, boolean apiKeyPresent) {
+        this.enabled = enabled;
+        this.apiKeyPresent = apiKeyPresent;
     }
 
-    /* (non-Javadoc)
-     * @see java.lang.Enum#toString()
-     */
-    @Override
-    public String toString() {
-        return key;
+    public static ClaudeConfigStatus from(ClaudeConfig config) {
+        if (config == null) {
+            return new ClaudeConfigStatus(false, false);
+        }
+        String key = config.getApiKey();
+        return new ClaudeConfigStatus(config.isEnabled(), key != null && !key.isEmpty());
     }
 
-    public static Stream<KeyEnum> stream() {
-        return Stream.of(KeyEnum.values());
+    public boolean isEnabled() {
+        return enabled;
+    }
+
+    public boolean isApiKeyPresent() {
+        return apiKeyPresent;
     }
 }

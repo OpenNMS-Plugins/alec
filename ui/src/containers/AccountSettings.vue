@@ -9,13 +9,14 @@ import Restore from '@featherds/icon/action/Restore'
 import { FeatherIcon } from '@featherds/icon'
 import CONST from '@/helpers/constants'
 import { useUserStore } from '@/store/useUserStore'
-import { computed, markRaw, ref } from 'vue'
+import { computed, markRaw, onMounted, ref } from 'vue'
 import { FeatherButton } from '@featherds/button'
 import { FeatherSnackbar } from '@featherds/snackbar'
 import {
 	closeAllOpenSituations,
 	reEvaluateAllOpenAlarms
 } from '@/services/AlecService'
+import { TClaudeConfigRequest } from '@/types/TUser'
 
 const Icons = markRaw({
 	MarkComplete,
@@ -53,10 +54,45 @@ const hellingerBias = ref(
 const isClustering = computed(() => engineName.value === CONST.ENGINE_DBSCAN)
 const showHellingerVars = computed(() => isClustering.value && hellinger.value)
 
+// Claude integration (ALEC-299). API key is write-only from the UI; the
+// server returns only `apiKeyPresent` so a stored key is never echoed back.
+const claudeEnabled = ref(userStore.claudeConfig?.enabled ?? false)
+const claudeApiKey = ref('')
+const claudeApiKeyPresent = ref(userStore.claudeConfig?.apiKeyPresent ?? false)
+const claudeApiKeyCleared = ref(false)
+
+// True when there's nothing the server could persist as a key — neither one
+// already stored nor one freshly typed. The Enable checkbox guards on this to
+// stop the user from saving an enabled-but-keyless config the server will reject.
+const claudeNoKeyAvailable = computed(
+	() =>
+		(!claudeApiKeyPresent.value || claudeApiKeyCleared.value) &&
+		claudeApiKey.value.trim().length === 0
+)
+
+const clearClaudeApiKey = () => {
+	claudeApiKey.value = ''
+	claudeApiKeyCleared.value = true
+	claudeApiKeyPresent.value = false
+	claudeEnabled.value = false
+}
+
 const showHelp = ref(false)
 const showNotification = ref(false)
 const isError = ref(false)
 const message = ref('')
+
+onMounted(async () => {
+	// engineInfo is usually pre-populated by the app shell; the Claude config
+	// has no such pre-load, so fetch it here on first render.
+	if (userStore.claudeConfig === null) {
+		const result = await userStore.getClaudeConfig()
+		if (result) {
+			claudeEnabled.value = result.enabled
+			claudeApiKeyPresent.value = result.apiKeyPresent
+		}
+	}
+})
 
 const resetVariablesToDefaults = () => {
 	alpha.value = ENGINE_DEFAULTS.alpha
@@ -70,6 +106,19 @@ const notify = (msg: string, error: boolean) => {
 	message.value = msg
 	isError.value = error
 	showNotification.value = true
+}
+
+const buildClaudeRequest = (): TClaudeConfigRequest => {
+	if (claudeApiKeyCleared.value) {
+		// Clearing wins regardless of any text in the input — server forces enabled=false.
+		return { enabled: false, clearApiKey: true }
+	}
+	const trimmedKey = claudeApiKey.value.trim()
+	const request: TClaudeConfigRequest = { enabled: claudeEnabled.value }
+	if (trimmedKey.length > 0) {
+		request.apiKey = trimmedKey
+	}
+	return request
 }
 
 const saveConfiguration = async () => {
@@ -93,10 +142,26 @@ const saveConfiguration = async () => {
 		hellinger.value,
 		overrides
 	)
+	const savedClaude = await userStore.setClaudeConfig(buildClaudeRequest())
 
-	if (savedEngine) {
+	// After a successful Claude save the typed key is now stored server-side;
+	// scrub the input + cleared flag so the next save is a no-op rather than
+	// re-sending the same secret over the wire.
+	if (savedClaude) {
+		claudeApiKey.value = ''
+		claudeApiKeyCleared.value = false
+		claudeApiKeyPresent.value = userStore.claudeConfig?.apiKeyPresent ?? false
+		claudeEnabled.value = userStore.claudeConfig?.enabled ?? false
+	}
+
+	if (savedEngine && savedClaude) {
 		userStore.getEngineInfo()
 		notify('The settings were saved!', false)
+	} else if (savedEngine && !savedClaude) {
+		notify(
+			'Engine settings saved, but Claude configuration could not be saved (an API key is required to enable the integration).',
+			true
+		)
 	} else {
 		notify('Error on saving the settings', true)
 	}
@@ -171,6 +236,62 @@ const handleReEvaluate = async () => {
 				<div class="caption" data-test="engine-llm-caption">Coming soon</div>
 			</FeatherRadioGroup>
 		</div>
+
+		<div class="section" data-test="claude-section">
+			<div class="title">Claude Root Cause Analysis</div>
+			<div class="claude-help">
+				When a new situation is created, ALEC will ask Claude to suggest up to
+				3 probable root causes and 3 possible resolutions based on the
+				clustered alarms. Suggestions appear on the situation detail page. The
+				API key is stored on the OpenNMS server and applies to all users of
+				this plugin.
+			</div>
+			<FeatherCheckbox
+				v-model="claudeEnabled"
+				:disabled="claudeNoKeyAvailable"
+				class="checkbox"
+				data-test="claude-enabled"
+			>
+				<strong>Claude Enabled Root Cause Analysis</strong>
+			</FeatherCheckbox>
+			<div
+				v-if="claudeNoKeyAvailable"
+				class="caption"
+				data-test="claude-no-key-hint"
+			>
+				Enter an API key to enable.
+			</div>
+			<div class="claude-key-row">
+				<FeatherInput
+					v-model="claudeApiKey"
+					type="password"
+					autocomplete="new-password"
+					:label="
+						claudeApiKeyPresent && !claudeApiKeyCleared
+							? 'Replace API key (leave blank to keep stored key)'
+							: 'Anthropic API key'
+					"
+					data-test="claude-api-key"
+					class="claude-key-input"
+				/>
+				<FeatherButton
+					v-if="claudeApiKeyPresent && !claudeApiKeyCleared"
+					secondary
+					data-test="claude-clear-key"
+					@click="clearClaudeApiKey"
+				>
+					Clear Key
+				</FeatherButton>
+			</div>
+			<div
+				v-if="claudeApiKeyCleared"
+				class="caption"
+				data-test="claude-cleared-hint"
+			>
+				Stored API key will be removed on save.
+			</div>
+		</div>
+
 		<div v-if="isClustering" class="section" data-test="variables-section">
 			<div class="title-row">
 				<div class="title">Correlation variables</div>
@@ -429,6 +550,25 @@ const handleReEvaluate = async () => {
 	justify-content: flex-end;
 	margin-top: var(--feather-spacing-xxl);
 	flex-wrap: wrap;
+}
+
+.claude-help {
+	font-size: 13px;
+	color: #555;
+	line-height: 1.45;
+	margin: 8px 0 12px;
+}
+
+.claude-key-row {
+	display: flex;
+	align-items: flex-end;
+	gap: 12px;
+	margin-top: 8px;
+}
+
+.claude-key-input {
+	flex: 1;
+	min-width: 240px;
 }
 
 .icon {

@@ -1,14 +1,20 @@
 import { defineStore } from 'pinia'
 import { getUserRole } from '@/services/UserService'
-import { getEngineInfo, saveEngineParameter } from '@/services/AlecService'
+import {
+	getEngineInfo,
+	saveEngineParameter,
+	getClaudeConfig,
+	saveClaudeConfig
+} from '@/services/AlecService'
 import CONST from '@/helpers/constants'
 
-import { TEngine } from '@/types/TUser'
+import { TEngine, TClaudeConfigRequest, TClaudeConfigStatus } from '@/types/TUser'
 
 type TState = {
 	isAdmin: boolean
 	userId: string | null
 	engineInfo: TEngine | null
+	claudeConfig: TClaudeConfigStatus | null
 }
 
 const engineDefaultValues = {
@@ -23,7 +29,8 @@ export const useUserStore = defineStore('userStore', {
 	state: (): TState => ({
 		isAdmin: false,
 		userId: null,
-		engineInfo: null
+		engineInfo: null,
+		claudeConfig: null
 	}),
 	actions: {
 		async getUserRole() {
@@ -62,6 +69,21 @@ export const useUserStore = defineStore('userStore', {
 			const result = await saveEngineParameter(engineData)
 			if (result) {
 				this.engineInfo = engineData
+				return true
+			}
+			return false
+		},
+		async getClaudeConfig() {
+			const result = await getClaudeConfig()
+			if (result) {
+				this.claudeConfig = result
+			}
+			return result
+		},
+		async setClaudeConfig(config: TClaudeConfigRequest) {
+			const result = await saveClaudeConfig(config)
+			if (result) {
+				this.claudeConfig = result
 				return true
 			}
 			return false

@@ -1,5 +1,5 @@
 import { test, expect, vi } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { mount, flushPromises } from '@vue/test-utils'
 import AccountSettings from '@/containers/AccountSettings.vue'
 import { createTestingPinia } from '@pinia/testing'
 import { useUserStore } from '@/store/useUserStore'
@@ -20,6 +20,10 @@ const buildWrapper = () => {
 	const store = useUserStore()
 	store.setEngineInfo = vi.fn().mockResolvedValue(true)
 	store.getEngineInfo = vi.fn()
+	store.setClaudeConfig = vi.fn().mockResolvedValue(true)
+	store.getClaudeConfig = vi
+		.fn()
+		.mockResolvedValue({ enabled: false, apiKeyPresent: false })
 	return { wrapper, store }
 }
 
@@ -239,4 +243,98 @@ test('Re-Evaluate All Open Alarms is a no-op when confirm is dismissed', async (
 	expect(serviceSpy).not.toHaveBeenCalled()
 	confirmSpy.mockRestore()
 	serviceSpy.mockRestore()
+})
+
+// --- Claude Root Cause Analysis (ALEC-299) ---
+
+test('Claude section renders with checkbox + API key input', () => {
+	const { wrapper } = buildWrapper()
+	expect(wrapper.find('[data-test="claude-section"]').exists()).toBe(true)
+	expect(wrapper.find('[data-test="claude-enabled"]').exists()).toBe(true)
+	expect(wrapper.find('[data-test="claude-api-key"]').exists()).toBe(true)
+})
+
+test('Enable checkbox is disabled until an API key is available', async () => {
+	const { wrapper } = buildWrapper()
+	// No stored key, no typed key → checkbox blocked + hint visible.
+	expect(wrapper.vm.claudeNoKeyAvailable).toBe(true)
+	expect(wrapper.find('[data-test="claude-no-key-hint"]').exists()).toBe(true)
+
+	wrapper.vm.claudeApiKey = 'sk-ant-test'
+	await wrapper.vm.$nextTick()
+	expect(wrapper.vm.claudeNoKeyAvailable).toBe(false)
+	expect(wrapper.find('[data-test="claude-no-key-hint"]').exists()).toBe(false)
+})
+
+test('"Clear Key" button is hidden until a key is stored server-side', async () => {
+	const { wrapper } = buildWrapper()
+	expect(wrapper.find('[data-test="claude-clear-key"]').exists()).toBe(false)
+
+	wrapper.vm.claudeApiKeyPresent = true
+	await wrapper.vm.$nextTick()
+	expect(wrapper.find('[data-test="claude-clear-key"]').exists()).toBe(true)
+})
+
+test('Save sends new API key + enabled flag when both provided', async () => {
+	const { wrapper, store } = buildWrapper()
+	wrapper.vm.claudeApiKey = 'sk-ant-new-key'
+	wrapper.vm.claudeEnabled = true
+	await wrapper.find('[data-test="save-btn"]').trigger('click')
+
+	expect(store.setClaudeConfig).toHaveBeenCalledTimes(1)
+	expect((store.setClaudeConfig as any).mock.calls[0][0]).toEqual({
+		enabled: true,
+		apiKey: 'sk-ant-new-key'
+	})
+})
+
+test('Save omits apiKey when the input is blank so server preserves stored key', async () => {
+	const { wrapper, store } = buildWrapper()
+	wrapper.vm.claudeApiKeyPresent = true // simulate a previously stored key
+	wrapper.vm.claudeEnabled = false // user just toggled off
+	await wrapper.find('[data-test="save-btn"]').trigger('click')
+
+	expect(store.setClaudeConfig).toHaveBeenCalledTimes(1)
+	expect((store.setClaudeConfig as any).mock.calls[0][0]).toEqual({
+		enabled: false
+	})
+})
+
+test('Clear Key sends clearApiKey=true and forces enabled=false', async () => {
+	const { wrapper, store } = buildWrapper()
+	wrapper.vm.claudeApiKeyPresent = true
+	wrapper.vm.claudeEnabled = true
+	await wrapper.vm.$nextTick()
+	await wrapper.find('[data-test="claude-clear-key"]').trigger('click')
+
+	// UI mirrors the destructive intent immediately.
+	expect(wrapper.vm.claudeEnabled).toBe(false)
+	expect(wrapper.vm.claudeApiKeyCleared).toBe(true)
+	expect(wrapper.find('[data-test="claude-cleared-hint"]').exists()).toBe(true)
+
+	await wrapper.find('[data-test="save-btn"]').trigger('click')
+	expect((store.setClaudeConfig as any).mock.calls[0][0]).toEqual({
+		enabled: false,
+		clearApiKey: true
+	})
+})
+
+test('Input is scrubbed and cleared-flag reset after a successful save', async () => {
+	const { wrapper, store } = buildWrapper()
+	// Pretend the server stored the key and now reports it back.
+	;(store.setClaudeConfig as any).mockImplementation(async () => {
+		store.claudeConfig = { enabled: true, apiKeyPresent: true }
+		return true
+	})
+	wrapper.vm.claudeApiKey = 'sk-ant-new'
+	wrapper.vm.claudeEnabled = true
+	await wrapper.find('[data-test="save-btn"]').trigger('click')
+	// trigger('click') fires the handler but doesn't await the chained promises
+	// inside saveConfiguration; flushPromises lets the post-save scrub run.
+	await flushPromises()
+
+	// The secret must not linger in the input after the round-trip.
+	expect(wrapper.vm.claudeApiKey).toBe('')
+	expect(wrapper.vm.claudeApiKeyCleared).toBe(false)
+	expect(wrapper.vm.claudeApiKeyPresent).toBe(true)
 })

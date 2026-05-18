@@ -1,8 +1,8 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2022 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2022 The OpenNMS Group, Inc.
+ * Copyright (C) 2026 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2026 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
@@ -28,31 +28,26 @@
 
 package org.opennms.alec.data;
 
-import java.util.stream.Stream;
+import com.fasterxml.jackson.annotation.JsonPropertyOrder;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
-public enum KeyEnum {
-    ENGINE("ENGINE"),
-    SITUATION("SITUATION"),
-    CLAUDE_CONFIG("CLAUDE_CONFIG");
+/**
+ * Persisted + POST-body form of the Claude integration configuration.
+ *
+ * The apiKey field is the actual secret. It travels server&rarr;KV-store
+ * and client&rarr;server (POST), but is never written into a GET response —
+ * the REST layer projects to {@link ClaudeConfigStatus} on the way out so
+ * the key never leaves the OpenNMS host once stored.
+ *
+ * clearApiKey is a transient POST-only flag that asks the server to wipe any
+ * persisted key; it is not persisted itself.
+ */
+@JsonDeserialize(builder = ClaudeConfigImpl.Builder.class)
+@JsonPropertyOrder({"enabled", "apiKey", "clearApiKey"})
+public interface ClaudeConfig {
+    boolean isEnabled();
 
-    private final String key;
+    String getApiKey();
 
-    /**
-     * @param key
-     */
-    KeyEnum(final String key) {
-        this.key = key;
-    }
-
-    /* (non-Javadoc)
-     * @see java.lang.Enum#toString()
-     */
-    @Override
-    public String toString() {
-        return key;
-    }
-
-    public static Stream<KeyEnum> stream() {
-        return Stream.of(KeyEnum.values());
-    }
+    boolean isClearApiKey();
 }

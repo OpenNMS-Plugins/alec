@@ -1,10 +1,11 @@
 import { rest } from './axiosInstances'
 import CONST from '@/helpers/constants'
 import { TSituation, TNewSituation } from '@/types/TSituation'
-import { TEngine } from '@/types/TUser'
+import { TEngine, TClaudeConfigRequest, TClaudeConfigStatus } from '@/types/TUser'
 import { sendAction } from '@/services/AlarmService'
 const base = '/alec'
 const engineEndpoint = '/alec/engine/configuration'
+const claudeConfigEndpoint = '/alec/claude/configuration'
 const situationStatusEndpoint = '/alec/situation/statusList'
 const situationEndpoint = '/alec/situation'
 
@@ -24,6 +25,32 @@ export const saveEngineParameter = async (engineData: TEngine) => {
 	try {
 		const resp = await rest.post(engineEndpoint, engineData)
 		return resp.status === 200
+	} catch (err) {
+		return false
+	}
+}
+
+export const getClaudeConfig = async (): Promise<TClaudeConfigStatus | false> => {
+	try {
+		const resp = await rest.get(claudeConfigEndpoint)
+		if (resp.status === 200) {
+			return resp.data
+		}
+		return false
+	} catch (err) {
+		return false
+	}
+}
+
+export const saveClaudeConfig = async (
+	config: TClaudeConfigRequest
+): Promise<TClaudeConfigStatus | false> => {
+	try {
+		const resp = await rest.post(claudeConfigEndpoint, config)
+		if (resp.status === 200) {
+			return resp.data
+		}
+		return false
 	} catch (err) {
 		return false
 	}
