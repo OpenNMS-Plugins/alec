@@ -18,6 +18,19 @@ import {
 } from '@/services/AlecService'
 import { TClaudeConfigRequest } from '@/types/TUser'
 
+// Humanize a token count for display: 1234567 -> "1.2M", 4800 -> "4.8K".
+// Raw count goes into the title attribute for hover.
+const humanizeTokens = (n: number): string => {
+	if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M'
+	if (n >= 1_000) return (n / 1_000).toFixed(1) + 'K'
+	return String(n)
+}
+
+const formatUsd = (n: number): string => {
+	if (n < 0.01) return '~$0.00'
+	return '~$' + n.toFixed(2)
+}
+
 const Icons = markRaw({
 	MarkComplete,
 	Help,
@@ -82,6 +95,8 @@ const showNotification = ref(false)
 const isError = ref(false)
 const message = ref('')
 
+const showUsageDetails = ref(false)
+
 onMounted(async () => {
 	// engineInfo is usually pre-populated by the app shell; the Claude config
 	// has no such pre-load, so fetch it here on first render.
@@ -92,6 +107,8 @@ onMounted(async () => {
 			claudeApiKeyPresent.value = result.apiKeyPresent
 		}
 	}
+	// Fetch the usage rollup once on mount; refreshed after every successful save.
+	await userStore.getClaudeUsage(30)
 })
 
 const resetVariablesToDefaults = () => {
@@ -152,6 +169,10 @@ const saveConfiguration = async () => {
 		claudeApiKeyCleared.value = false
 		claudeApiKeyPresent.value = userStore.claudeConfig?.apiKeyPresent ?? false
 		claudeEnabled.value = userStore.claudeConfig?.enabled ?? false
+		// Refresh the usage rollup — enabling/disabling doesn't generate calls
+		// immediately, but the next render should reflect any usage that
+		// arrived since the page loaded.
+		userStore.getClaudeUsage(30)
 	}
 
 	if (savedEngine && savedClaude) {
@@ -289,6 +310,77 @@ const handleReEvaluate = async () => {
 				data-test="claude-cleared-hint"
 			>
 				Stored API key will be removed on save.
+			</div>
+
+			<div
+				v-if="userStore.claudeUsage"
+				class="claude-usage"
+				data-test="claude-usage"
+			>
+				<div class="usage-summary">
+					<span class="usage-label">Last {{ userStore.claudeUsage.daysWindow }} days:</span>
+					<span
+						class="usage-tokens"
+						:title="`${userStore.claudeUsage.totalTokens.toLocaleString()} tokens`"
+						data-test="claude-usage-tokens"
+					>
+						{{ humanizeTokens(userStore.claudeUsage.totalTokens) }} tokens
+					</span>
+					<span
+						class="usage-cost"
+						:title="userStore.claudeUsage.pricingNote"
+						data-test="claude-usage-cost"
+					>
+						({{ formatUsd(userStore.claudeUsage.estimatedCostUsd) }})
+					</span>
+					<button
+						type="button"
+						class="usage-toggle"
+						@click="showUsageDetails = !showUsageDetails"
+						data-test="claude-usage-toggle"
+					>
+						{{ showUsageDetails ? 'hide details' : 'show details' }}
+					</button>
+				</div>
+				<dl
+					v-if="showUsageDetails"
+					class="usage-details"
+					data-test="claude-usage-details"
+				>
+					<div>
+						<dt>Input</dt>
+						<dd>{{ humanizeTokens(userStore.claudeUsage.inputTokens) }}</dd>
+					</div>
+					<div>
+						<dt>Output</dt>
+						<dd>{{ humanizeTokens(userStore.claudeUsage.outputTokens) }}</dd>
+					</div>
+					<div>
+						<dt>Cache read</dt>
+						<dd>{{ humanizeTokens(userStore.claudeUsage.cacheReadInputTokens) }}</dd>
+					</div>
+					<div>
+						<dt>Cache create</dt>
+						<dd>{{ humanizeTokens(userStore.claudeUsage.cacheCreationInputTokens) }}</dd>
+					</div>
+					<div>
+						<dt>Calls</dt>
+						<dd>
+							{{ userStore.claudeUsage.calls }}
+							<span class="muted"
+								>({{ userStore.claudeUsage.successfulCalls }} ok /
+								{{ userStore.claudeUsage.failedCalls }} failed)</span
+							>
+						</dd>
+					</div>
+					<div>
+						<dt>Cache hit</dt>
+						<dd>{{ (userStore.claudeUsage.cacheHitRatio * 100).toFixed(0) }}%</dd>
+					</div>
+					<div class="pricing-note">
+						{{ userStore.claudeUsage.pricingNote }}
+					</div>
+				</dl>
 			</div>
 		</div>
 
@@ -569,6 +661,86 @@ const handleReEvaluate = async () => {
 .claude-key-input {
 	flex: 1;
 	min-width: 240px;
+}
+
+.claude-usage {
+	margin-top: 14px;
+	padding-top: 12px;
+	border-top: 1px dashed #ddd;
+}
+
+.usage-summary {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	flex-wrap: wrap;
+	font-size: 13px;
+}
+
+.usage-label {
+	color: #555;
+	font-weight: 600;
+}
+
+.usage-tokens {
+	color: #222;
+	font-weight: 700;
+}
+
+.usage-cost {
+	color: #555;
+}
+
+.usage-toggle {
+	margin-left: auto;
+	background: none;
+	border: none;
+	color: #2086a4;
+	font-size: 12px;
+	cursor: pointer;
+	padding: 0;
+
+	&:hover {
+		text-decoration: underline;
+	}
+}
+
+.usage-details {
+	margin: 10px 0 0;
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
+	gap: 6px 24px;
+	font-size: 13px;
+
+	> div {
+		display: flex;
+		justify-content: space-between;
+	}
+
+	dt {
+		color: #555;
+		margin: 0;
+	}
+
+	dd {
+		margin: 0;
+		font-weight: 600;
+	}
+
+	.muted {
+		font-weight: 400;
+		color: #888;
+		margin-left: 4px;
+	}
+
+	.pricing-note {
+		grid-column: 1 / -1;
+		display: block;
+		font-size: 11px;
+		color: #888;
+		font-style: italic;
+		margin-top: 4px;
+	}
 }
 
 .icon {

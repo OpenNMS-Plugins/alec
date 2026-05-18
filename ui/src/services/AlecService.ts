@@ -1,11 +1,19 @@
 import { rest } from './axiosInstances'
 import CONST from '@/helpers/constants'
 import { TSituation, TNewSituation } from '@/types/TSituation'
-import { TEngine, TClaudeConfigRequest, TClaudeConfigStatus } from '@/types/TUser'
+import {
+	TEngine,
+	TClaudeConfigRequest,
+	TClaudeConfigStatus,
+	TClaudeSuggestion,
+	TClaudeUsage
+} from '@/types/TUser'
 import { sendAction } from '@/services/AlarmService'
 const base = '/alec'
 const engineEndpoint = '/alec/engine/configuration'
 const claudeConfigEndpoint = '/alec/claude/configuration'
+const claudeSuggestionsEndpoint = '/alec/claude/suggestions'
+const claudeUsageEndpoint = '/alec/claude/usage'
 const situationStatusEndpoint = '/alec/situation/statusList'
 const situationEndpoint = '/alec/situation'
 
@@ -49,6 +57,39 @@ export const saveClaudeConfig = async (
 		const resp = await rest.post(claudeConfigEndpoint, config)
 		if (resp.status === 200) {
 			return resp.data
+		}
+		return false
+	} catch (err) {
+		return false
+	}
+}
+
+// 204 No Content (no record yet — feature off, or pending) maps to null so
+// callers can distinguish "absent" from "failed".
+export const getClaudeSuggestion = async (
+	situationId: number | string
+): Promise<TClaudeSuggestion | null | false> => {
+	try {
+		const resp = await rest.get(`${claudeSuggestionsEndpoint}/${situationId}`)
+		if (resp.status === 200) {
+			return resp.data as TClaudeSuggestion
+		}
+		if (resp.status === 204) {
+			return null
+		}
+		return false
+	} catch (err) {
+		return false
+	}
+}
+
+export const getClaudeUsage = async (
+	days: number = 30
+): Promise<TClaudeUsage | false> => {
+	try {
+		const resp = await rest.get(`${claudeUsageEndpoint}?days=${days}`)
+		if (resp.status === 200) {
+			return resp.data as TClaudeUsage
 		}
 		return false
 	} catch (err) {

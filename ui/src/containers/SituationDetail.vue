@@ -6,6 +6,7 @@ import {
 } from '@featherds/tabs'
 import SituationDetailTab from '@/components/SituationDetailTab.vue'
 import SituationMetricsTab from '@/components/SituationMetricsTab.vue'
+import AISuggestionsTab from '@/components/AISuggestionsTab.vue'
 import { useSituationsStore } from '@/store/useSituationsStore'
 import { ref, watch, onMounted } from 'vue'
 import { FeatherIcon } from '@featherds/icon'
@@ -129,6 +130,7 @@ const clickedTab = (tab: number | undefined) => {
 					<template v-slot:tabs>
 						<FeatherTab>Details</FeatherTab>
 						<FeatherTab>Metrics</FeatherTab>
+						<FeatherTab data-test="ai-suggestions-tab">AI Suggestions</FeatherTab>
 					</template>
 					<FeatherTabPanel class="panel">
 						<SituationDetailTab :situation-info="situation" />
@@ -138,6 +140,14 @@ const clickedTab = (tab: number | undefined) => {
 							v-if="container && tabNumber == 1"
 							:situation="situation"
 							:width="container"
+						/>
+					</FeatherTabPanel>
+					<FeatherTabPanel class="panel">
+						<!-- Mount only when active so the polling loop in
+						     AISuggestionsTab doesn't run for users who never open it. -->
+						<AISuggestionsTab
+							v-if="tabNumber == 2"
+							:situation-id="situation.id"
 						/>
 					</FeatherTabPanel>
 				</FeatherTabContainer>

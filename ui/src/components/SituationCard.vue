@@ -8,6 +8,8 @@ import CONST from '@/helpers/constants'
 import { formatDate } from '@/helpers/utils'
 import { truncateText } from '@/helpers/utils'
 import { formatDistanceStrict } from 'date-fns'
+import { onMounted, ref } from 'vue'
+import { getClaudeSuggestion } from '@/services/AlecService'
 
 const ACCEPTED = CONST.ACCEPTED
 const REJECTED = CONST.REJECTED
@@ -22,6 +24,20 @@ const emit = defineEmits(['situation-selected'])
 const handleSituationSelected = () => {
 	emit('situation-selected', props.situationInfo?.id)
 }
+
+// AI badge: one cheap GET per card on mount. Server returns 204 quickly when
+// no record exists (feature off / call hasn't run), so we don't pay much when
+// the integration is disabled. Slice 6 trade-off; a bulk endpoint would be a
+// future optimization once we know how many cards a typical list shows.
+const aiBadge = ref<'none' | 'pending' | 'ready' | 'failed'>('none')
+
+onMounted(async () => {
+	if (props.situationInfo?.id === undefined) return
+	const result = await getClaudeSuggestion(props.situationInfo.id)
+	if (result && result.status) {
+		aiBadge.value = result.status as 'pending' | 'ready' | 'failed'
+	}
+})
 </script>
 
 <template>
@@ -39,6 +55,21 @@ const handleSituationSelected = () => {
 		<div class="content">
 			<div class="title-row">
 				<div class="title">Situation {{ props.situationInfo?.id }}</div>
+				<span
+					v-if="aiBadge !== 'none'"
+					class="ai-badge"
+					:class="aiBadge"
+					:title="
+						aiBadge === 'pending'
+							? 'AI analysis in progress'
+							: aiBadge === 'ready'
+							? 'AI suggestions available'
+							: 'Last AI request failed'
+					"
+					data-test="ai-badge"
+				>
+					AI{{ aiBadge === 'pending' ? '…' : '' }}
+				</span>
 				<div v-if="props.situationInfo.status == ACCEPTED" class="accepted">
 					<FeatherIcon
 						:icon="CheckCircle"
@@ -153,5 +184,31 @@ const handleSituationSelected = () => {
 .info-title {
 	font-size: 15px;
 	font-weight: 600;
+}
+
+.ai-badge {
+	display: inline-flex;
+	align-items: center;
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.5px;
+	padding: 2px 7px;
+	border-radius: 10px;
+	margin-right: auto;
+	margin-left: 8px;
+	cursor: help;
+
+	&.pending {
+		background: #e5e7eb;
+		color: #4b5563;
+	}
+	&.ready {
+		background: #dbeafe;
+		color: #1d4ed8;
+	}
+	&.failed {
+		background: #fee2e2;
+		color: #b91c1c;
+	}
 }
 </style>

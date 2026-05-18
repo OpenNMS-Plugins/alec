@@ -24,6 +24,9 @@ const buildWrapper = () => {
 	store.getClaudeConfig = vi
 		.fn()
 		.mockResolvedValue({ enabled: false, apiKeyPresent: false })
+	// Default: no usage data so the rollup panel is hidden in most existing
+	// tests. The slice-5 rollup tests below seed claudeUsage explicitly.
+	store.getClaudeUsage = vi.fn().mockResolvedValue(null)
 	return { wrapper, store }
 }
 
@@ -317,6 +320,78 @@ test('Clear Key sends clearApiKey=true and forces enabled=false', async () => {
 		enabled: false,
 		clearApiKey: true
 	})
+})
+
+// --- Usage rollup (slice 6) ---
+
+const usageFixture = {
+	daysWindow: 30,
+	totalTokens: 1_234_567,
+	inputTokens: 1_000_000,
+	outputTokens: 100_000,
+	cacheReadInputTokens: 100_000,
+	cacheCreationInputTokens: 34_567,
+	calls: 42,
+	successfulCalls: 40,
+	failedCalls: 2,
+	cacheHitRatio: 0.075,
+	estimatedCostUsd: 4.85,
+	pricingNote: 'Approximate cost using Sonnet 4.6 ephemeral-cache list price.'
+}
+
+test('Usage rollup is hidden when no usage data is present', () => {
+	const { wrapper } = buildWrapper()
+	expect(wrapper.find('[data-test="claude-usage"]').exists()).toBe(false)
+})
+
+test('Usage rollup renders humanized tokens + approx cost when data is present', async () => {
+	const { wrapper, store } = buildWrapper()
+	store.claudeUsage = usageFixture as any
+	await wrapper.vm.$nextTick()
+
+	const tokens = wrapper.find('[data-test="claude-usage-tokens"]')
+	expect(tokens.exists()).toBe(true)
+	// 1,234,567 should render as "1.2M" — that's the humanizeTokens contract.
+	expect(tokens.text()).toContain('1.2M')
+	// Raw count goes into the title attribute for hover.
+	expect(tokens.attributes('title')).toContain('1,234,567')
+
+	const cost = wrapper.find('[data-test="claude-usage-cost"]')
+	expect(cost.text()).toContain('$4.85')
+	// Pricing-note caveat lives on the cost title so users see "approx" provenance.
+	expect(cost.attributes('title')).toContain('Approximate cost')
+})
+
+test('Usage details panel toggles open + shows breakdown', async () => {
+	const { wrapper, store } = buildWrapper()
+	store.claudeUsage = usageFixture as any
+	await wrapper.vm.$nextTick()
+
+	expect(wrapper.find('[data-test="claude-usage-details"]').exists()).toBe(false)
+	await wrapper.find('[data-test="claude-usage-toggle"]').trigger('click')
+
+	const details = wrapper.find('[data-test="claude-usage-details"]')
+	expect(details.exists()).toBe(true)
+	const html = details.html()
+	// Cache hit ratio 0.075 -> 8% (toFixed(0) rounds — verify the row is rendered).
+	expect(html).toContain('Cache hit')
+	// Success/failure split is surfaced as "40 ok / 2 failed".
+	expect(html).toContain('40 ok')
+	expect(html).toContain('2 failed')
+})
+
+test('Save refreshes usage rollup', async () => {
+	const { wrapper, store } = buildWrapper()
+	// Reset the spy so we ignore the mount-time call (which hits the Pinia
+	// stub default before our vi.fn replacement) — we only care that the
+	// save path triggers a refresh.
+	;(store.getClaudeUsage as any).mockClear()
+	wrapper.vm.claudeApiKey = 'sk-ant-fresh'
+	wrapper.vm.claudeEnabled = true
+	await wrapper.find('[data-test="save-btn"]').trigger('click')
+	await flushPromises()
+	expect((store.getClaudeUsage as any)).toHaveBeenCalledTimes(1)
+	expect((store.getClaudeUsage as any)).toHaveBeenCalledWith(30)
 })
 
 test('Input is scrubbed and cleared-flag reset after a successful save', async () => {

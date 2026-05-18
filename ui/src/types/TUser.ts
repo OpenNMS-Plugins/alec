@@ -31,3 +31,33 @@ export type TClaudeConfigRequest = {
 	apiKey?: string
 	clearApiKey?: boolean
 }
+
+// GET /alec/claude/suggestions/{situationId}.
+// status one of "pending" | "ready" | "failed". Server returns 204 when no
+// record exists yet — the service layer maps that to null below.
+export type TClaudeSuggestion = {
+	situationId: string
+	status: 'pending' | 'ready' | 'failed'
+	rootCauses: string[]
+	resolutions: string[]
+	requestedAt: number
+	completedAt: number | null
+	error: string | null
+	model: string
+}
+
+// GET /alec/claude/usage?days=N — aggregated rollup for the config-page meter.
+export type TClaudeUsage = {
+	daysWindow: number
+	totalTokens: number
+	inputTokens: number
+	outputTokens: number
+	cacheReadInputTokens: number
+	cacheCreationInputTokens: number
+	calls: number
+	successfulCalls: number
+	failedCalls: number
+	cacheHitRatio: number
+	estimatedCostUsd: number
+	pricingNote: string
+}

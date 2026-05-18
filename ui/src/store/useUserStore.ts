@@ -4,17 +4,24 @@ import {
 	getEngineInfo,
 	saveEngineParameter,
 	getClaudeConfig,
-	saveClaudeConfig
+	saveClaudeConfig,
+	getClaudeUsage
 } from '@/services/AlecService'
 import CONST from '@/helpers/constants'
 
-import { TEngine, TClaudeConfigRequest, TClaudeConfigStatus } from '@/types/TUser'
+import {
+	TEngine,
+	TClaudeConfigRequest,
+	TClaudeConfigStatus,
+	TClaudeUsage
+} from '@/types/TUser'
 
 type TState = {
 	isAdmin: boolean
 	userId: string | null
 	engineInfo: TEngine | null
 	claudeConfig: TClaudeConfigStatus | null
+	claudeUsage: TClaudeUsage | null
 }
 
 const engineDefaultValues = {
@@ -30,7 +37,8 @@ export const useUserStore = defineStore('userStore', {
 		isAdmin: false,
 		userId: null,
 		engineInfo: null,
-		claudeConfig: null
+		claudeConfig: null,
+		claudeUsage: null
 	}),
 	actions: {
 		async getUserRole() {
@@ -87,6 +95,13 @@ export const useUserStore = defineStore('userStore', {
 				return true
 			}
 			return false
+		},
+		async getClaudeUsage(days: number = 30) {
+			const result = await getClaudeUsage(days)
+			if (result) {
+				this.claudeUsage = result
+			}
+			return result
 		}
 	}
 })
