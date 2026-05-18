@@ -269,6 +269,29 @@ test('Enable checkbox is disabled until an API key is available', async () => {
 	expect(wrapper.find('[data-test="claude-no-key-hint"]').exists()).toBe(false)
 })
 
+test('"API key on file" confirmation appears only when a key is stored, and disappears on Clear', async () => {
+	const { wrapper } = buildWrapper()
+	// No key stored → no confirmation row, and the input label is the plain
+	// "Anthropic API key" prompt.
+	expect(wrapper.find('[data-test="claude-key-saved"]').exists()).toBe(false)
+
+	wrapper.vm.claudeApiKeyPresent = true
+	await wrapper.vm.$nextTick()
+	const saved = wrapper.find('[data-test="claude-key-saved"]')
+	expect(saved.exists()).toBe(true)
+	expect(saved.text()).toContain('API key on file')
+	// Defense: the saved row must never echo the actual key value.
+	expect(saved.html()).not.toContain('sk-')
+
+	// Once the user clicks Clear, the saved confirmation goes away and the
+	// pending-clear hint takes over — leaves no ambiguity about which state
+	// the server is in after the next Save.
+	wrapper.vm.claudeApiKeyCleared = true
+	await wrapper.vm.$nextTick()
+	expect(wrapper.find('[data-test="claude-key-saved"]').exists()).toBe(false)
+	expect(wrapper.find('[data-test="claude-cleared-hint"]').exists()).toBe(true)
+})
+
 test('"Clear Key" button is hidden until a key is stored server-side', async () => {
 	const { wrapper } = buildWrapper()
 	expect(wrapper.find('[data-test="claude-clear-key"]').exists()).toBe(false)
@@ -320,6 +343,32 @@ test('Clear Key sends clearApiKey=true and forces enabled=false', async () => {
 		enabled: false,
 		clearApiKey: true
 	})
+})
+
+test('API key help icon toggles a popover with step-by-step instructions', async () => {
+	const { wrapper } = buildWrapper()
+	expect(wrapper.find('[data-test="claude-key-help-popover"]').exists()).toBe(
+		false
+	)
+
+	await wrapper.find('[data-test="claude-key-help"]').trigger('click')
+	const popover = wrapper.find('[data-test="claude-key-help-popover"]')
+	expect(popover.exists()).toBe(true)
+
+	const html = popover.html()
+	// The popover must point users at the right place and surface the
+	// payment-method gotcha that blocks first-time key creation.
+	expect(html).toContain('console.anthropic.com')
+	expect(html).toContain('payment method')
+	expect(html).toContain('sk-ant')
+	// Numbered list (5 steps as authored).
+	expect(popover.findAll('li').length).toBe(5)
+
+	// Toggles closed on second click.
+	await wrapper.find('[data-test="claude-key-help"]').trigger('click')
+	expect(wrapper.find('[data-test="claude-key-help-popover"]').exists()).toBe(
+		false
+	)
 })
 
 // --- Usage rollup (slice 6) ---

@@ -2,7 +2,7 @@
 import { useUserStore } from '@/store/useUserStore'
 import CONST from '@/helpers/constants'
 import useRouter from '@/composables/useRouter'
-import { watch, ref } from 'vue'
+import { computed } from 'vue'
 import DeepLearning from '@/assets/option1.svg'
 import Cluster from '@/assets/option2.svg'
 const router = useRouter()
@@ -13,29 +13,35 @@ const showSettings = () => {
 	})
 }
 
-const isClustering = ref(
-	userStore.engineInfo?.engineName == CONST.ENGINE_DBSCAN
-)
-
-watch(
-	() => userStore.engineInfo,
-	() => {
-		isClustering.value = userStore.engineInfo?.engineName == CONST.ENGINE_DBSCAN
-	}
+// Pre-slice-7 this component was guarded by
+//   v-if="userStore.engineInfo && userStore.engineInfo.engineName"
+// which silently hid the only entry point to the settings page on a fresh
+// install (no persisted engine config -> no button -> no way to navigate to
+// settings to set one). Now always rendered; when engineInfo is null we show
+// a "CONFIGURE" prompt so the user has a visible, clickable path.
+const isConfigured = computed(() => !!userStore.engineInfo?.engineName)
+const isClustering = computed(
+	() => userStore.engineInfo?.engineName == CONST.ENGINE_DBSCAN
 )
 </script>
 
 <template>
-	<div
-		v-if="userStore.engineInfo && userStore.engineInfo.engineName"
-		class="info-engine"
-	>
-		<img :src="isClustering ? Cluster : DeepLearning" class="icon-type" />
-
-		<div class="engine" @click="showSettings">
-			ENGINE
-			<div v-if="isClustering" class="type">CLUSTERING</div>
-			<div v-else class="type">DEEP LEARNING</div>
+	<div class="info-engine" @click="showSettings" data-test="configuration-info">
+		<img
+			v-if="isConfigured"
+			:src="isClustering ? Cluster : DeepLearning"
+			class="icon-type"
+		/>
+		<div class="engine">
+			<template v-if="isConfigured">
+				ENGINE
+				<div v-if="isClustering" class="type">CLUSTERING</div>
+				<div v-else class="type">DEEP LEARNING</div>
+			</template>
+			<template v-else>
+				ENGINE
+				<div class="type not-set" data-test="configuration-not-set">CONFIGURE</div>
+			</template>
 		</div>
 	</div>
 </template>
@@ -72,6 +78,10 @@ watch(
 	@extend .box-info;
 	.type {
 		color: #065eca;
+
+		&.not-set {
+			color: #b91c1c;
+		}
 	}
 }
 

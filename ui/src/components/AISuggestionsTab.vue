@@ -110,7 +110,7 @@ const requestedAtFormatted = computed(() => {
 			No AI suggestions are available for this situation. The Claude
 			integration may be disabled, or the analysis has not run yet — check
 			the
-			<router-link to="/account">account settings</router-link> to enable it.
+			<router-link to="/settings">configuration page</router-link> to enable it.
 		</div>
 
 		<div v-else-if="state === 'pending'" class="state-row" data-test="ai-pending">

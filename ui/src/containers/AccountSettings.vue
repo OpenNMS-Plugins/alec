@@ -91,6 +91,7 @@ const clearClaudeApiKey = () => {
 }
 
 const showHelp = ref(false)
+const showClaudeKeyHelp = ref(false)
 const showNotification = ref(false)
 const isError = ref(false)
 const message = ref('')
@@ -259,13 +260,69 @@ const handleReEvaluate = async () => {
 		</div>
 
 		<div class="section" data-test="claude-section">
-			<div class="title">Claude Root Cause Analysis</div>
+			<div class="title-row">
+				<div class="title">Claude Root Cause Analysis</div>
+				<button
+					type="button"
+					class="icon-btn help-icon"
+					:aria-expanded="showClaudeKeyHelp"
+					aria-label="How to get an Anthropic API key"
+					data-test="claude-key-help"
+					@click="showClaudeKeyHelp = !showClaudeKeyHelp"
+				>
+					<FeatherIcon :icon="Icons.Help" />
+				</button>
+			</div>
 			<div class="claude-help">
 				When a new situation is created, ALEC will ask Claude to suggest up to
 				3 probable root causes and 3 possible resolutions based on the
 				clustered alarms. Suggestions appear on the situation detail page. The
 				API key is stored on the OpenNMS server and applies to all users of
 				this plugin.
+			</div>
+			<div
+				v-if="showClaudeKeyHelp"
+				class="help-popover"
+				data-test="claude-key-help-popover"
+			>
+				<strong>How to get an Anthropic API key:</strong>
+				<ol>
+					<li>
+						Go to
+						<a
+							href="https://console.anthropic.com/"
+							target="_blank"
+							rel="noopener noreferrer"
+							>console.anthropic.com</a
+						>
+						and sign in (or create an account).
+					</li>
+					<li>
+						Add a payment method under <em>Billing → Add payment method</em>.
+						Anthropic requires this before any API key can be created.
+					</li>
+					<li>
+						Open <em>API Keys</em> in the left sidebar and click
+						<em>Create Key</em>. Give it a descriptive name (e.g.
+						<code>alec-claude-suggestions</code>) so you can revoke it later
+						without affecting other integrations.
+					</li>
+					<li>
+						<strong>Copy the key immediately</strong> — it starts with
+						<code>sk-ant-…</code> and Anthropic only shows it once.
+					</li>
+					<li>
+						Paste it into the field below and click <em>Save Changes</em>. The
+						key is stored on the OpenNMS server; it is never returned to the
+						browser after saving.
+					</li>
+				</ol>
+				<p class="pricing-hint">
+					Pricing for the Sonnet 4.6 model that ALEC uses: $3 / $15 per million
+					input / output tokens (cache reads cheaper). A single situation
+					analysis is typically a few hundred tokens — fractions of a cent.
+					Track 30-day usage in the panel below after you save.
+				</p>
 			</div>
 			<FeatherCheckbox
 				v-model="claudeEnabled"
@@ -289,7 +346,7 @@ const handleReEvaluate = async () => {
 					autocomplete="new-password"
 					:label="
 						claudeApiKeyPresent && !claudeApiKeyCleared
-							? 'Replace API key (leave blank to keep stored key)'
+							? 'Anthropic API key — saved (paste a new key to replace)'
 							: 'Anthropic API key'
 					"
 					data-test="claude-api-key"
@@ -303,6 +360,17 @@ const handleReEvaluate = async () => {
 				>
 					Clear Key
 				</FeatherButton>
+			</div>
+			<div
+				v-if="claudeApiKeyPresent && !claudeApiKeyCleared"
+				class="claude-key-saved"
+				data-test="claude-key-saved"
+			>
+				<FeatherIcon :icon="Icons.MarkComplete" class="saved-icon" />
+				<span>
+					API key on file. The stored key is never sent back to the browser —
+					leave the field blank to keep it, or paste a new one to replace it.
+				</span>
 			</div>
 			<div
 				v-if="claudeApiKeyCleared"
@@ -603,13 +671,26 @@ const handleReEvaluate = async () => {
 	font-size: 13px;
 	line-height: 1.45;
 
-	ul {
+	ul,
+	ol {
 		margin: 0;
 		padding-left: 18px;
 	}
 
 	li + li {
 		margin-top: 6px;
+	}
+
+	a {
+		color: #2086a4;
+		text-decoration: underline;
+	}
+
+	.pricing-hint {
+		margin: 10px 0 0;
+		font-size: 12px;
+		color: #666;
+		font-style: italic;
 	}
 
 	code {
@@ -661,6 +742,20 @@ const handleReEvaluate = async () => {
 .claude-key-input {
 	flex: 1;
 	min-width: 240px;
+}
+
+.claude-key-saved {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-top: 8px;
+	font-size: 13px;
+	color: #166534; // green-800
+
+	.saved-icon {
+		font-size: 18px;
+		color: #16a34a; // green-600
+	}
 }
 
 .claude-usage {
