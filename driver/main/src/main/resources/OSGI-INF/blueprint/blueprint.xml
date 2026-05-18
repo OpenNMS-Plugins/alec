@@ -12,6 +12,19 @@
     <!-- Situation Processor -->
     <reference id="situationProcessorFactory" interface="org.opennms.alec.processor.api.SituationProcessorFactory"/>
 
+    <!--
+        External SituationHandler listeners contributed by other bundles
+        (e.g. the Claude integration, ALEC-299). The (role=engine-listener)
+        filter excludes existing SituationHandler services that may be
+        published for other reasons; new subscribers opt in by publishing
+        their handler service with <service-properties><entry key="role"
+        value="engine-listener"/></service-properties>.
+    -->
+    <reference-list id="externalSituationHandlers"
+                    interface="org.opennms.alec.datasource.api.SituationHandler"
+                    availability="optional"
+                    filter="(role=engine-listener)"/>
+
     <bean id="driver" class="org.opennms.alec.driver.main.Driver" init-method="init" destroy-method="destroy">
         <argument ref="blueprintBundleContext"/>
         <argument ref="alarmDatasource"/>
@@ -20,6 +33,7 @@
         <argument ref="situationDatasource"/>
         <argument ref="engineFactory"/>
         <argument ref="situationProcessorFactory"/>
+        <argument ref="externalSituationHandlers"/>
     </bean>
     <service ref="driver" interface="org.opennms.alec.engine.api.EngineRegistry"/>
 
