@@ -102,7 +102,13 @@
                                 <feature>alec-features-graph-common</feature>
                                 <feature>alec-features-graph-shell</feature>
                                 <feature>alec-features-deeplearning</feature>
+                                <!-- Depends on a reference to a SituationDatasource impl
+                                     (used by /alec/claude/suggestions/{id}/reanalyze to
+                                     look up situations by id). Same reason
+                                     alec-driver-main / alec-processor-standalone are
+                                     commented out from this verify list.
                                 <feature>alec-features-claude-suggestions</feature>
+                                -->
                                 <feature>alec-integrations-opennms-sink</feature>
 
                                 <!-- Depends on blueprint common
