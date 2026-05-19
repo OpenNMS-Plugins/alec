@@ -44,8 +44,6 @@ import org.opennms.alec.datasource.api.InventoryObject;
 import org.opennms.alec.datasource.api.Situation;
 import org.opennms.alec.driver.test.TestDriver;
 import org.opennms.alec.engine.dbscan.AlarmInSpaceAndTimeDistanceMeasureFactory;
-import org.opennms.alec.engine.dbscan.AlarmInSpaceTimeDistanceMeasure;
-import org.opennms.alec.engine.dbscan.DBScanEngine;
 import org.opennms.alec.engine.dbscan.DBScanEngineFactory;
 
 /**
@@ -61,12 +59,23 @@ public class RouterScenarioTest {
     private TestDriver driver;
     private MibIIAlarms alarms;
 
+    // These scenario tests were calibrated against the original DBScan defaults
+    // (alpha=144.47117699, beta=0.55257784, epsilon=100). The project-wide
+    // defaults moved to alpha=145, beta=0.55, epsilon=150 in ALEC-296 — the
+    // wider epsilon would let some of these distance-sensitive scenarios merge
+    // alarms that the tests deliberately want kept apart. Pin the test's own
+    // parameters so the scenarios stay calibrated to their original geometry
+    // regardless of future default tuning.
+    private static final double SCENARIO_ALPHA = 144.47117699d;
+    private static final double SCENARIO_BETA = 0.55257784d;
+    private static final double SCENARIO_EPSILON = 100d;
+
     @Before
     public void setUp() {
         DBScanEngineFactory factory = new DBScanEngineFactory(
-                DBScanEngine.DEFAULT_ALPHA,
-                DBScanEngine.DEFAULT_BETA,
-                AlarmInSpaceTimeDistanceMeasure.DEFAULT_EPSILON,
+                SCENARIO_ALPHA,
+                SCENARIO_BETA,
+                SCENARIO_EPSILON,
                 "",
                 new AlarmInSpaceAndTimeDistanceMeasureFactory(),
                 Collections.emptyMap());
