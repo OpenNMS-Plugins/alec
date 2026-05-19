@@ -97,15 +97,13 @@ public class CompositeSituationHandler implements SituationHandler {
 
     @Override
     public void onSituation(Situation situation) {
-        // Temporary INFO-level diagnostic until the auto-eval pipeline is
-        // confirmed working end-to-end; promotes the handler-wiring state
-        // into karaf.log so we can see whether dynamic delegates are
-        // actually registered.
         List<SituationHandler> snapshot = new ArrayList<>(dynamicDelegates);
-        LOG.info("CompositeSituationHandler.onSituation: primary={}, dynamicDelegates.size={}{}",
-                primary != null,
-                snapshot.size(),
-                snapshot.isEmpty() ? "" : " " + snapshot);
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("CompositeSituationHandler.onSituation: primary={}, dynamicDelegates.size={}{}",
+                    primary != null,
+                    snapshot.size(),
+                    snapshot.isEmpty() ? "" : " " + snapshot);
+        }
         if (primary != null) {
             try {
                 primary.onSituation(situation);

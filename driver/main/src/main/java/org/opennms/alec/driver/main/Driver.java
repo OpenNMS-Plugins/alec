@@ -163,12 +163,11 @@ public class Driver implements EngineRegistry {
                 situationProcessor.accept(situation);
             }
         };
-        // Temporary INFO-level diagnostic — log the externalSituationHandlers state at
-        // the moment we hand it to the composite, so karaf.log shows whether the OSGi
-        // reference-list was populated by the time Driver.initAsync ran.
-        LOG.info("Driver.initAsync: wiring CompositeSituationHandler with externalSituationHandlers.size={} ({})",
-                externalSituationHandlers.size(),
-                externalSituationHandlers);
+        // Hold the OSGi reference-list live (not snapshotted) so external bundles whose
+        // SituationHandler services register after Driver init still get picked up — see
+        // CompositeSituationHandler for the per-callback snapshot semantics.
+        LOG.debug("Driver.initAsync: wiring CompositeSituationHandler with externalSituationHandlers.size={}",
+                externalSituationHandlers.size());
         engine.registerSituationHandler(
                 new CompositeSituationHandler(coreProcessorForwarder, externalSituationHandlers));
 

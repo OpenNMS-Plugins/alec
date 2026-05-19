@@ -94,39 +94,37 @@ public class ClaudeSituationHandler implements SituationHandler {
     }
 
     /**
-     * KV-store key for a situation. We deliberately use the numeric long ID
-     * (not the String UUID returned by {@link Situation#getId()}) because the
-     * front-end's {@code TSituation.id} is the numeric long, and the REST
-     * endpoint receives that value as the path parameter. Storing under the
-     * UUID would silently 204 every front-end lookup — see ALEC-299 fixes.
+     * KV-store key for a situation. We use {@link Situation#getId()} (a
+     * stable UUID-shaped reduction key) rather than {@link Situation#getLongId()}
+     * because the engine emits an in-memory ImmutableSituation BEFORE it has
+     * been persisted by OpenNMS, and at that point getLongId() returns 0
+     * for every situation — so the handler would otherwise key every record
+     * under "0". The REST endpoints translate the UI's numeric long ID to
+     * this UUID via SituationDatasource before looking up records.
      */
     static String keyFor(Situation situation) {
-        return String.valueOf(situation.getLongId());
+        return situation.getId();
     }
 
     @Override
     public void onSituation(Situation situation) {
         if (situation == null) {
-            // INFO-level until we've confirmed the auto-eval pipeline is healthy on real deploys.
-            LOG.info("Claude integration: onSituation called with null; skipping");
             return;
         }
         final String situationId = keyFor(situation);
-        LOG.info("Claude integration: onSituation called for situation {}", situationId);
 
         Optional<ClaudeConfigReader.Config> maybeConfig = configReader.read();
         if (maybeConfig.isEmpty()) {
-            LOG.info("Claude integration: no config persisted; skipping situation {}", situationId);
+            LOG.debug("Claude integration: no config persisted; skipping situation {}", situationId);
             return;
         }
         ClaudeConfigReader.Config config = maybeConfig.get();
         if (!config.isEnabled() || !config.hasApiKey()) {
-            LOG.info("Claude integration: disabled or no key ({}); skipping situation {}",
-                    config, situationId);
+            LOG.debug("Claude integration: disabled or no key; skipping situation {}", situationId);
             return;
         }
         if (!config.isAutoEvaluate()) {
-            LOG.info("Claude integration: autoEvaluate is off; skipping situation {} (Re-evaluate still works)",
+            LOG.debug("Claude integration: autoEvaluate is off; skipping situation {} (Re-evaluate still works)",
                     situationId);
             return;
         }
@@ -136,13 +134,15 @@ public class ClaudeSituationHandler implements SituationHandler {
             String status = existing.get().getStatus();
             if (SuggestionRecord.STATUS_PENDING.equals(status)
                     || SuggestionRecord.STATUS_READY.equals(status)) {
-                LOG.info("Claude integration: already {} for situation {}; not re-firing",
+                LOG.debug("Claude integration: already {} for situation {}; not re-firing",
                         status, situationId);
                 return;
             }
             // status == failed → fall through and retry once
         }
 
+        // INFO is intentional — one log line per Claude call gives a clear
+        // signal of work happening at the right granularity for ops.
         LOG.info("Claude integration: requesting suggestions for situation {}", situationId);
         analyzeAndStore(situation, situationId, config);
     }

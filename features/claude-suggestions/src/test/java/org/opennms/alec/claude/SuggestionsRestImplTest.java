@@ -51,6 +51,18 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class SuggestionsRestImplTest {
 
+    /**
+     * The UI's TSituation.id is the numeric long row id, so the REST path
+     * param is a number. The handler stores under getId() (a stable UUID).
+     * The REST layer must resolve longId -> Situation -> getId() before
+     * looking up the KV record. These constants pin the mapping the tests
+     * mock so failures surface clearly.
+     */
+    private static final int LONG_ID_1 = 1;
+    private static final String UUID_1 = "uei.opennms.org/alarms/situation:test-uuid-1";
+    private static final int LONG_ID_7 = 7;
+    private static final String UUID_7 = "uei.opennms.org/alarms/situation:test-uuid-7";
+
     private InMemoryKVStore kv;
     private SuggestionStore store;
     private SituationDatasource datasource;
@@ -59,13 +71,22 @@ public class SuggestionsRestImplTest {
     private SuggestionsRestImpl rest;
 
     @Before
-    public void setUp() {
+    public void setUp() throws Exception {
         kv = new InMemoryKVStore();
         store = new SuggestionStore(kv, new ObjectMapper());
         datasource = mock(SituationDatasource.class);
         handler = mock(ClaudeSituationHandler.class);
         configReader = new ClaudeConfigReader(kv, new ObjectMapper());
         rest = new SuggestionsRestImpl(store, datasource, handler, configReader);
+
+        // Default situation mappings: longId 1 <-> uuid 1, longId 7 <-> uuid 7.
+        // Individual tests can override via when(datasource.getSituation(...)).
+        Situation s1 = mock(Situation.class);
+        when(s1.getId()).thenReturn(UUID_1);
+        when(datasource.getSituation(LONG_ID_1)).thenReturn(Optional.of(s1));
+        Situation s7 = mock(Situation.class);
+        when(s7.getId()).thenReturn(UUID_7);
+        when(datasource.getSituation(LONG_ID_7)).thenReturn(Optional.of(s7));
     }
 
     private void writeEnabledConfig() {
@@ -89,18 +110,29 @@ public class SuggestionsRestImplTest {
     }
 
     @Test
-    public void getReturnsNoContentWhenNoRecordExistsYet() {
-        Response r = rest.getSuggestion("42");
-        // 204 (not 404) so the UI can poll without flooding error logs while
-        // the feature is disabled or the Claude call is still pending.
+    public void getReturnsNoContentWhenLongIdResolvesButNoRecord() {
+        // Situation exists in the datasource (longId -> uuid mapping works) but
+        // the handler hasn't fired yet — UI keeps polling.
+        Response r = rest.getSuggestion(String.valueOf(LONG_ID_1));
         assertThat(r.getStatus(), equalTo(204));
     }
 
     @Test
-    public void getReturnsRecordBodyWhenPresent() {
-        store.putReady("1", 100L, 200L, "claude-sonnet-4-6",
+    public void getReturnsNoContentWhenLongIdDoesNotResolveToSituation() throws Exception {
+        // Unknown long id: datasource returns empty. Treat the same as
+        // "no record yet" — the UI polls; surfacing a 404 would only
+        // produce spurious browser console noise.
+        when(datasource.getSituation(999)).thenReturn(Optional.empty());
+        Response r = rest.getSuggestion("999");
+        assertThat(r.getStatus(), equalTo(204));
+    }
+
+    @Test
+    public void getResolvesLongIdToUuidAndReturnsRecord() {
+        store.putReady(UUID_1, 100L, 200L, "claude-sonnet-4-6",
                 Arrays.asList("c1", "c2"), Arrays.asList("r1"));
-        Response r = rest.getSuggestion("1");
+
+        Response r = rest.getSuggestion(String.valueOf(LONG_ID_1));
         assertThat(r.getStatus(), equalTo(200));
         SuggestionRecord body = (SuggestionRecord) r.getEntity();
         assertThat(body.getStatus(), equalTo(SuggestionRecord.STATUS_READY));
@@ -110,8 +142,8 @@ public class SuggestionsRestImplTest {
 
     @Test
     public void getReturnsPendingRecordWithStatusPending() {
-        store.putPending("2", 100L, "claude-sonnet-4-6");
-        Response r = rest.getSuggestion("2");
+        store.putPending(UUID_7, 100L, "claude-sonnet-4-6");
+        Response r = rest.getSuggestion(String.valueOf(LONG_ID_7));
         assertThat(r.getStatus(), equalTo(200));
         SuggestionRecord body = (SuggestionRecord) r.getEntity();
         assertThat("pending records are still surfaced — UI shows a spinner",
@@ -119,13 +151,21 @@ public class SuggestionsRestImplTest {
         assertThat(body.getCompletedAt() == null, is(true));
     }
 
+    @Test
+    public void getAcceptsUuidLikePathParamAsFallback() {
+        // Belt-and-suspenders: if the UI ever sends the UUID directly instead
+        // of the numeric long id, the endpoint should still find the record.
+        store.putReady(UUID_1, 100L, 200L, "claude-sonnet-4-6",
+                Arrays.asList("c"), Arrays.asList("r"));
+        Response r = rest.getSuggestion(UUID_1);
+        assertThat(r.getStatus(), equalTo(200));
+    }
+
     // --- POST /suggestions/{id}/reanalyze ---
 
     @Test
     public void reanalyzeReturnsBadRequestWhenIntegrationIsDisabled() throws Exception {
-        // No config persisted = disabled. Don't make the user wait for a
-        // spinner that'll never resolve — fail fast.
-        Response r = rest.reanalyze("1");
+        Response r = rest.reanalyze(String.valueOf(LONG_ID_1));
         assertThat(r.getStatus(), equalTo(400));
         verify(handler, never()).forceReanalyze(any());
     }
@@ -151,19 +191,16 @@ public class SuggestionsRestImplTest {
     @Test
     public void reanalyzeForcesHandlerAndReturns202WithPendingBody() throws Exception {
         writeEnabledConfig();
-        Situation s = mock(Situation.class);
-        when(s.getLongId()).thenReturn(7L);
-        when(datasource.getSituation(7)).thenReturn(Optional.of(s));
-        // Simulate the handler's synchronous pending write — that's what the
-        // 202 body should reflect, so the UI immediately knows we're working.
+        // Simulate handler.forceReanalyze writing the pending record under
+        // the situation's UUID — that's what the real handler does via keyFor.
         org.mockito.Mockito.doAnswer(inv -> {
-            store.putPending("7", 1L, "claude-sonnet-4-6");
+            store.putPending(UUID_7, 1L, "claude-sonnet-4-6");
             return null;
-        }).when(handler).forceReanalyze(s);
+        }).when(handler).forceReanalyze(any());
 
-        Response r = rest.reanalyze("7");
+        Response r = rest.reanalyze(String.valueOf(LONG_ID_7));
         assertThat(r.getStatus(), equalTo(202));
-        verify(handler).forceReanalyze(s);
+        verify(handler).forceReanalyze(any());
         SuggestionRecord body = (SuggestionRecord) r.getEntity();
         assertThat(body.getStatus(), equalTo(SuggestionRecord.STATUS_PENDING));
     }

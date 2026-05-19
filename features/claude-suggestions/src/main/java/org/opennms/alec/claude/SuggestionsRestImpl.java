@@ -64,14 +64,44 @@ public class SuggestionsRestImpl implements SuggestionsRest {
                     .entity("situationId is required")
                     .build();
         }
-        Optional<SuggestionRecord> record = store.get(situationId);
+        // The UI sends the numeric long ID (TSituation.id is the OpenNMS
+        // alarm row id). The handler stores under the situation's UUID
+        // reduction-key (because longId is 0 at engine-emit time). So we
+        // resolve longId -> situation -> getId() before the KV lookup.
+        String storageKey = resolveStorageKey(situationId);
+        if (storageKey == null) {
+            // 204 not 404: a situation whose suggestion record doesn't exist
+            // looks the same as a stale long-id lookup to the polling UI.
+            return Response.noContent().build();
+        }
+        Optional<SuggestionRecord> record = store.get(storageKey);
         if (record.isEmpty()) {
-            // 204 lets the UI poll without spamming the error log for
-            // situations whose Claude call hasn't fired yet (or where the
-            // feature is disabled — no record will ever appear).
             return Response.noContent().build();
         }
         return Response.ok().entity(record.get()).build();
+    }
+
+    /**
+     * Map the front-end's numeric long id to the storage key (the situation's
+     * UUID-shaped reduction key). Returns null if the path parameter isn't a
+     * numeric long, or no situation with that id exists.
+     */
+    private String resolveStorageKey(String longIdParam) {
+        int numericId;
+        try {
+            numericId = Integer.parseInt(longIdParam);
+        } catch (NumberFormatException e) {
+            // Caller might already be passing a UUID-shaped key — use it as-is.
+            // (Defense-in-depth in case the UI ever sends the UUID directly.)
+            return longIdParam;
+        }
+        try {
+            Optional<Situation> maybe = situationDatasource.getSituation(numericId);
+            return maybe.map(ClaudeSituationHandler::keyFor).orElse(null);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return null;
+        }
     }
 
     @Override
@@ -119,8 +149,10 @@ public class SuggestionsRestImpl implements SuggestionsRest {
         LOG.info("Re-evaluation requested for situation {}", situationId);
         handler.forceReanalyze(situation);
         // Return the pending record that forceReanalyze wrote synchronously
-        // so the UI can immediately show the spinner state without an extra round-trip.
-        Optional<SuggestionRecord> pending = store.get(situationId);
+        // so the UI can immediately show the spinner state without an extra
+        // round-trip. Use the situation's storage key (UUID), not the path
+        // parameter (the long id), so this matches what the handler stored.
+        Optional<SuggestionRecord> pending = store.get(ClaudeSituationHandler.keyFor(situation));
         return Response.status(Response.Status.ACCEPTED)
                 .entity(pending.orElse(null))
                 .build();
