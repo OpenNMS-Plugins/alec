@@ -14,7 +14,7 @@
 
     <!--
         External SituationHandler listeners contributed by other bundles
-        (e.g. the Claude integration, ALEC-299). The (role=engine-listener)
+        (e.g. the LLM integration, ALEC-299). The (role=engine-listener)
         filter excludes existing SituationHandler services that may be
         published for other reasons; new subscribers opt in by publishing
         their handler service with <service-properties><entry key="role"

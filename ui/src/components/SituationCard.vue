@@ -9,7 +9,7 @@ import { formatDate } from '@/helpers/utils'
 import { truncateText } from '@/helpers/utils'
 import { formatDistanceStrict } from 'date-fns'
 import { onMounted, ref } from 'vue'
-import { getClaudeSuggestion } from '@/services/AlecService'
+import { getLLMSuggestion } from '@/services/AlecService'
 
 const ACCEPTED = CONST.ACCEPTED
 const REJECTED = CONST.REJECTED
@@ -33,7 +33,7 @@ const aiBadge = ref<'none' | 'pending' | 'ready' | 'failed'>('none')
 
 onMounted(async () => {
 	if (props.situationInfo?.id === undefined) return
-	const result = await getClaudeSuggestion(props.situationInfo.id)
+	const result = await getLLMSuggestion(props.situationInfo.id)
 	if (result && result.status) {
 		aiBadge.value = result.status as 'pending' | 'ready' | 'failed'
 	}

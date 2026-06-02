@@ -68,16 +68,17 @@
     </feature>
 
     <!--
-        ALEC-299: Claude-powered situation suggestions. Owns the outbound call
-        to api.anthropic.com, the sidecar suggestion + usage stores, the
-        SituationHandler that bridges DBSCAN -> Claude (via the composite
-        handler in alec-driver-main), and the GET /alec/claude/suggestions/{id}
-        + /alec/claude/usage REST endpoints. The config REST endpoint
-        (POST /alec/claude/configuration) lives in alec-ui because it's part
+        ALEC-299: LLM-powered situation suggestions. Owns the outbound call
+        to a configured OpenAI-compatible LLM endpoint (OpenRouter by
+        default), the sidecar suggestion + usage stores, the
+        SituationHandler that bridges DBSCAN -> LLM (via the composite
+        handler in alec-driver-main), and the GET /alec/llm/suggestions/{id}
+        + /alec/llm/usage REST endpoints. The config REST endpoint
+        (POST /alec/llm/configuration) lives in alec-ui because it's part
         of the unified settings UI.
     -->
-    <feature name="alec-features-claude-suggestions"
-             description="ALEC :: Features :: Claude Suggestions" version="${project.version}">
+    <feature name="alec-features-llm-suggestions"
+             description="ALEC :: Features :: LLM Suggestions" version="${project.version}">
         <feature version="${project.version}">alec-datasource-api</feature>
         <feature version="${opennms.api.version}" dependency="true">opennms-integration-api</feature>
         <bundle dependency="true">mvn:javax.ws.rs/javax.ws.rs-api/${jaxrs.version}</bundle>
@@ -86,7 +87,7 @@
         <bundle dependency="true">mvn:com.fasterxml.jackson.core/jackson-core/${jackson.version}</bundle>
         <bundle dependency="true">mvn:com.fasterxml.jackson.core/jackson-annotations/${jackson.version}</bundle>
         <bundle dependency="true">mvn:com.fasterxml.jackson.core/jackson-databind/${jackson.version}</bundle>
-        <bundle>mvn:org.opennms.alec.features/org.opennms.alec.features.claude-suggestions/${project.version}</bundle>
+        <bundle>mvn:org.opennms.alec.features/org.opennms.alec.features.llm-suggestions/${project.version}</bundle>
     </feature>
 
     <!-- Engines -->
@@ -260,7 +261,7 @@
         <feature>alec-processor-standalone</feature>
         <feature>alec-features-graph-shell</feature>
         <feature>alec-ui</feature>
-        <feature>alec-features-claude-suggestions</feature>
+        <feature>alec-features-llm-suggestions</feature>
     </feature>
 
     <feature name="alec-opennms-distributed">

@@ -7,7 +7,7 @@ import * as AlecService from '@/services/AlecService'
 
 beforeEach(() => {
 	// Default: no AI record for this situation. Individual tests override.
-	vi.spyOn(AlecService, 'getClaudeSuggestion').mockResolvedValue(null)
+	vi.spyOn(AlecService, 'getLLMSuggestion').mockResolvedValue(null)
 })
 
 test('Should emit situation Id on click', async () => {
@@ -33,7 +33,7 @@ test('AI badge is hidden when server returns no suggestion record', async () => 
 })
 
 test('AI badge renders "AI" with ready class when status is ready', async () => {
-	vi.spyOn(AlecService, 'getClaudeSuggestion').mockResolvedValue({
+	vi.spyOn(AlecService, 'getLLMSuggestion').mockResolvedValue({
 		situationId: 'x',
 		status: 'ready',
 		rootCauses: ['c'],
@@ -41,7 +41,7 @@ test('AI badge renders "AI" with ready class when status is ready', async () => 
 		requestedAt: 1,
 		completedAt: 2,
 		error: null,
-		model: 'claude-sonnet-4-6'
+		model: 'anthropic/claude-sonnet-4.6'
 	})
 	const wrapper = mount(SituationCard, {
 		global: { plugins: [createTestingPinia()] },
@@ -55,7 +55,7 @@ test('AI badge renders "AI" with ready class when status is ready', async () => 
 })
 
 test('AI badge renders "AI…" with pending class while analysis is in flight', async () => {
-	vi.spyOn(AlecService, 'getClaudeSuggestion').mockResolvedValue({
+	vi.spyOn(AlecService, 'getLLMSuggestion').mockResolvedValue({
 		situationId: 'x',
 		status: 'pending',
 		rootCauses: [],
@@ -63,7 +63,7 @@ test('AI badge renders "AI…" with pending class while analysis is in flight', 
 		requestedAt: 1,
 		completedAt: null,
 		error: null,
-		model: 'claude-sonnet-4-6'
+		model: 'anthropic/claude-sonnet-4.6'
 	})
 	const wrapper = mount(SituationCard, {
 		global: { plugins: [createTestingPinia()] },
@@ -77,7 +77,7 @@ test('AI badge renders "AI…" with pending class while analysis is in flight', 
 })
 
 test('AI badge surfaces failed state', async () => {
-	vi.spyOn(AlecService, 'getClaudeSuggestion').mockResolvedValue({
+	vi.spyOn(AlecService, 'getLLMSuggestion').mockResolvedValue({
 		situationId: 'x',
 		status: 'failed',
 		rootCauses: [],
@@ -85,7 +85,7 @@ test('AI badge surfaces failed state', async () => {
 		requestedAt: 1,
 		completedAt: 2,
 		error: 'HTTP 401: invalid api key',
-		model: 'claude-sonnet-4-6'
+		model: 'anthropic/claude-sonnet-4.6'
 	})
 	const wrapper = mount(SituationCard, {
 		global: { plugins: [createTestingPinia()] },

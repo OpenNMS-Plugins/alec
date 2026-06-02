@@ -306,7 +306,7 @@ public class DemoRunner {
         System.out.println("  star-5              Core router + 4 edge routers in a star topology");
         System.out.println("  single              1 router, 3 generic alarms");
         System.out.println("  realistic-outage    Edge + core, simulated optical/BGP/saturation cascade");
-        System.out.println("                      (richest data for the Claude suggestion path; install");
+        System.out.println("                      (richest data for an LLM suggestion path; install");
         System.out.println("                      demo/src/main/resources/events/alec-demo.events.xml on");
         System.out.println("                      OpenNMS for fully-templated alarm descriptions)");
     }

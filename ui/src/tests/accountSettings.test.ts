@@ -20,13 +20,13 @@ const buildWrapper = () => {
 	const store = useUserStore()
 	store.setEngineInfo = vi.fn().mockResolvedValue(true)
 	store.getEngineInfo = vi.fn()
-	store.setClaudeConfig = vi.fn().mockResolvedValue(true)
-	store.getClaudeConfig = vi
+	store.setLLMConfig = vi.fn().mockResolvedValue(true)
+	store.getLLMConfig = vi
 		.fn()
 		.mockResolvedValue({ enabled: false, autoEvaluate: true, apiKeyPresent: false })
 	// Default: no usage data so the rollup panel is hidden in most existing
-	// tests. The slice-5 rollup tests below seed claudeUsage explicitly.
-	store.getClaudeUsage = vi.fn().mockResolvedValue(null)
+	// tests. The slice-5 rollup tests below seed llmUsage explicitly.
+	store.getLLMUsage = vi.fn().mockResolvedValue(null)
 	return { wrapper, store }
 }
 
@@ -248,36 +248,36 @@ test('Re-Evaluate All Open Alarms is a no-op when confirm is dismissed', async (
 	serviceSpy.mockRestore()
 })
 
-// --- Claude Root Cause Analysis (ALEC-299) ---
+// --- LLM Root Cause Analysis (ALEC-299) ---
 
-test('Claude section renders with checkbox + API key input', () => {
+test('LLM section renders with checkbox + API key input', () => {
 	const { wrapper } = buildWrapper()
-	expect(wrapper.find('[data-test="claude-section"]').exists()).toBe(true)
-	expect(wrapper.find('[data-test="claude-enabled"]').exists()).toBe(true)
-	expect(wrapper.find('[data-test="claude-api-key"]').exists()).toBe(true)
+	expect(wrapper.find('[data-test="llm-section"]').exists()).toBe(true)
+	expect(wrapper.find('[data-test="llm-enabled"]').exists()).toBe(true)
+	expect(wrapper.find('[data-test="llm-api-key"]').exists()).toBe(true)
 })
 
 test('Enable checkbox is disabled until an API key is available', async () => {
 	const { wrapper } = buildWrapper()
 	// No stored key, no typed key → checkbox blocked + hint visible.
-	expect(wrapper.vm.claudeNoKeyAvailable).toBe(true)
-	expect(wrapper.find('[data-test="claude-no-key-hint"]').exists()).toBe(true)
+	expect(wrapper.vm.llmNoKeyAvailable).toBe(true)
+	expect(wrapper.find('[data-test="llm-no-key-hint"]').exists()).toBe(true)
 
-	wrapper.vm.claudeApiKey = 'sk-ant-test'
+	wrapper.vm.llmApiKey = 'sk-ant-test'
 	await wrapper.vm.$nextTick()
-	expect(wrapper.vm.claudeNoKeyAvailable).toBe(false)
-	expect(wrapper.find('[data-test="claude-no-key-hint"]').exists()).toBe(false)
+	expect(wrapper.vm.llmNoKeyAvailable).toBe(false)
+	expect(wrapper.find('[data-test="llm-no-key-hint"]').exists()).toBe(false)
 })
 
 test('"API key on file" confirmation appears only when a key is stored, and disappears on Clear', async () => {
 	const { wrapper } = buildWrapper()
 	// No key stored → no confirmation row, and the input label is the plain
 	// "Anthropic API key" prompt.
-	expect(wrapper.find('[data-test="claude-key-saved"]').exists()).toBe(false)
+	expect(wrapper.find('[data-test="llm-key-saved"]').exists()).toBe(false)
 
-	wrapper.vm.claudeApiKeyPresent = true
+	wrapper.vm.llmApiKeyPresent = true
 	await wrapper.vm.$nextTick()
-	const saved = wrapper.find('[data-test="claude-key-saved"]')
+	const saved = wrapper.find('[data-test="llm-key-saved"]')
 	expect(saved.exists()).toBe(true)
 	expect(saved.text()).toContain('API key on file')
 	// Defense: the saved row must never echo the actual key value.
@@ -286,110 +286,193 @@ test('"API key on file" confirmation appears only when a key is stored, and disa
 	// Once the user clicks Clear, the saved confirmation goes away and the
 	// pending-clear hint takes over — leaves no ambiguity about which state
 	// the server is in after the next Save.
-	wrapper.vm.claudeApiKeyCleared = true
+	wrapper.vm.llmApiKeyCleared = true
 	await wrapper.vm.$nextTick()
-	expect(wrapper.find('[data-test="claude-key-saved"]').exists()).toBe(false)
-	expect(wrapper.find('[data-test="claude-cleared-hint"]').exists()).toBe(true)
+	expect(wrapper.find('[data-test="llm-key-saved"]').exists()).toBe(false)
+	expect(wrapper.find('[data-test="llm-cleared-hint"]').exists()).toBe(true)
 })
 
 test('"Clear Key" button is hidden until a key is stored server-side', async () => {
 	const { wrapper } = buildWrapper()
-	expect(wrapper.find('[data-test="claude-clear-key"]').exists()).toBe(false)
+	expect(wrapper.find('[data-test="llm-clear-key"]').exists()).toBe(false)
 
-	wrapper.vm.claudeApiKeyPresent = true
+	wrapper.vm.llmApiKeyPresent = true
 	await wrapper.vm.$nextTick()
-	expect(wrapper.find('[data-test="claude-clear-key"]').exists()).toBe(true)
+	expect(wrapper.find('[data-test="llm-clear-key"]').exists()).toBe(true)
 })
 
 test('Save sends new API key + enabled flag when both provided', async () => {
 	const { wrapper, store } = buildWrapper()
-	wrapper.vm.claudeApiKey = 'sk-ant-new-key'
-	wrapper.vm.claudeEnabled = true
+	wrapper.vm.llmApiKey = 'sk-ant-new-key'
+	wrapper.vm.llmEnabled = true
 	await wrapper.find('[data-test="save-btn"]').trigger('click')
 
-	expect(store.setClaudeConfig).toHaveBeenCalledTimes(1)
-	expect((store.setClaudeConfig as any).mock.calls[0][0]).toEqual({
+	expect(store.setLLMConfig).toHaveBeenCalledTimes(1)
+	expect((store.setLLMConfig as any).mock.calls[0][0]).toEqual({
 		enabled: true,
 		autoEvaluate: true,
+		baseUrl: 'https://openrouter.ai/api/v1',
+		model: 'anthropic/claude-sonnet-4.6',
 		apiKey: 'sk-ant-new-key'
 	})
 })
 
 test('Save omits apiKey when the input is blank so server preserves stored key', async () => {
 	const { wrapper, store } = buildWrapper()
-	wrapper.vm.claudeApiKeyPresent = true // simulate a previously stored key
-	wrapper.vm.claudeEnabled = false // user just toggled off
+	wrapper.vm.llmApiKeyPresent = true // simulate a previously stored key
+	wrapper.vm.llmEnabled = false // user just toggled off
 	await wrapper.find('[data-test="save-btn"]').trigger('click')
 
-	expect(store.setClaudeConfig).toHaveBeenCalledTimes(1)
-	expect((store.setClaudeConfig as any).mock.calls[0][0]).toEqual({
+	expect(store.setLLMConfig).toHaveBeenCalledTimes(1)
+	expect((store.setLLMConfig as any).mock.calls[0][0]).toEqual({
 		enabled: false,
-		autoEvaluate: true
+		autoEvaluate: true,
+		baseUrl: 'https://openrouter.ai/api/v1',
+		model: 'anthropic/claude-sonnet-4.6'
 	})
 })
 
 test('Clear Key sends clearApiKey=true and forces enabled=false', async () => {
 	const { wrapper, store } = buildWrapper()
-	wrapper.vm.claudeApiKeyPresent = true
-	wrapper.vm.claudeEnabled = true
+	wrapper.vm.llmApiKeyPresent = true
+	wrapper.vm.llmEnabled = true
 	await wrapper.vm.$nextTick()
-	await wrapper.find('[data-test="claude-clear-key"]').trigger('click')
+	await wrapper.find('[data-test="llm-clear-key"]').trigger('click')
 
 	// UI mirrors the destructive intent immediately.
-	expect(wrapper.vm.claudeEnabled).toBe(false)
-	expect(wrapper.vm.claudeApiKeyCleared).toBe(true)
-	expect(wrapper.find('[data-test="claude-cleared-hint"]').exists()).toBe(true)
+	expect(wrapper.vm.llmEnabled).toBe(false)
+	expect(wrapper.vm.llmApiKeyCleared).toBe(true)
+	expect(wrapper.find('[data-test="llm-cleared-hint"]').exists()).toBe(true)
 
 	await wrapper.find('[data-test="save-btn"]').trigger('click')
-	expect((store.setClaudeConfig as any).mock.calls[0][0]).toEqual({
+	expect((store.setLLMConfig as any).mock.calls[0][0]).toEqual({
 		enabled: false,
 		autoEvaluate: true,
+		baseUrl: 'https://openrouter.ai/api/v1',
+		model: 'anthropic/claude-sonnet-4.6',
 		clearApiKey: true
 	})
 })
 
 test('Auto-evaluate checkbox is exposed, defaults to true, and rides along on Save', async () => {
 	const { wrapper, store } = buildWrapper()
-	expect(wrapper.find('[data-test="claude-auto-evaluate"]').exists()).toBe(true)
+	expect(wrapper.find('[data-test="llm-auto-evaluate"]').exists()).toBe(true)
 	// Default state: checked, mirroring the server-side default.
-	expect(wrapper.vm.claudeAutoEvaluate).toBe(true)
+	expect(wrapper.vm.llmAutoEvaluate).toBe(true)
 
-	wrapper.vm.claudeApiKey = 'sk-ant-fresh'
-	wrapper.vm.claudeEnabled = true
-	wrapper.vm.claudeAutoEvaluate = false
+	wrapper.vm.llmApiKey = 'sk-ant-fresh'
+	wrapper.vm.llmEnabled = true
+	wrapper.vm.llmAutoEvaluate = false
 	await wrapper.find('[data-test="save-btn"]').trigger('click')
 
-	expect((store.setClaudeConfig as any).mock.calls[0][0]).toEqual({
+	expect((store.setLLMConfig as any).mock.calls[0][0]).toEqual({
 		enabled: true,
 		autoEvaluate: false,
+		baseUrl: 'https://openrouter.ai/api/v1',
+		model: 'anthropic/claude-sonnet-4.6',
 		apiKey: 'sk-ant-fresh'
 	})
 })
 
 test('API key help icon toggles a popover with step-by-step instructions', async () => {
 	const { wrapper } = buildWrapper()
-	expect(wrapper.find('[data-test="claude-key-help-popover"]').exists()).toBe(
+	expect(wrapper.find('[data-test="llm-key-help-popover"]').exists()).toBe(
 		false
 	)
 
-	await wrapper.find('[data-test="claude-key-help"]').trigger('click')
-	const popover = wrapper.find('[data-test="claude-key-help-popover"]')
+	await wrapper.find('[data-test="llm-key-help"]').trigger('click')
+	const popover = wrapper.find('[data-test="llm-key-help-popover"]')
 	expect(popover.exists()).toBe(true)
 
 	const html = popover.html()
-	// The popover must point users at the right place and surface the
-	// payment-method gotcha that blocks first-time key creation.
-	expect(html).toContain('console.anthropic.com')
+	// The popover must explain the provider-agnostic setup: pick an
+	// OpenAI-compatible provider (OpenRouter by default) and configure the
+	// endpoint + model.
+	expect(html).toContain('OpenRouter')
+	expect(html).toContain('chat/completions')
 	expect(html).toContain('payment method')
-	expect(html).toContain('sk-ant')
-	// Numbered list (5 steps as authored).
-	expect(popover.findAll('li').length).toBe(5)
+	// Numbered list (4 steps as authored).
+	expect(popover.findAll('li').length).toBe(4)
 
 	// Toggles closed on second click.
-	await wrapper.find('[data-test="claude-key-help"]').trigger('click')
-	expect(wrapper.find('[data-test="claude-key-help-popover"]').exists()).toBe(
+	await wrapper.find('[data-test="llm-key-help"]').trigger('click')
+	expect(wrapper.find('[data-test="llm-key-help-popover"]').exists()).toBe(
 		false
 	)
+})
+
+test('Endpoint + model inputs are exposed and custom values ride along on Save', async () => {
+	const { wrapper, store } = buildWrapper()
+	expect(wrapper.find('[data-test="llm-base-url"]').exists()).toBe(true)
+	expect(wrapper.find('[data-test="llm-model"]').exists()).toBe(true)
+
+	wrapper.vm.llmApiKey = 'sk-openai-test'
+	wrapper.vm.llmEnabled = true
+	wrapper.vm.llmBaseUrl = 'https://api.openai.com/v1'
+	wrapper.vm.llmModel = 'openai/gpt-4o'
+	await wrapper.find('[data-test="save-btn"]').trigger('click')
+
+	expect((store.setLLMConfig as any).mock.calls[0][0]).toEqual({
+		enabled: true,
+		autoEvaluate: true,
+		baseUrl: 'https://api.openai.com/v1',
+		model: 'openai/gpt-4o',
+		apiKey: 'sk-openai-test'
+	})
+})
+
+test('Provider/key-match hint is shown', () => {
+	const { wrapper } = buildWrapper()
+	const hint = wrapper.find('[data-test="llm-key-match-hint"]')
+	expect(hint.exists()).toBe(true)
+	expect(hint.text()).toContain('same provider as the Endpoint')
+})
+
+test('Validate button calls the service with form values and shows the result', async () => {
+	const { wrapper } = buildWrapper()
+	const spy = vi
+		.spyOn(AlecService, 'validateLLMConfig')
+		.mockResolvedValue({ ok: true, message: 'Success — reachable' })
+
+	wrapper.vm.llmApiKey = 'sk-test'
+	wrapper.vm.llmBaseUrl = 'https://api.openai.com/v1'
+	wrapper.vm.llmModel = 'openai/gpt-4o'
+	await wrapper.vm.$nextTick()
+
+	await wrapper.find('[data-test="llm-validate-btn"]').trigger('click')
+	await flushPromises()
+
+	expect(spy).toHaveBeenCalledTimes(1)
+	expect(spy.mock.calls[0][0]).toMatchObject({
+		baseUrl: 'https://api.openai.com/v1',
+		model: 'openai/gpt-4o',
+		apiKey: 'sk-test'
+	})
+	const result = wrapper.find('[data-test="llm-validate-result"]')
+	expect(result.exists()).toBe(true)
+	expect(result.text()).toContain('Success')
+})
+
+test('Validate omits apiKey when none typed (server uses stored key)', async () => {
+	const { wrapper } = buildWrapper()
+	wrapper.vm.llmApiKeyPresent = true // a key is already stored
+	const spy = vi
+		.spyOn(AlecService, 'validateLLMConfig')
+		.mockResolvedValue({ ok: true, message: 'ok' })
+	await wrapper.vm.$nextTick()
+
+	await wrapper.find('[data-test="llm-validate-btn"]').trigger('click')
+	await flushPromises()
+
+	expect(spy).toHaveBeenCalledTimes(1)
+	expect(spy.mock.calls[0][0].apiKey).toBeUndefined()
+})
+
+test('Validate is blocked with a hint when no key is typed or stored', async () => {
+	const { wrapper } = buildWrapper()
+	await wrapper.vm.$nextTick()
+	expect(wrapper.vm.llmCannotValidate).toBe(true)
+	expect(wrapper.find('[data-test="llm-validate-hint"]').exists()).toBe(true)
 })
 
 // --- Usage rollup (slice 6) ---
@@ -411,22 +494,22 @@ const usageFixture = {
 
 test('Usage rollup is hidden when no usage data is present', () => {
 	const { wrapper } = buildWrapper()
-	expect(wrapper.find('[data-test="claude-usage"]').exists()).toBe(false)
+	expect(wrapper.find('[data-test="llm-usage"]').exists()).toBe(false)
 })
 
 test('Usage rollup renders humanized tokens + approx cost when data is present', async () => {
 	const { wrapper, store } = buildWrapper()
-	store.claudeUsage = usageFixture as any
+	store.llmUsage = usageFixture as any
 	await wrapper.vm.$nextTick()
 
-	const tokens = wrapper.find('[data-test="claude-usage-tokens"]')
+	const tokens = wrapper.find('[data-test="llm-usage-tokens"]')
 	expect(tokens.exists()).toBe(true)
 	// 1,234,567 should render as "1.2M" — that's the humanizeTokens contract.
 	expect(tokens.text()).toContain('1.2M')
 	// Raw count goes into the title attribute for hover.
 	expect(tokens.attributes('title')).toContain('1,234,567')
 
-	const cost = wrapper.find('[data-test="claude-usage-cost"]')
+	const cost = wrapper.find('[data-test="llm-usage-cost"]')
 	expect(cost.text()).toContain('$4.85')
 	// Pricing-note caveat lives on the cost title so users see "approx" provenance.
 	expect(cost.attributes('title')).toContain('Approximate cost')
@@ -434,13 +517,13 @@ test('Usage rollup renders humanized tokens + approx cost when data is present',
 
 test('Usage details panel toggles open + shows breakdown', async () => {
 	const { wrapper, store } = buildWrapper()
-	store.claudeUsage = usageFixture as any
+	store.llmUsage = usageFixture as any
 	await wrapper.vm.$nextTick()
 
-	expect(wrapper.find('[data-test="claude-usage-details"]').exists()).toBe(false)
-	await wrapper.find('[data-test="claude-usage-toggle"]').trigger('click')
+	expect(wrapper.find('[data-test="llm-usage-details"]').exists()).toBe(false)
+	await wrapper.find('[data-test="llm-usage-toggle"]').trigger('click')
 
-	const details = wrapper.find('[data-test="claude-usage-details"]')
+	const details = wrapper.find('[data-test="llm-usage-details"]')
 	expect(details.exists()).toBe(true)
 	const html = details.html()
 	// Cache hit ratio 0.075 -> 8% (toFixed(0) rounds — verify the row is rendered).
@@ -455,31 +538,37 @@ test('Save refreshes usage rollup', async () => {
 	// Reset the spy so we ignore the mount-time call (which hits the Pinia
 	// stub default before our vi.fn replacement) — we only care that the
 	// save path triggers a refresh.
-	;(store.getClaudeUsage as any).mockClear()
-	wrapper.vm.claudeApiKey = 'sk-ant-fresh'
-	wrapper.vm.claudeEnabled = true
+	;(store.getLLMUsage as any).mockClear()
+	wrapper.vm.llmApiKey = 'sk-ant-fresh'
+	wrapper.vm.llmEnabled = true
 	await wrapper.find('[data-test="save-btn"]').trigger('click')
 	await flushPromises()
-	expect((store.getClaudeUsage as any)).toHaveBeenCalledTimes(1)
-	expect((store.getClaudeUsage as any)).toHaveBeenCalledWith(30)
+	expect((store.getLLMUsage as any)).toHaveBeenCalledTimes(1)
+	expect((store.getLLMUsage as any)).toHaveBeenCalledWith(30)
 })
 
 test('Input is scrubbed and cleared-flag reset after a successful save', async () => {
 	const { wrapper, store } = buildWrapper()
 	// Pretend the server stored the key and now reports it back.
-	;(store.setClaudeConfig as any).mockImplementation(async () => {
-		store.claudeConfig = { enabled: true, autoEvaluate: true, apiKeyPresent: true }
+	;(store.setLLMConfig as any).mockImplementation(async () => {
+		store.llmConfig = {
+			enabled: true,
+			autoEvaluate: true,
+			baseUrl: 'https://openrouter.ai/api/v1',
+			model: 'anthropic/claude-sonnet-4.6',
+			apiKeyPresent: true
+		}
 		return true
 	})
-	wrapper.vm.claudeApiKey = 'sk-ant-new'
-	wrapper.vm.claudeEnabled = true
+	wrapper.vm.llmApiKey = 'sk-ant-new'
+	wrapper.vm.llmEnabled = true
 	await wrapper.find('[data-test="save-btn"]').trigger('click')
 	// trigger('click') fires the handler but doesn't await the chained promises
 	// inside saveConfiguration; flushPromises lets the post-save scrub run.
 	await flushPromises()
 
 	// The secret must not linger in the input after the round-trip.
-	expect(wrapper.vm.claudeApiKey).toBe('')
-	expect(wrapper.vm.claudeApiKeyCleared).toBe(false)
-	expect(wrapper.vm.claudeApiKeyPresent).toBe(true)
+	expect(wrapper.vm.llmApiKey).toBe('')
+	expect(wrapper.vm.llmApiKeyCleared).toBe(false)
+	expect(wrapper.vm.llmApiKeyPresent).toBe(true)
 })

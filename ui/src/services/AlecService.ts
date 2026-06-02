@@ -3,17 +3,19 @@ import CONST from '@/helpers/constants'
 import { TSituation, TNewSituation } from '@/types/TSituation'
 import {
 	TEngine,
-	TClaudeConfigRequest,
-	TClaudeConfigStatus,
-	TClaudeSuggestion,
-	TClaudeUsage
+	TLLMConfigRequest,
+	TLLMConfigStatus,
+	TLLMValidationResult,
+	TLLMSuggestion,
+	TLLMUsage
 } from '@/types/TUser'
 import { sendAction } from '@/services/AlarmService'
 const base = '/alec'
 const engineEndpoint = '/alec/engine/configuration'
-const claudeConfigEndpoint = '/alec/claude/configuration'
-const claudeSuggestionsEndpoint = '/alec/claude/suggestions'
-const claudeUsageEndpoint = '/alec/claude/usage'
+const llmConfigEndpoint = '/alec/llm/configuration'
+const llmValidateEndpoint = '/alec/llm/validate'
+const llmSuggestionsEndpoint = '/alec/llm/suggestions'
+const llmUsageEndpoint = '/alec/llm/usage'
 const situationStatusEndpoint = '/alec/situation/statusList'
 const situationEndpoint = '/alec/situation'
 
@@ -38,9 +40,9 @@ export const saveEngineParameter = async (engineData: TEngine) => {
 	}
 }
 
-export const getClaudeConfig = async (): Promise<TClaudeConfigStatus | false> => {
+export const getLLMConfig = async (): Promise<TLLMConfigStatus | false> => {
 	try {
-		const resp = await rest.get(claudeConfigEndpoint)
+		const resp = await rest.get(llmConfigEndpoint)
 		if (resp.status === 200) {
 			return resp.data
 		}
@@ -50,29 +52,46 @@ export const getClaudeConfig = async (): Promise<TClaudeConfigStatus | false> =>
 	}
 }
 
-export const saveClaudeConfig = async (
-	config: TClaudeConfigRequest
-): Promise<TClaudeConfigStatus | false> => {
+export const saveLLMConfig = async (
+	config: TLLMConfigRequest
+): Promise<TLLMConfigStatus | false> => {
 	try {
-		const resp = await rest.post(claudeConfigEndpoint, config)
+		const resp = await rest.post(llmConfigEndpoint, config)
 		if (resp.status === 200) {
 			return resp.data
 		}
 		return false
 	} catch (err) {
 		return false
+	}
+}
+
+// Probe the endpoint/model/key. Send the current form values; a blank apiKey
+// tells the server to use the already-stored key. Returns the server's
+// {ok, message}, or a generic failure result if the request itself errors.
+export const validateLLMConfig = async (
+	config: TLLMConfigRequest
+): Promise<TLLMValidationResult> => {
+	try {
+		const resp = await rest.post(llmValidateEndpoint, config)
+		if (resp.status === 200) {
+			return resp.data as TLLMValidationResult
+		}
+		return { ok: false, message: `Unexpected response (HTTP ${resp.status}).` }
+	} catch (err) {
+		return { ok: false, message: 'Could not reach the server to validate.' }
 	}
 }
 
 // 204 No Content (no record yet — feature off, or pending) maps to null so
 // callers can distinguish "absent" from "failed".
-export const getClaudeSuggestion = async (
+export const getLLMSuggestion = async (
 	situationId: number | string
-): Promise<TClaudeSuggestion | null | false> => {
+): Promise<TLLMSuggestion | null | false> => {
 	try {
-		const resp = await rest.get(`${claudeSuggestionsEndpoint}/${situationId}`)
+		const resp = await rest.get(`${llmSuggestionsEndpoint}/${situationId}`)
 		if (resp.status === 200) {
-			return resp.data as TClaudeSuggestion
+			return resp.data as TLLMSuggestion
 		}
 		if (resp.status === 204) {
 			return null
@@ -83,20 +102,20 @@ export const getClaudeSuggestion = async (
 	}
 }
 
-// POST /alec/claude/suggestions/{id}/reanalyze — force a fresh Claude call
+// POST /alec/llm/suggestions/{id}/reanalyze — force a fresh LLM call
 // even if a ready/pending record already exists. Returns the new pending
 // record (server writes it synchronously before kicking off the async LLM
 // request); 400 if the integration is disabled / has no key; 404 if the
 // situation doesn't exist.
-export const reanalyzeClaudeSuggestion = async (
+export const reanalyzeLLMSuggestion = async (
 	situationId: number | string
-): Promise<TClaudeSuggestion | false> => {
+): Promise<TLLMSuggestion | false> => {
 	try {
 		const resp = await rest.post(
-			`${claudeSuggestionsEndpoint}/${situationId}/reanalyze`
+			`${llmSuggestionsEndpoint}/${situationId}/reanalyze`
 		)
 		if (resp.status === 202 || resp.status === 200) {
-			return resp.data as TClaudeSuggestion
+			return resp.data as TLLMSuggestion
 		}
 		return false
 	} catch (err) {
@@ -104,13 +123,13 @@ export const reanalyzeClaudeSuggestion = async (
 	}
 }
 
-export const getClaudeUsage = async (
+export const getLLMUsage = async (
 	days: number = 30
-): Promise<TClaudeUsage | false> => {
+): Promise<TLLMUsage | false> => {
 	try {
-		const resp = await rest.get(`${claudeUsageEndpoint}?days=${days}`)
+		const resp = await rest.get(`${llmUsageEndpoint}?days=${days}`)
 		if (resp.status === 200) {
-			return resp.data as TClaudeUsage
+			return resp.data as TLLMUsage
 		}
 		return false
 	} catch (err) {

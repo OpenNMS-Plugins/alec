@@ -14,9 +14,10 @@ import { FeatherButton } from '@featherds/button'
 import { FeatherSnackbar } from '@featherds/snackbar'
 import {
 	closeAllOpenSituations,
-	reEvaluateAllOpenAlarms
+	reEvaluateAllOpenAlarms,
+	validateLLMConfig
 } from '@/services/AlecService'
-import { TClaudeConfigRequest } from '@/types/TUser'
+import { TLLMConfigRequest, TLLMValidationResult } from '@/types/TUser'
 
 // Humanize a token count for display: 1234567 -> "1.2M", 4800 -> "4.8K".
 // Raw count goes into the title attribute for hover.
@@ -67,35 +68,74 @@ const hellingerBias = ref(
 const isClustering = computed(() => engineName.value === CONST.ENGINE_DBSCAN)
 const showHellingerVars = computed(() => isClustering.value && hellinger.value)
 
-// Claude integration (ALEC-299). API key is write-only from the UI; the
+// LLM integration (ALEC-299). API key is write-only from the UI; the
 // server returns only `apiKeyPresent` so a stored key is never echoed back.
-const claudeEnabled = ref(userStore.claudeConfig?.enabled ?? false)
+const llmEnabled = ref(userStore.llmConfig?.enabled ?? false)
 // Auto-evaluate default true matches server-side (preserves existing automatic
-// behavior). When false, new situations get no Claude call until the user clicks
+// behavior). When false, new situations get no LLM call until the user clicks
 // Re-evaluate on the AI Suggestions tab.
-const claudeAutoEvaluate = ref(userStore.claudeConfig?.autoEvaluate ?? true)
-const claudeApiKey = ref('')
-const claudeApiKeyPresent = ref(userStore.claudeConfig?.apiKeyPresent ?? false)
-const claudeApiKeyCleared = ref(false)
+const llmAutoEvaluate = ref(userStore.llmConfig?.autoEvaluate ?? true)
+// OpenAI-compatible endpoint + model. Defaults mirror the server (OpenRouter
+// routing to a Claude model) so the feature works across providers.
+const LLM_DEFAULT_BASE_URL = 'https://openrouter.ai/api/v1'
+const LLM_DEFAULT_MODEL = 'anthropic/claude-sonnet-4.6'
+const llmBaseUrl = ref(userStore.llmConfig?.baseUrl ?? LLM_DEFAULT_BASE_URL)
+const llmModel = ref(userStore.llmConfig?.model ?? LLM_DEFAULT_MODEL)
+const llmApiKey = ref('')
+const llmApiKeyPresent = ref(userStore.llmConfig?.apiKeyPresent ?? false)
+const llmApiKeyCleared = ref(false)
+
+// Validate (test) the endpoint/model/key without saving.
+const llmValidating = ref(false)
+const llmValidationResult = ref<TLLMValidationResult | null>(null)
+
+// True when there's no key the server could test — none typed and none stored.
+const llmCannotValidate = computed(
+	() =>
+		llmApiKey.value.trim().length === 0 &&
+		(!llmApiKeyPresent.value || llmApiKeyCleared.value)
+)
+
+const validateLlm = async () => {
+	llmValidationResult.value = null
+	llmValidating.value = true
+	try {
+		// Send the current form values. Send the typed key if present; otherwise
+		// omit it so the server validates the already-stored key.
+		const req: TLLMConfigRequest = {
+			enabled: llmEnabled.value,
+			autoEvaluate: llmAutoEvaluate.value,
+			baseUrl: llmBaseUrl.value.trim(),
+			model: llmModel.value.trim()
+		}
+		const typedKey = llmApiKey.value.trim()
+		if (typedKey.length > 0) {
+			req.apiKey = typedKey
+		}
+		llmValidationResult.value = await validateLLMConfig(req)
+	} finally {
+		llmValidating.value = false
+	}
+}
 
 // True when there's nothing the server could persist as a key — neither one
 // already stored nor one freshly typed. The Enable checkbox guards on this to
 // stop the user from saving an enabled-but-keyless config the server will reject.
-const claudeNoKeyAvailable = computed(
+const llmNoKeyAvailable = computed(
 	() =>
-		(!claudeApiKeyPresent.value || claudeApiKeyCleared.value) &&
-		claudeApiKey.value.trim().length === 0
+		(!llmApiKeyPresent.value || llmApiKeyCleared.value) &&
+		llmApiKey.value.trim().length === 0
 )
 
-const clearClaudeApiKey = () => {
-	claudeApiKey.value = ''
-	claudeApiKeyCleared.value = true
-	claudeApiKeyPresent.value = false
-	claudeEnabled.value = false
+const clearLLMApiKey = () => {
+	llmApiKey.value = ''
+	llmApiKeyCleared.value = true
+	llmApiKeyPresent.value = false
+	llmEnabled.value = false
 }
 
 const showHelp = ref(false)
-const showClaudeKeyHelp = ref(false)
+const showLLMKeyHelp = ref(false)
 const showNotification = ref(false)
 const isError = ref(false)
 const message = ref('')
@@ -103,18 +143,20 @@ const message = ref('')
 const showUsageDetails = ref(false)
 
 onMounted(async () => {
-	// engineInfo is usually pre-populated by the app shell; the Claude config
+	// engineInfo is usually pre-populated by the app shell; the LLM config
 	// has no such pre-load, so fetch it here on first render.
-	if (userStore.claudeConfig === null) {
-		const result = await userStore.getClaudeConfig()
+	if (userStore.llmConfig === null) {
+		const result = await userStore.getLLMConfig()
 		if (result) {
-			claudeEnabled.value = result.enabled
-			claudeAutoEvaluate.value = result.autoEvaluate
-			claudeApiKeyPresent.value = result.apiKeyPresent
+			llmEnabled.value = result.enabled
+			llmAutoEvaluate.value = result.autoEvaluate
+			llmBaseUrl.value = result.baseUrl || LLM_DEFAULT_BASE_URL
+			llmModel.value = result.model || LLM_DEFAULT_MODEL
+			llmApiKeyPresent.value = result.apiKeyPresent
 		}
 	}
 	// Fetch the usage rollup once on mount; refreshed after every successful save.
-	await userStore.getClaudeUsage(30)
+	await userStore.getLLMUsage(30)
 })
 
 const resetVariablesToDefaults = () => {
@@ -131,21 +173,25 @@ const notify = (msg: string, error: boolean) => {
 	showNotification.value = true
 }
 
-const buildClaudeRequest = (): TClaudeConfigRequest => {
-	if (claudeApiKeyCleared.value) {
+const buildLLMRequest = (): TLLMConfigRequest => {
+	if (llmApiKeyCleared.value) {
 		// Clearing wins regardless of any text in the input — server forces enabled=false.
-		// Carry the user's autoEvaluate preference through so re-enabling later
-		// doesn't surprise them with a different default.
+		// Carry the user's autoEvaluate / endpoint / model preferences through so
+		// re-enabling later doesn't surprise them with different defaults.
 		return {
 			enabled: false,
-			autoEvaluate: claudeAutoEvaluate.value,
+			autoEvaluate: llmAutoEvaluate.value,
+			baseUrl: llmBaseUrl.value.trim(),
+			model: llmModel.value.trim(),
 			clearApiKey: true
 		}
 	}
-	const trimmedKey = claudeApiKey.value.trim()
-	const request: TClaudeConfigRequest = {
-		enabled: claudeEnabled.value,
-		autoEvaluate: claudeAutoEvaluate.value
+	const trimmedKey = llmApiKey.value.trim()
+	const request: TLLMConfigRequest = {
+		enabled: llmEnabled.value,
+		autoEvaluate: llmAutoEvaluate.value,
+		baseUrl: llmBaseUrl.value.trim(),
+		model: llmModel.value.trim()
 	}
 	if (trimmedKey.length > 0) {
 		request.apiKey = trimmedKey
@@ -174,29 +220,31 @@ const saveConfiguration = async () => {
 		hellinger.value,
 		overrides
 	)
-	const savedClaude = await userStore.setClaudeConfig(buildClaudeRequest())
+	const savedLLM = await userStore.setLLMConfig(buildLLMRequest())
 
-	// After a successful Claude save the typed key is now stored server-side;
+	// After a successful LLM save the typed key is now stored server-side;
 	// scrub the input + cleared flag so the next save is a no-op rather than
 	// re-sending the same secret over the wire.
-	if (savedClaude) {
-		claudeApiKey.value = ''
-		claudeApiKeyCleared.value = false
-		claudeApiKeyPresent.value = userStore.claudeConfig?.apiKeyPresent ?? false
-		claudeEnabled.value = userStore.claudeConfig?.enabled ?? false
-		claudeAutoEvaluate.value = userStore.claudeConfig?.autoEvaluate ?? true
+	if (savedLLM) {
+		llmApiKey.value = ''
+		llmApiKeyCleared.value = false
+		llmApiKeyPresent.value = userStore.llmConfig?.apiKeyPresent ?? false
+		llmEnabled.value = userStore.llmConfig?.enabled ?? false
+		llmAutoEvaluate.value = userStore.llmConfig?.autoEvaluate ?? true
+		llmBaseUrl.value = userStore.llmConfig?.baseUrl ?? LLM_DEFAULT_BASE_URL
+		llmModel.value = userStore.llmConfig?.model ?? LLM_DEFAULT_MODEL
 		// Refresh the usage rollup — enabling/disabling doesn't generate calls
 		// immediately, but the next render should reflect any usage that
 		// arrived since the page loaded.
-		userStore.getClaudeUsage(30)
+		userStore.getLLMUsage(30)
 	}
 
-	if (savedEngine && savedClaude) {
+	if (savedEngine && savedLLM) {
 		userStore.getEngineInfo()
 		notify('The settings were saved!', false)
-	} else if (savedEngine && !savedClaude) {
+	} else if (savedEngine && !savedLLM) {
 		notify(
-			'Engine settings saved, but Claude configuration could not be saved (an API key is required to enable the integration).',
+			'Engine settings saved, but LLM configuration could not be saved (an API key is required to enable the integration).',
 			true
 		)
 	} else {
@@ -274,84 +322,83 @@ const handleReEvaluate = async () => {
 			</FeatherRadioGroup>
 		</div>
 
-		<div class="section" data-test="claude-section">
+		<div class="section" data-test="llm-section">
 			<div class="title-row">
-				<div class="title">Claude Root Cause Analysis</div>
+				<div class="title">LLM Root Cause Analysis</div>
 				<button
 					type="button"
 					class="icon-btn help-icon"
-					:aria-expanded="showClaudeKeyHelp"
-					aria-label="How to get an Anthropic API key"
-					data-test="claude-key-help"
-					@click="showClaudeKeyHelp = !showClaudeKeyHelp"
+					:aria-expanded="showLLMKeyHelp"
+					aria-label="How to get an API key"
+					data-test="llm-key-help"
+					@click="showLLMKeyHelp = !showLLMKeyHelp"
 				>
 					<FeatherIcon :icon="Icons.Help" />
 				</button>
 			</div>
-			<div class="claude-help">
-				When a new situation is created, ALEC will ask Claude to suggest up to
-				3 probable root causes and 3 possible resolutions based on the
-				clustered alarms. Suggestions appear on the situation detail page. The
-				API key is stored on the OpenNMS server and applies to all users of
-				this plugin.
+			<div class="llm-help">
+				When a new situation is created, ALEC asks a large language model to
+				suggest up to 3 probable root causes and 3 possible resolutions based
+				on the clustered alarms. Suggestions appear on the situation detail
+				page. ALEC talks to any OpenAI-compatible API — the defaults below use
+				OpenRouter (which can route to Claude, GPT, Gemini and others). The
+				endpoint, model and API key are stored on the OpenNMS server and apply
+				to all users of this plugin.
 			</div>
 			<div
-				v-if="showClaudeKeyHelp"
+				v-if="showLLMKeyHelp"
 				class="help-popover"
-				data-test="claude-key-help-popover"
+				data-test="llm-key-help-popover"
 			>
-				<strong>How to get an Anthropic API key:</strong>
+				<strong>How to get an API key:</strong>
 				<ol>
 					<li>
-						Go to
+						Pick a provider that exposes an OpenAI-compatible
+						<code>/chat/completions</code> endpoint —
 						<a
-							href="https://console.anthropic.com/"
+							href="https://openrouter.ai/"
 							target="_blank"
 							rel="noopener noreferrer"
-							>console.anthropic.com</a
+							>OpenRouter</a
 						>
-						and sign in (or create an account).
+						(the default, one key for many models), OpenAI, or Anthropic's
+						compatibility endpoint.
 					</li>
 					<li>
-						Add a payment method under <em>Billing → Add payment method</em>.
-						Anthropic requires this before any API key can be created.
+						Create an API key in that provider's dashboard and add a payment
+						method if it requires one.
 					</li>
 					<li>
-						Open <em>API Keys</em> in the left sidebar and click
-						<em>Create Key</em>. Give it a descriptive name (e.g.
-						<code>alec-claude-suggestions</code>) so you can revoke it later
-						without affecting other integrations.
+						Set <em>Endpoint</em> to the provider's base URL (ALEC appends
+						<code>/chat/completions</code>) and <em>Model</em> to a model the
+						provider offers, e.g. <code>anthropic/claude-sonnet-4.6</code> or
+						<code>openai/gpt-4o</code>.
 					</li>
 					<li>
-						<strong>Copy the key immediately</strong> — it starts with
-						<code>sk-ant-…</code> and Anthropic only shows it once.
-					</li>
-					<li>
-						Paste it into the field below and click <em>Save Changes</em>. The
-						key is stored on the OpenNMS server; it is never returned to the
-						browser after saving.
+						Paste the key into the field below and click
+						<em>Save Changes</em>. The key is stored on the OpenNMS server; it
+						is never returned to the browser after saving.
 					</li>
 				</ol>
 				<p class="pricing-hint">
-					Pricing for the Sonnet 4.6 model that ALEC uses: $3 / $15 per million
-					input / output tokens (cache reads cheaper). A single situation
-					analysis is typically a few hundred tokens — fractions of a cent.
-					Track 30-day usage in the panel below after you save.
+					Cost depends on the provider and model you choose. A single situation
+					analysis is typically a few hundred tokens. Track 30-day usage in the
+					panel below after you save.
 				</p>
 			</div>
 			<FeatherCheckbox
-				v-model="claudeEnabled"
-				:disabled="claudeNoKeyAvailable"
+				v-model="llmEnabled"
+				:disabled="llmNoKeyAvailable"
 				class="checkbox"
-				data-test="claude-enabled"
+				data-test="llm-enabled"
 			>
-				<strong>Claude Enabled Root Cause Analysis</strong>
+				<strong>LLM Enabled Root Cause Analysis</strong>
 			</FeatherCheckbox>
 			<FeatherCheckbox
-				v-model="claudeAutoEvaluate"
-				:disabled="!claudeEnabled"
+				v-model="llmAutoEvaluate"
+				:disabled="!llmEnabled"
 				class="checkbox sub-checkbox"
-				data-test="claude-auto-evaluate"
+				data-test="llm-auto-evaluate"
 			>
 				Automatically AI Evaluate new situations
 				<div class="caption-inline">
@@ -361,38 +408,86 @@ const handleReEvaluate = async () => {
 				</div>
 			</FeatherCheckbox>
 			<div
-				v-if="claudeNoKeyAvailable"
+				v-if="llmNoKeyAvailable"
 				class="caption"
-				data-test="claude-no-key-hint"
+				data-test="llm-no-key-hint"
 			>
 				Enter an API key to enable.
 			</div>
-			<div class="claude-key-row">
+			<FeatherInput
+				v-model="llmBaseUrl"
+				label="Endpoint (OpenAI-compatible base URL)"
+				data-test="llm-base-url"
+				class="llm-text-input"
+			/>
+			<FeatherInput
+				v-model="llmModel"
+				label="Model"
+				data-test="llm-model"
+				class="llm-text-input"
+			/>
+			<div class="llm-key-match-hint" data-test="llm-key-match-hint">
+				Your API key must come from the same provider as the Endpoint above —
+				an OpenRouter key (<code>sk-or-…</code>) for
+				<code>openrouter.ai</code>, an Anthropic key (<code>sk-ant-…</code>)
+				for <code>api.anthropic.com</code>, an OpenAI key for
+				<code>api.openai.com</code>.
+			</div>
+			<div class="llm-key-row">
 				<FeatherInput
-					v-model="claudeApiKey"
+					v-model="llmApiKey"
 					type="password"
 					autocomplete="new-password"
 					:label="
-						claudeApiKeyPresent && !claudeApiKeyCleared
-							? 'Anthropic API key — saved (paste a new key to replace)'
-							: 'Anthropic API key'
+						llmApiKeyPresent && !llmApiKeyCleared
+							? 'API key — saved (paste a new key to replace)'
+							: 'API key'
 					"
-					data-test="claude-api-key"
-					class="claude-key-input"
+					data-test="llm-api-key"
+					class="llm-key-input"
 				/>
 				<FeatherButton
-					v-if="claudeApiKeyPresent && !claudeApiKeyCleared"
+					v-if="llmApiKeyPresent && !llmApiKeyCleared"
 					secondary
-					data-test="claude-clear-key"
-					@click="clearClaudeApiKey"
+					data-test="llm-clear-key"
+					@click="clearLLMApiKey"
 				>
 					Clear Key
 				</FeatherButton>
 			</div>
+			<div class="llm-validate-row">
+				<FeatherButton
+					secondary
+					:disabled="llmValidating || llmCannotValidate"
+					data-test="llm-validate-btn"
+					@click="validateLlm"
+				>
+					{{ llmValidating ? 'Validating…' : 'Validate key' }}
+				</FeatherButton>
+				<span
+					v-if="llmCannotValidate"
+					class="caption"
+					data-test="llm-validate-hint"
+				>
+					Enter an API key to validate.
+				</span>
+				<span
+					v-else-if="llmValidationResult"
+					class="llm-validate-result"
+					:class="llmValidationResult.ok ? 'is-ok' : 'is-error'"
+					data-test="llm-validate-result"
+				>
+					<FeatherIcon
+						:icon="llmValidationResult.ok ? Icons.MarkComplete : Icons.Help"
+						class="result-icon"
+					/>
+					{{ llmValidationResult.message }}
+				</span>
+			</div>
 			<div
-				v-if="claudeApiKeyPresent && !claudeApiKeyCleared"
-				class="claude-key-saved"
-				data-test="claude-key-saved"
+				v-if="llmApiKeyPresent && !llmApiKeyCleared"
+				class="llm-key-saved"
+				data-test="llm-key-saved"
 			>
 				<FeatherIcon :icon="Icons.MarkComplete" class="saved-icon" />
 				<span>
@@ -401,39 +496,39 @@ const handleReEvaluate = async () => {
 				</span>
 			</div>
 			<div
-				v-if="claudeApiKeyCleared"
+				v-if="llmApiKeyCleared"
 				class="caption"
-				data-test="claude-cleared-hint"
+				data-test="llm-cleared-hint"
 			>
 				Stored API key will be removed on save.
 			</div>
 
 			<div
-				v-if="userStore.claudeUsage"
-				class="claude-usage"
-				data-test="claude-usage"
+				v-if="userStore.llmUsage"
+				class="llm-usage"
+				data-test="llm-usage"
 			>
 				<div class="usage-summary">
-					<span class="usage-label">Last {{ userStore.claudeUsage.daysWindow }} days:</span>
+					<span class="usage-label">Last {{ userStore.llmUsage.daysWindow }} days:</span>
 					<span
 						class="usage-tokens"
-						:title="`${userStore.claudeUsage.totalTokens.toLocaleString()} tokens`"
-						data-test="claude-usage-tokens"
+						:title="`${userStore.llmUsage.totalTokens.toLocaleString()} tokens`"
+						data-test="llm-usage-tokens"
 					>
-						{{ humanizeTokens(userStore.claudeUsage.totalTokens) }} tokens
+						{{ humanizeTokens(userStore.llmUsage.totalTokens) }} tokens
 					</span>
 					<span
 						class="usage-cost"
-						:title="userStore.claudeUsage.pricingNote"
-						data-test="claude-usage-cost"
+						:title="userStore.llmUsage.pricingNote"
+						data-test="llm-usage-cost"
 					>
-						({{ formatUsd(userStore.claudeUsage.estimatedCostUsd) }})
+						({{ formatUsd(userStore.llmUsage.estimatedCostUsd) }})
 					</span>
 					<button
 						type="button"
 						class="usage-toggle"
 						@click="showUsageDetails = !showUsageDetails"
-						data-test="claude-usage-toggle"
+						data-test="llm-usage-toggle"
 					>
 						{{ showUsageDetails ? 'hide details' : 'show details' }}
 					</button>
@@ -441,40 +536,40 @@ const handleReEvaluate = async () => {
 				<dl
 					v-if="showUsageDetails"
 					class="usage-details"
-					data-test="claude-usage-details"
+					data-test="llm-usage-details"
 				>
 					<div>
 						<dt>Input</dt>
-						<dd>{{ humanizeTokens(userStore.claudeUsage.inputTokens) }}</dd>
+						<dd>{{ humanizeTokens(userStore.llmUsage.inputTokens) }}</dd>
 					</div>
 					<div>
 						<dt>Output</dt>
-						<dd>{{ humanizeTokens(userStore.claudeUsage.outputTokens) }}</dd>
+						<dd>{{ humanizeTokens(userStore.llmUsage.outputTokens) }}</dd>
 					</div>
 					<div>
 						<dt>Cache read</dt>
-						<dd>{{ humanizeTokens(userStore.claudeUsage.cacheReadInputTokens) }}</dd>
+						<dd>{{ humanizeTokens(userStore.llmUsage.cacheReadInputTokens) }}</dd>
 					</div>
 					<div>
 						<dt>Cache create</dt>
-						<dd>{{ humanizeTokens(userStore.claudeUsage.cacheCreationInputTokens) }}</dd>
+						<dd>{{ humanizeTokens(userStore.llmUsage.cacheCreationInputTokens) }}</dd>
 					</div>
 					<div>
 						<dt>Calls</dt>
 						<dd>
-							{{ userStore.claudeUsage.calls }}
+							{{ userStore.llmUsage.calls }}
 							<span class="muted"
-								>({{ userStore.claudeUsage.successfulCalls }} ok /
-								{{ userStore.claudeUsage.failedCalls }} failed)</span
+								>({{ userStore.llmUsage.successfulCalls }} ok /
+								{{ userStore.llmUsage.failedCalls }} failed)</span
 							>
 						</dd>
 					</div>
 					<div>
 						<dt>Cache hit</dt>
-						<dd>{{ (userStore.claudeUsage.cacheHitRatio * 100).toFixed(0) }}%</dd>
+						<dd>{{ (userStore.llmUsage.cacheHitRatio * 100).toFixed(0) }}%</dd>
 					</div>
 					<div class="pricing-note">
-						{{ userStore.claudeUsage.pricingNote }}
+						{{ userStore.llmUsage.pricingNote }}
 					</div>
 				</dl>
 			</div>
@@ -768,26 +863,77 @@ const handleReEvaluate = async () => {
 	flex-wrap: wrap;
 }
 
-.claude-help {
+.llm-help {
 	font-size: 13px;
 	color: #555;
 	line-height: 1.45;
 	margin: 8px 0 12px;
 }
 
-.claude-key-row {
+.llm-key-row {
 	display: flex;
 	align-items: flex-end;
 	gap: 12px;
 	margin-top: 8px;
 }
 
-.claude-key-input {
+.llm-key-input {
 	flex: 1;
 	min-width: 240px;
 }
 
-.claude-key-saved {
+.llm-text-input {
+	margin-top: 8px;
+	max-width: 480px;
+}
+
+.llm-key-match-hint {
+	font-size: 12px;
+	color: #555;
+	line-height: 1.4;
+	margin: 4px 0 8px;
+
+	code {
+		background: #eef;
+		padding: 0 3px;
+		border-radius: 3px;
+	}
+}
+
+.llm-validate-row {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin-top: 8px;
+	flex-wrap: wrap;
+}
+
+.llm-validate-result {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 13px;
+
+	.result-icon {
+		font-size: 18px;
+	}
+
+	&.is-ok {
+		color: #166534; // green-800
+		.result-icon {
+			color: #16a34a; // green-600
+		}
+	}
+
+	&.is-error {
+		color: #b91c1c; // red-700
+		.result-icon {
+			color: #dc2626; // red-600
+		}
+	}
+}
+
+.llm-key-saved {
 	display: flex;
 	align-items: center;
 	gap: 8px;
@@ -801,7 +947,7 @@ const handleReEvaluate = async () => {
 	}
 }
 
-.claude-usage {
+.llm-usage {
 	margin-top: 14px;
 	padding-top: 12px;
 	border-top: 1px dashed #ddd;

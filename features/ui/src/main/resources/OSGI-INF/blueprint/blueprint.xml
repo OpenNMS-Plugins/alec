@@ -25,7 +25,7 @@
         <argument ref="alarmDatasource"/>
     </bean>
 
-    <bean id="claudeRest" class="org.opennms.alec.rest.ClaudeRestImpl">
+    <bean id="llmRest" class="org.opennms.alec.rest.LlmRestImpl">
         <argument ref="keyValueStore"/>
     </bean>
 
@@ -41,7 +41,7 @@
         </service-properties>
     </service>
 
-    <service interface="org.opennms.alec.rest.ClaudeRest" ref="claudeRest">
+    <service interface="org.opennms.alec.rest.LlmRest" ref="llmRest">
         <service-properties>
             <entry key="application-path" value="/rest" />
         </service-properties>

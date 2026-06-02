@@ -23,7 +23,7 @@ With **default ALEC configuration**, the current behavior is:
 | `single`           | 3 alarms on Router-01     | **1**              | All 3 alarms grouped into one situation             |
 | `linear-3`         | 3 alarms on each of 2 routers (6 total) | **2**   | Each node's alarms grouped separately               |
 | `star-5`           | 3 alarms on each of 5 routers (15 total) | **5**  | Each node's alarms grouped separately               |
-| `realistic-outage` | 5 correlated alarms (optical / flap / BGP / saturation) across 2 routers | **2** | Realistic ops scenario for exercising the Claude suggestion path (ALEC-299) |
+| `realistic-outage` | 5 correlated alarms (optical / flap / BGP / saturation) across 2 routers | **2** | Realistic ops scenario for exercising the LLM suggestion path (ALEC-299) |
 
 ### Why one situation per node (not cross-node)?
 
@@ -136,7 +136,7 @@ tuned-weight alternative used in `engine/itest`.
 
 ### `realistic-outage` (ALEC-299)
 
-The scenario designed for the Claude Root Cause Analysis path. Five alarms
+The scenario designed for the LLM Root Cause Analysis path. Five alarms
 across two nodes, all in a short window, telling a coherent ops story:
 optical receive-power degrades on an edge router's uplink → that interface
 starts flapping → the BGP service running over it drops → traffic shifts
@@ -148,9 +148,9 @@ java -jar demo/target/alec-demo.jar run --scenario realistic-outage
 ```
 
 Expected: 2 situations. Open one in the OpenNMS UI → **AI Suggestions**
-tab. With Claude enabled (see the configuration page), the tab populates
+tab. With the integration enabled (see the configuration page), the tab populates
 with up to three probable root causes and up to three possible
-resolutions within ~5–30 seconds. With Claude disabled or no key set,
+resolutions within ~5–30 seconds. With the integration disabled or no key set,
 the tab shows the right empty-state message; the **Re-evaluate** button
 on the tab can force an analysis on demand once the key is configured.
 

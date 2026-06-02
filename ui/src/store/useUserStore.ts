@@ -3,25 +3,25 @@ import { getUserRole } from '@/services/UserService'
 import {
 	getEngineInfo,
 	saveEngineParameter,
-	getClaudeConfig,
-	saveClaudeConfig,
-	getClaudeUsage
+	getLLMConfig,
+	saveLLMConfig,
+	getLLMUsage
 } from '@/services/AlecService'
 import CONST from '@/helpers/constants'
 
 import {
 	TEngine,
-	TClaudeConfigRequest,
-	TClaudeConfigStatus,
-	TClaudeUsage
+	TLLMConfigRequest,
+	TLLMConfigStatus,
+	TLLMUsage
 } from '@/types/TUser'
 
 type TState = {
 	isAdmin: boolean
 	userId: string | null
 	engineInfo: TEngine | null
-	claudeConfig: TClaudeConfigStatus | null
-	claudeUsage: TClaudeUsage | null
+	llmConfig: TLLMConfigStatus | null
+	llmUsage: TLLMUsage | null
 }
 
 const engineDefaultValues = {
@@ -37,8 +37,8 @@ export const useUserStore = defineStore('userStore', {
 		isAdmin: false,
 		userId: null,
 		engineInfo: null,
-		claudeConfig: null,
-		claudeUsage: null
+		llmConfig: null,
+		llmUsage: null
 	}),
 	actions: {
 		async getUserRole() {
@@ -81,25 +81,25 @@ export const useUserStore = defineStore('userStore', {
 			}
 			return false
 		},
-		async getClaudeConfig() {
-			const result = await getClaudeConfig()
+		async getLLMConfig() {
+			const result = await getLLMConfig()
 			if (result) {
-				this.claudeConfig = result
+				this.llmConfig = result
 			}
 			return result
 		},
-		async setClaudeConfig(config: TClaudeConfigRequest) {
-			const result = await saveClaudeConfig(config)
+		async setLLMConfig(config: TLLMConfigRequest) {
+			const result = await saveLLMConfig(config)
 			if (result) {
-				this.claudeConfig = result
+				this.llmConfig = result
 				return true
 			}
 			return false
 		},
-		async getClaudeUsage(days: number = 30) {
-			const result = await getClaudeUsage(days)
+		async getLLMUsage(days: number = 30) {
+			const result = await getLLMUsage(days)
 			if (result) {
-				this.claudeUsage = result
+				this.llmUsage = result
 			}
 			return result
 		}

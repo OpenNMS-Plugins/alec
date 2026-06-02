@@ -5,10 +5,10 @@ import { createTestingPinia } from '@pinia/testing'
 import { useUserStore } from '@/store/useUserStore'
 import * as AlecService from '@/services/AlecService'
 
-// Seed claudeConfig so the empty-state copy + Re-evaluate button visibility
+// Seed llmConfig so the empty-state copy + Re-evaluate button visibility
 // are testable. Pass null to simulate "no config fetched yet" (which is the
 // same UI state as "disabled" from the user's perspective).
-const mountTab = (claudeConfig: any = { enabled: true, apiKeyPresent: true }) => {
+const mountTab = (llmConfig: any = { enabled: true, apiKeyPresent: true }) => {
 	const wrapper = mount(AISuggestionsTab, {
 		global: {
 			plugins: [createTestingPinia({ createSpy: vi.fn })],
@@ -17,9 +17,9 @@ const mountTab = (claudeConfig: any = { enabled: true, apiKeyPresent: true }) =>
 		props: { situationId: 7 }
 	} as any) as any
 	const store = useUserStore()
-	store.claudeConfig = claudeConfig
-	// Block the on-mount getClaudeConfig call from clobbering our seed value.
-	store.getClaudeConfig = vi.fn().mockResolvedValue(claudeConfig)
+	store.llmConfig = llmConfig
+	// Block the on-mount getLLMConfig call from clobbering our seed value.
+	store.getLLMConfig = vi.fn().mockResolvedValue(llmConfig)
 	return { wrapper, store }
 }
 
@@ -30,14 +30,14 @@ beforeEach(() => {
 // --- core states ---
 
 test('Renders the "absent" empty-state when server returns no record (204)', async () => {
-	vi.spyOn(AlecService, 'getClaudeSuggestion').mockResolvedValue(null)
+	vi.spyOn(AlecService, 'getLLMSuggestion').mockResolvedValue(null)
 	const { wrapper } = mountTab()
 	await flushPromises()
 	expect(wrapper.find('[data-test="ai-absent"]').exists()).toBe(true)
 })
 
 test('Renders the pending state with spinner while server reports pending', async () => {
-	vi.spyOn(AlecService, 'getClaudeSuggestion').mockResolvedValue({
+	vi.spyOn(AlecService, 'getLLMSuggestion').mockResolvedValue({
 		situationId: '7',
 		status: 'pending',
 		rootCauses: [],
@@ -45,7 +45,7 @@ test('Renders the pending state with spinner while server reports pending', asyn
 		requestedAt: Date.now(),
 		completedAt: null,
 		error: null,
-		model: 'claude-sonnet-4-6'
+		model: 'anthropic/claude-sonnet-4.6'
 	})
 	const { wrapper } = mountTab()
 	await flushPromises()
@@ -53,7 +53,7 @@ test('Renders the pending state with spinner while server reports pending', asyn
 })
 
 test('Renders ordered lists of root causes and resolutions when ready', async () => {
-	vi.spyOn(AlecService, 'getClaudeSuggestion').mockResolvedValue({
+	vi.spyOn(AlecService, 'getLLMSuggestion').mockResolvedValue({
 		situationId: '7',
 		status: 'ready',
 		rootCauses: ['link saturation', 'QoS misconfig'],
@@ -61,7 +61,7 @@ test('Renders ordered lists of root causes and resolutions when ready', async ()
 		requestedAt: 1000,
 		completedAt: 2000,
 		error: null,
-		model: 'claude-sonnet-4-6'
+		model: 'anthropic/claude-sonnet-4.6'
 	})
 	const { wrapper } = mountTab()
 	await flushPromises()
@@ -75,7 +75,7 @@ test('Renders ordered lists of root causes and resolutions when ready', async ()
 })
 
 test('Renders error + Retry button when last attempt failed', async () => {
-	vi.spyOn(AlecService, 'getClaudeSuggestion').mockResolvedValue({
+	vi.spyOn(AlecService, 'getLLMSuggestion').mockResolvedValue({
 		situationId: '7',
 		status: 'failed',
 		rootCauses: [],
@@ -83,7 +83,7 @@ test('Renders error + Retry button when last attempt failed', async () => {
 		requestedAt: 1000,
 		completedAt: 2000,
 		error: 'HTTP 401: invalid api key',
-		model: 'claude-sonnet-4-6'
+		model: 'anthropic/claude-sonnet-4.6'
 	})
 	const { wrapper } = mountTab()
 	await flushPromises()
@@ -95,7 +95,7 @@ test('Renders error + Retry button when last attempt failed', async () => {
 
 test('Retry button re-fetches the suggestion record', async () => {
 	const spy = vi
-		.spyOn(AlecService, 'getClaudeSuggestion')
+		.spyOn(AlecService, 'getLLMSuggestion')
 		.mockResolvedValue({
 			situationId: '7',
 			status: 'failed',
@@ -104,7 +104,7 @@ test('Retry button re-fetches the suggestion record', async () => {
 			requestedAt: 1000,
 			completedAt: 2000,
 			error: 'old error',
-			model: 'claude-sonnet-4-6'
+			model: 'anthropic/claude-sonnet-4.6'
 		})
 	const { wrapper } = mountTab()
 	await flushPromises()
@@ -115,7 +115,7 @@ test('Retry button re-fetches the suggestion record', async () => {
 })
 
 test('Renders error state and Retry button when the GET itself fails', async () => {
-	vi.spyOn(AlecService, 'getClaudeSuggestion').mockResolvedValue(false as any)
+	vi.spyOn(AlecService, 'getLLMSuggestion').mockResolvedValue(false as any)
 	const { wrapper } = mountTab()
 	await flushPromises()
 	expect(wrapper.find('[data-test="ai-error"]').exists()).toBe(true)
@@ -123,8 +123,8 @@ test('Renders error state and Retry button when the GET itself fails', async () 
 
 // --- config-aware empty-state messaging ---
 
-test('Absent state copy says "disabled" when claudeConfig.enabled is false', async () => {
-	vi.spyOn(AlecService, 'getClaudeSuggestion').mockResolvedValue(null)
+test('Absent state copy says "disabled" when llmConfig.enabled is false', async () => {
+	vi.spyOn(AlecService, 'getLLMSuggestion').mockResolvedValue(null)
 	const { wrapper } = mountTab({ enabled: false, apiKeyPresent: true })
 	await flushPromises()
 	expect(wrapper.find('[data-test="ai-absent-disabled"]').exists()).toBe(true)
@@ -133,14 +133,14 @@ test('Absent state copy says "disabled" when claudeConfig.enabled is false', asy
 })
 
 test('Absent state copy says "no-key" when key is missing', async () => {
-	vi.spyOn(AlecService, 'getClaudeSuggestion').mockResolvedValue(null)
+	vi.spyOn(AlecService, 'getLLMSuggestion').mockResolvedValue(null)
 	const { wrapper } = mountTab({ enabled: true, apiKeyPresent: false })
 	await flushPromises()
 	expect(wrapper.find('[data-test="ai-absent-no-key"]').exists()).toBe(true)
 })
 
 test('Absent state copy says "not-yet-run" when fully configured', async () => {
-	vi.spyOn(AlecService, 'getClaudeSuggestion').mockResolvedValue(null)
+	vi.spyOn(AlecService, 'getLLMSuggestion').mockResolvedValue(null)
 	const { wrapper } = mountTab({ enabled: true, apiKeyPresent: true })
 	await flushPromises()
 	expect(wrapper.find('[data-test="ai-absent-not-yet-run"]').exists()).toBe(true)
@@ -149,30 +149,30 @@ test('Absent state copy says "not-yet-run" when fully configured', async () => {
 // --- Re-evaluate button + reanalyze flow ---
 
 test('Re-evaluate button is hidden when integration is disabled', async () => {
-	vi.spyOn(AlecService, 'getClaudeSuggestion').mockResolvedValue(null)
+	vi.spyOn(AlecService, 'getLLMSuggestion').mockResolvedValue(null)
 	const { wrapper } = mountTab({ enabled: false, apiKeyPresent: true })
 	await flushPromises()
 	expect(wrapper.find('[data-test="ai-reanalyze"]').exists()).toBe(false)
 })
 
 test('Re-evaluate button is hidden when no API key is configured', async () => {
-	vi.spyOn(AlecService, 'getClaudeSuggestion').mockResolvedValue(null)
+	vi.spyOn(AlecService, 'getLLMSuggestion').mockResolvedValue(null)
 	const { wrapper } = mountTab({ enabled: true, apiKeyPresent: false })
 	await flushPromises()
 	expect(wrapper.find('[data-test="ai-reanalyze"]').exists()).toBe(false)
 })
 
 test('Re-evaluate button is visible when integration is enabled with a key', async () => {
-	vi.spyOn(AlecService, 'getClaudeSuggestion').mockResolvedValue(null)
+	vi.spyOn(AlecService, 'getLLMSuggestion').mockResolvedValue(null)
 	const { wrapper } = mountTab({ enabled: true, apiKeyPresent: true })
 	await flushPromises()
 	expect(wrapper.find('[data-test="ai-reanalyze"]').exists()).toBe(true)
 })
 
 test('Re-evaluate click POSTs and transitions to pending on success', async () => {
-	vi.spyOn(AlecService, 'getClaudeSuggestion').mockResolvedValue(null)
+	vi.spyOn(AlecService, 'getLLMSuggestion').mockResolvedValue(null)
 	const reanalyzeSpy = vi
-		.spyOn(AlecService, 'reanalyzeClaudeSuggestion')
+		.spyOn(AlecService, 'reanalyzeLLMSuggestion')
 		.mockResolvedValue({
 			situationId: '7',
 			status: 'pending',
@@ -181,7 +181,7 @@ test('Re-evaluate click POSTs and transitions to pending on success', async () =
 			requestedAt: Date.now(),
 			completedAt: null,
 			error: null,
-			model: 'claude-sonnet-4-6'
+			model: 'anthropic/claude-sonnet-4.6'
 		})
 	const { wrapper } = mountTab()
 	await flushPromises()
@@ -194,8 +194,8 @@ test('Re-evaluate click POSTs and transitions to pending on success', async () =
 })
 
 test('Re-evaluate failure shows an inline error in the absent panel', async () => {
-	vi.spyOn(AlecService, 'getClaudeSuggestion').mockResolvedValue(null)
-	vi.spyOn(AlecService, 'reanalyzeClaudeSuggestion').mockResolvedValue(false as any)
+	vi.spyOn(AlecService, 'getLLMSuggestion').mockResolvedValue(null)
+	vi.spyOn(AlecService, 'reanalyzeLLMSuggestion').mockResolvedValue(false as any)
 	const { wrapper } = mountTab()
 	await flushPromises()
 

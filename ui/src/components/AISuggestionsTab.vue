@@ -3,11 +3,11 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { FeatherSpinner } from '@featherds/progress'
 import { FeatherButton } from '@featherds/button'
 import {
-	getClaudeSuggestion,
-	reanalyzeClaudeSuggestion
+	getLLMSuggestion,
+	reanalyzeLLMSuggestion
 } from '@/services/AlecService'
 import { useUserStore } from '@/store/useUserStore'
-import { TClaudeSuggestion } from '@/types/TUser'
+import { TLLMSuggestion } from '@/types/TUser'
 
 const props = defineProps<{
 	situationId: number | string
@@ -15,7 +15,7 @@ const props = defineProps<{
 
 const userStore = useUserStore()
 
-// Server states: pending (Claude call in flight), ready (suggestions
+// Server states: pending (LLM call in flight), ready (suggestions
 // available), failed (last attempt errored). Plus four UI-only states:
 //   absent  — server returned 204; no record exists yet
 //   loading — initial fetch in progress
@@ -31,10 +31,10 @@ type UiState =
 	| 'reanalyzing'
 
 const state = ref<UiState>('loading')
-const record = ref<TClaudeSuggestion | null>(null)
+const record = ref<TLLMSuggestion | null>(null)
 const reanalyzeError = ref<string | null>(null)
 
-// Poll cadence and cap. We pick 5s because Claude calls with prompt caching
+// Poll cadence and cap. We pick 5s because LLM calls with prompt caching
 // usually complete in 5–30s, and 5 minutes is a generous ceiling — anything
 // longer is almost certainly a server-side timeout that we'll see as 'failed'.
 const POLL_INTERVAL_MS = 5_000
@@ -67,7 +67,7 @@ const startPollingIfPending = () => {
 }
 
 const fetchOnce = async () => {
-	const result = await getClaudeSuggestion(props.situationId)
+	const result = await getLLMSuggestion(props.situationId)
 	if (result === false) {
 		state.value = 'error'
 		return
@@ -92,17 +92,17 @@ const handleReanalyze = async () => {
 	reanalyzeError.value = null
 	state.value = 'reanalyzing'
 	stopPolling()
-	const result = await reanalyzeClaudeSuggestion(props.situationId)
+	const result = await reanalyzeLLMSuggestion(props.situationId)
 	if (result === false) {
 		// Most commonly: 400 because the integration is disabled or key missing.
 		// We can't see the response body from the helper, so fall back to a
 		// generic message that nudges the user to the config page.
 		state.value = 'absent'
 		reanalyzeError.value =
-			'Could not start a new analysis. Make sure Claude is enabled on the configuration page and an API key is saved.'
-		// Re-fetch claudeConfig so the empty-state copy below stays in sync
+			'Could not start a new analysis. Make sure LLM is enabled on the configuration page and an API key is saved.'
+		// Re-fetch llmConfig so the empty-state copy below stays in sync
 		// with whatever the server thinks the current state is.
-		await userStore.getClaudeConfig()
+		await userStore.getLLMConfig()
 		return
 	}
 	record.value = result
@@ -111,10 +111,10 @@ const handleReanalyze = async () => {
 }
 
 onMounted(async () => {
-	// Make sure we know the current Claude config so the empty-state copy is
+	// Make sure we know the current LLM config so the empty-state copy is
 	// accurate (slightly different message for disabled vs no-key vs ready).
-	if (userStore.claudeConfig === null) {
-		await userStore.getClaudeConfig()
+	if (userStore.llmConfig === null) {
+		await userStore.getLLMConfig()
 	}
 	await fetchOnce()
 	startPollingIfPending()
@@ -131,7 +131,7 @@ const requestedAtFormatted = computed(() => {
 // always sees the right next step instead of a generic message.
 type AbsentReason = 'disabled' | 'no-key' | 'not-yet-run'
 const absentReason = computed<AbsentReason>(() => {
-	const cfg = userStore.claudeConfig
+	const cfg = userStore.llmConfig
 	if (!cfg || !cfg.enabled) return 'disabled'
 	if (!cfg.apiKeyPresent) return 'no-key'
 	return 'not-yet-run'
@@ -142,8 +142,8 @@ const absentReason = computed<AbsentReason>(() => {
 // user at the configuration page instead.
 const canReanalyze = computed(
 	() =>
-		userStore.claudeConfig?.enabled === true &&
-		userStore.claudeConfig?.apiKeyPresent === true
+		userStore.llmConfig?.enabled === true &&
+		userStore.llmConfig?.apiKeyPresent === true
 )
 </script>
 
@@ -188,14 +188,14 @@ const canReanalyze = computed(
 		<div v-else-if="state === 'absent'" class="state-row" data-test="ai-absent">
 			<template v-if="absentReason === 'disabled'">
 				<span data-test="ai-absent-disabled">
-					The Claude integration is currently disabled. Enable it on the
+					The LLM integration is currently disabled. Enable it on the
 					<router-link to="/settings">configuration page</router-link> to start
 					generating suggestions for new situations.
 				</span>
 			</template>
 			<template v-else-if="absentReason === 'no-key'">
 				<span data-test="ai-absent-no-key">
-					No Anthropic API key is configured. Add one on the
+					No API key is configured. Add one on the
 					<router-link to="/settings">configuration page</router-link> to enable
 					AI suggestions.
 				</span>
@@ -215,7 +215,7 @@ const canReanalyze = computed(
 		<div v-else-if="state === 'pending'" class="state-row" data-test="ai-pending">
 			<FeatherSpinner />
 			<span>
-				Analyzing alarms with Claude… requested at
+				Analyzing alarms with the LLM… requested at
 				{{ requestedAtFormatted }}.
 			</span>
 		</div>
@@ -226,7 +226,7 @@ const canReanalyze = computed(
 			data-test="ai-failed"
 		>
 			<div class="failed-msg">
-				The last Claude request failed:
+				The last LLM request failed:
 				<code>{{ record?.error || 'unknown error' }}</code>
 			</div>
 			<FeatherButton

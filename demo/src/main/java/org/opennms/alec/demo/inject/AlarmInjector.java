@@ -133,7 +133,7 @@ public class AlarmInjector {
     }
 
     /**
-     * A realistic correlated outage suitable for exercising the Claude
+     * A realistic correlated outage suitable for exercising an LLM
      * suggestion path (ALEC-299). Simulates the timeline of a real incident:
      * <ol>
      *   <li>An optical receive-power degradation on an edge router's uplink</li>

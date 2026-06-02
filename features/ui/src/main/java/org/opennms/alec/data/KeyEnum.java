@@ -33,7 +33,7 @@ import java.util.stream.Stream;
 public enum KeyEnum {
     ENGINE("ENGINE"),
     SITUATION("SITUATION"),
-    CLAUDE_CONFIG("CLAUDE_CONFIG");
+    LLM_CONFIG("LLM_CONFIG");
 
     private final String key;
 
