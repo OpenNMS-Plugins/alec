@@ -313,6 +313,7 @@ test('Save sends new API key + enabled flag when both provided', async () => {
 		autoEvaluate: true,
 		baseUrl: 'https://openrouter.ai/api/v1',
 		model: 'anthropic/claude-sonnet-4.6',
+		systemPrompt: '',
 		apiKey: 'sk-ant-new-key'
 	})
 })
@@ -328,7 +329,8 @@ test('Save omits apiKey when the input is blank so server preserves stored key',
 		enabled: false,
 		autoEvaluate: true,
 		baseUrl: 'https://openrouter.ai/api/v1',
-		model: 'anthropic/claude-sonnet-4.6'
+		model: 'anthropic/claude-sonnet-4.6',
+		systemPrompt: ''
 	})
 })
 
@@ -350,6 +352,7 @@ test('Clear Key sends clearApiKey=true and forces enabled=false', async () => {
 		autoEvaluate: true,
 		baseUrl: 'https://openrouter.ai/api/v1',
 		model: 'anthropic/claude-sonnet-4.6',
+		systemPrompt: '',
 		clearApiKey: true
 	})
 })
@@ -370,6 +373,7 @@ test('Auto-evaluate checkbox is exposed, defaults to true, and rides along on Sa
 		autoEvaluate: false,
 		baseUrl: 'https://openrouter.ai/api/v1',
 		model: 'anthropic/claude-sonnet-4.6',
+		systemPrompt: '',
 		apiKey: 'sk-ant-fresh'
 	})
 })
@@ -417,6 +421,7 @@ test('Endpoint + model inputs are exposed and custom values ride along on Save',
 		autoEvaluate: true,
 		baseUrl: 'https://api.openai.com/v1',
 		model: 'openai/gpt-4o',
+		systemPrompt: '',
 		apiKey: 'sk-openai-test'
 	})
 })
@@ -426,6 +431,48 @@ test('Provider/key-match hint is shown', () => {
 	const hint = wrapper.find('[data-test="llm-key-match-hint"]')
 	expect(hint.exists()).toBe(true)
 	expect(hint.text()).toContain('same provider as the Endpoint')
+})
+
+test('System prompt textarea is exposed and a custom prompt rides along on Save', async () => {
+	const { wrapper, store } = buildWrapper()
+	expect(wrapper.find('[data-test="llm-system-prompt"]').exists()).toBe(true)
+
+	wrapper.vm.llmApiKey = 'sk-ant-fresh'
+	wrapper.vm.llmEnabled = true
+	wrapper.vm.llmSystemPrompt = 'You are an ACME network expert.'
+	await wrapper.find('[data-test="save-btn"]').trigger('click')
+
+	expect((store.setLLMConfig as any).mock.calls[0][0]).toEqual({
+		enabled: true,
+		autoEvaluate: true,
+		baseUrl: 'https://openrouter.ai/api/v1',
+		model: 'anthropic/claude-sonnet-4.6',
+		systemPrompt: 'You are an ACME network expert.',
+		apiKey: 'sk-ant-fresh'
+	})
+})
+
+test('Reset-to-default repopulates the prompt and disables once at the default', async () => {
+	const { wrapper } = buildWrapper()
+	// Let onMounted's config fetch settle first so it doesn't overwrite the
+	// values we set below.
+	await flushPromises()
+	// Simulate the server having handed us a default prompt and the user having
+	// edited it away from that default.
+	wrapper.vm.llmDefaultSystemPrompt = 'DEFAULT PROMPT TEXT'
+	wrapper.vm.llmSystemPrompt = 'a custom edit'
+	await wrapper.vm.$nextTick()
+
+	expect(wrapper.find('[data-test="llm-prompt-reset"]').exists()).toBe(true)
+	// "Custom" while the text differs from the default — this gates the button.
+	expect(wrapper.vm.llmSystemPromptIsCustom).toBe(true)
+
+	wrapper.vm.resetSystemPromptToDefault()
+	await wrapper.vm.$nextTick()
+	// Reset repopulates the textarea with the server-provided default...
+	expect(wrapper.vm.llmSystemPrompt).toBe('DEFAULT PROMPT TEXT')
+	// ...and there's now nothing to reset.
+	expect(wrapper.vm.llmSystemPromptIsCustom).toBe(false)
 })
 
 test('Validate button calls the service with form values and shows the result', async () => {
@@ -556,6 +603,8 @@ test('Input is scrubbed and cleared-flag reset after a successful save', async (
 			autoEvaluate: true,
 			baseUrl: 'https://openrouter.ai/api/v1',
 			model: 'anthropic/claude-sonnet-4.6',
+			systemPrompt: '',
+			defaultSystemPrompt: '',
 			apiKeyPresent: true
 		}
 		return true

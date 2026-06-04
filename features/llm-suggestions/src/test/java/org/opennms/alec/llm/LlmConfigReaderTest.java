@@ -132,7 +132,7 @@ public class LlmConfigReaderTest {
     @Test
     public void configToStringNeverIncludesApiKey() {
         LlmConfigReader.Config c = new LlmConfigReader.Config(true, true, "sk-ant-leaktest",
-                "https://openrouter.ai/api/v1", "anthropic/claude-sonnet-4.6");
+                "https://openrouter.ai/api/v1", "anthropic/claude-sonnet-4.6", "You are an assistant.");
         String s = c.toString();
         assertThat(s, not(containsString("sk-ant-leaktest")));
         assertThat(s, containsString("apiKeyPresent=true"));
@@ -149,6 +149,29 @@ public class LlmConfigReaderTest {
         LlmConfigReader.Config c = reader.read().orElseThrow(AssertionError::new);
         assertThat(c.getBaseUrl(), equalTo(LlmConfigReader.DEFAULT_BASE_URL));
         assertThat(c.getModel(), equalTo(LlmConfigReader.DEFAULT_MODEL));
+    }
+
+    @Test
+    public void systemPromptDefaultsWhenMissingFromJson() {
+        // Records persisted before the prompt was configurable fall back to the
+        // built-in default rather than an empty system message.
+        kv.put(LlmConfigReader.CONFIG_KEY,
+                "{\"enabled\":true,\"apiKey\":\"sk\"}",
+                LlmConfigReader.CONFIG_CONTEXT);
+
+        LlmConfigReader.Config c = reader.read().orElseThrow(AssertionError::new);
+        assertThat(c.getSystemPrompt(),
+                equalTo(LlmSuggestionServiceImpl.DEFAULT_SYSTEM_PROMPT));
+    }
+
+    @Test
+    public void systemPromptHonoredWhenPresent() {
+        kv.put(LlmConfigReader.CONFIG_KEY,
+                "{\"enabled\":true,\"apiKey\":\"sk\",\"systemPrompt\":\"Custom prompt for ACME.\"}",
+                LlmConfigReader.CONFIG_CONTEXT);
+
+        LlmConfigReader.Config c = reader.read().orElseThrow(AssertionError::new);
+        assertThat(c.getSystemPrompt(), equalTo("Custom prompt for ACME."));
     }
 
     @Test

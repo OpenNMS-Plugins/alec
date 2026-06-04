@@ -121,6 +121,7 @@ public class LlmRestImpl implements LlmRest {
                     .autoEvaluate(request.isAutoEvaluate())
                     .baseUrl(request.getBaseUrl())
                     .model(request.getModel())
+                    .systemPrompt(request.getSystemPrompt())
                     .apiKey(null)
                     .build();
         }
@@ -133,10 +134,12 @@ public class LlmRestImpl implements LlmRest {
         }
         builder.enabled(request.isEnabled());
         builder.autoEvaluate(request.isAutoEvaluate());
-        // baseUrl/model come straight from the request — the UI always submits
-        // the current form values (blank falls back to the default in the builder).
+        // baseUrl/model/systemPrompt come straight from the request — the UI
+        // always submits the current form values (blank falls back to the
+        // default in the builder).
         builder.baseUrl(request.getBaseUrl());
         builder.model(request.getModel());
+        builder.systemPrompt(request.getSystemPrompt());
         return builder.build();
     }
 

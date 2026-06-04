@@ -3,6 +3,7 @@ import { FeatherRadioGroup, FeatherRadio } from '@featherds/radio'
 import SituationListBtn from '@/elements/SituationListBtn.vue'
 import { FeatherCheckbox } from '@featherds/checkbox'
 import { FeatherInput } from '@featherds/input'
+import { FeatherTextarea } from '@featherds/textarea'
 import MarkComplete from '@featherds/icon/action/MarkComplete'
 import Help from '@featherds/icon/action/Help'
 import Restore from '@featherds/icon/action/Restore'
@@ -81,6 +82,22 @@ const LLM_DEFAULT_BASE_URL = 'https://openrouter.ai/api/v1'
 const LLM_DEFAULT_MODEL = 'anthropic/claude-sonnet-4.6'
 const llmBaseUrl = ref(userStore.llmConfig?.baseUrl ?? LLM_DEFAULT_BASE_URL)
 const llmModel = ref(userStore.llmConfig?.model ?? LLM_DEFAULT_MODEL)
+// The system prompt is editable. The server hands us both the effective prompt
+// (stored or default) and the canonical default — we hold the default so the
+// Reset button doesn't need the long text hard-coded here. Until the config
+// loads we fall back to empty strings; onMounted hydrates both.
+const llmSystemPrompt = ref(userStore.llmConfig?.systemPrompt ?? '')
+const llmDefaultSystemPrompt = ref(userStore.llmConfig?.defaultSystemPrompt ?? '')
+// True once we know the default and the textarea has been edited away from it —
+// drives the enabled state of the Reset button.
+const llmSystemPromptIsCustom = computed(
+	() =>
+		llmDefaultSystemPrompt.value.length > 0 &&
+		llmSystemPrompt.value.trim() !== llmDefaultSystemPrompt.value.trim()
+)
+const resetSystemPromptToDefault = () => {
+	llmSystemPrompt.value = llmDefaultSystemPrompt.value
+}
 const llmApiKey = ref('')
 const llmApiKeyPresent = ref(userStore.llmConfig?.apiKeyPresent ?? false)
 const llmApiKeyCleared = ref(false)
@@ -152,6 +169,9 @@ onMounted(async () => {
 			llmAutoEvaluate.value = result.autoEvaluate
 			llmBaseUrl.value = result.baseUrl || LLM_DEFAULT_BASE_URL
 			llmModel.value = result.model || LLM_DEFAULT_MODEL
+			llmDefaultSystemPrompt.value = result.defaultSystemPrompt || ''
+			llmSystemPrompt.value =
+				result.systemPrompt || result.defaultSystemPrompt || ''
 			llmApiKeyPresent.value = result.apiKeyPresent
 		}
 	}
@@ -183,6 +203,7 @@ const buildLLMRequest = (): TLLMConfigRequest => {
 			autoEvaluate: llmAutoEvaluate.value,
 			baseUrl: llmBaseUrl.value.trim(),
 			model: llmModel.value.trim(),
+			systemPrompt: llmSystemPrompt.value,
 			clearApiKey: true
 		}
 	}
@@ -191,7 +212,8 @@ const buildLLMRequest = (): TLLMConfigRequest => {
 		enabled: llmEnabled.value,
 		autoEvaluate: llmAutoEvaluate.value,
 		baseUrl: llmBaseUrl.value.trim(),
-		model: llmModel.value.trim()
+		model: llmModel.value.trim(),
+		systemPrompt: llmSystemPrompt.value
 	}
 	if (trimmedKey.length > 0) {
 		request.apiKey = trimmedKey
@@ -233,6 +255,11 @@ const saveConfiguration = async () => {
 		llmAutoEvaluate.value = userStore.llmConfig?.autoEvaluate ?? true
 		llmBaseUrl.value = userStore.llmConfig?.baseUrl ?? LLM_DEFAULT_BASE_URL
 		llmModel.value = userStore.llmConfig?.model ?? LLM_DEFAULT_MODEL
+		if (userStore.llmConfig?.defaultSystemPrompt) {
+			llmDefaultSystemPrompt.value = userStore.llmConfig.defaultSystemPrompt
+		}
+		llmSystemPrompt.value =
+			userStore.llmConfig?.systemPrompt ?? llmSystemPrompt.value
 		// Refresh the usage rollup — enabling/disabling doesn't generate calls
 		// immediately, but the next render should reflect any usage that
 		// arrived since the page loaded.
@@ -426,6 +453,36 @@ const handleReEvaluate = async () => {
 				data-test="llm-model"
 				class="llm-text-input"
 			/>
+			<div class="llm-prompt-block" data-test="llm-prompt-block">
+				<div class="llm-prompt-header">
+					<span class="llm-prompt-label">System prompt</span>
+					<button
+						type="button"
+						class="llm-prompt-reset"
+						:disabled="!llmSystemPromptIsCustom"
+						data-test="llm-prompt-reset"
+						@click="resetSystemPromptToDefault"
+					>
+						<FeatherIcon :icon="Icons.Restore" class="reset-inline-icon" />
+						Reset to default
+					</button>
+				</div>
+				<div class="llm-prompt-help">
+					Instructions sent to the model for every analysis. Customize it to add
+					site-specific context (your topology, naming conventions, escalation
+					policy, vendors in use). Leave it as the default, or clear it to fall
+					back to the default. The situation's alarms are appended automatically —
+					don't paste alarm data here.
+				</div>
+				<FeatherTextarea
+					v-model="llmSystemPrompt"
+					label="System prompt"
+					hideLabel
+					rows="12"
+					data-test="llm-system-prompt"
+					class="llm-prompt-textarea"
+				/>
+			</div>
 			<div class="llm-key-match-hint" data-test="llm-key-match-hint">
 				Your API key must come from the same provider as the Endpoint above —
 				an OpenRouter key (<code>sk-or-…</code>) for
@@ -885,6 +942,66 @@ const handleReEvaluate = async () => {
 .llm-text-input {
 	margin-top: 8px;
 	max-width: 480px;
+}
+
+.llm-prompt-block {
+	margin-top: 16px;
+	max-width: 600px;
+}
+
+.llm-prompt-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.llm-prompt-label {
+	font-size: 14px;
+	font-weight: 600;
+	color: #222;
+}
+
+.llm-prompt-reset {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	background: none;
+	border: none;
+	color: #2086a4;
+	font-size: 12px;
+	cursor: pointer;
+	padding: 0;
+
+	.reset-inline-icon {
+		font-size: 16px;
+	}
+
+	&:hover:not(:disabled) {
+		text-decoration: underline;
+	}
+
+	&:disabled {
+		color: #aaa;
+		cursor: default;
+	}
+}
+
+.llm-prompt-help {
+	font-size: 12px;
+	color: #555;
+	line-height: 1.4;
+	margin: 4px 0 8px;
+}
+
+.llm-prompt-textarea {
+	width: 100%;
+
+	:deep(textarea) {
+		font-family: monospace;
+		font-size: 12px;
+		line-height: 1.45;
+	}
 }
 
 .llm-key-match-hint {

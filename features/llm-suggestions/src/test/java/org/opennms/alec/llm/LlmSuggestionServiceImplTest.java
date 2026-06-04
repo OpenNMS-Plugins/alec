@@ -73,6 +73,7 @@ public class LlmSuggestionServiceImplTest {
 
     private static final String MODEL = "anthropic/claude-sonnet-4.6";
     private static final String BASE_URL = "https://openrouter.ai/api/v1";
+    private static final String PROMPT = "You are a test assistant.";
 
     private final ObjectMapper om = new ObjectMapper();
 
@@ -102,6 +103,27 @@ public class LlmSuggestionServiceImplTest {
         JsonNode systemMsg = root.get("messages").get(0);
         assertThat(systemMsg.get("role").asText(), equalTo("system"));
         assertThat(systemMsg.get("content").asText(), containsString("OpenNMS ALEC"));
+    }
+
+    @Test
+    public void buildRequestBodyUsesProvidedSystemPrompt() throws IOException {
+        String custom = "You are a custom assistant for ACME Corp.";
+        JsonNode root = om.readTree(
+                LlmSuggestionServiceImpl.buildRequestBody(stubSituation(), MODEL, custom, om));
+        JsonNode systemMsg = root.get("messages").get(0);
+        assertThat(systemMsg.get("role").asText(), equalTo("system"));
+        assertThat(systemMsg.get("content").asText(), equalTo(custom));
+    }
+
+    @Test
+    public void defaultSystemPromptIsRichAndNetworkFocused() {
+        // The shipped default should frame the model as a network/RCA expert and
+        // still force the tool call — guards against someone trimming it back to
+        // a one-liner.
+        String p = LlmSuggestionServiceImpl.DEFAULT_SYSTEM_PROMPT;
+        assertThat(p, containsString("network reliability engineer"));
+        assertThat(p, containsString("root cause"));
+        assertThat(p, containsString("report_suggestions"));
     }
 
     @Test
@@ -257,7 +279,7 @@ public class LlmSuggestionServiceImplTest {
     public void requestSuggestionsRejectsNullSituationWithFailedFuture() throws Exception {
         LlmSuggestionServiceImpl svc = newServiceForGuardrails();
         try {
-            Throwable cause = futureCause(svc.requestSuggestions(null, "sk-x", BASE_URL, MODEL));
+            Throwable cause = futureCause(svc.requestSuggestions(null, "sk-x", BASE_URL, MODEL, PROMPT));
             assertThat(cause, instanceOfMatcher(LlmApiException.class));
         } finally {
             svc.shutdown();
@@ -268,7 +290,7 @@ public class LlmSuggestionServiceImplTest {
     public void requestSuggestionsRejectsEmptyApiKeyWithFailedFuture() throws Exception {
         LlmSuggestionServiceImpl svc = newServiceForGuardrails();
         try {
-            Throwable cause = futureCause(svc.requestSuggestions(stubSituation(), "", BASE_URL, MODEL));
+            Throwable cause = futureCause(svc.requestSuggestions(stubSituation(), "", BASE_URL, MODEL, PROMPT));
             assertThat(cause, instanceOfMatcher(LlmApiException.class));
             assertThat(cause.getMessage(), containsString("API key"));
         } finally {
@@ -280,7 +302,7 @@ public class LlmSuggestionServiceImplTest {
     public void requestSuggestionsRejectsEmptyBaseUrlWithFailedFuture() throws Exception {
         LlmSuggestionServiceImpl svc = newServiceForGuardrails();
         try {
-            Throwable cause = futureCause(svc.requestSuggestions(stubSituation(), "sk-x", "", MODEL));
+            Throwable cause = futureCause(svc.requestSuggestions(stubSituation(), "sk-x", "", MODEL, PROMPT));
             assertThat(cause, instanceOfMatcher(LlmApiException.class));
             assertThat(cause.getMessage(), containsString("Base URL"));
         } finally {
@@ -292,7 +314,7 @@ public class LlmSuggestionServiceImplTest {
     public void requestSuggestionsRejectsEmptyModelWithFailedFuture() throws Exception {
         LlmSuggestionServiceImpl svc = newServiceForGuardrails();
         try {
-            Throwable cause = futureCause(svc.requestSuggestions(stubSituation(), "sk-x", BASE_URL, ""));
+            Throwable cause = futureCause(svc.requestSuggestions(stubSituation(), "sk-x", BASE_URL, "", PROMPT));
             assertThat(cause, instanceOfMatcher(LlmApiException.class));
             assertThat(cause.getMessage(), containsString("Model"));
         } finally {

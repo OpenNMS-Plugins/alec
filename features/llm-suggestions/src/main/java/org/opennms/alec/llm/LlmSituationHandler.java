@@ -175,7 +175,7 @@ public class LlmSituationHandler implements SituationHandler {
         store.putPending(situationId, requestedAt, model);
 
         suggestionService.requestSuggestions(situation, config.getApiKey(),
-                        config.getBaseUrl(), model)
+                        config.getBaseUrl(), model, config.getSystemPrompt())
                 .whenComplete((suggestions, error) -> {
                     long completedAt = timeSource.now();
                     if (error != null) {

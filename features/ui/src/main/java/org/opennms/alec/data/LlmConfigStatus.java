@@ -37,21 +37,30 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
  * cannot accidentally be serialized into a response — only its presence is
  * reported.
  */
-@JsonPropertyOrder({"enabled", "autoEvaluate", "baseUrl", "model", "apiKeyPresent"})
+@JsonPropertyOrder({"enabled", "autoEvaluate", "baseUrl", "model", "systemPrompt",
+        "defaultSystemPrompt", "apiKeyPresent"})
 public class LlmConfigStatus {
 
     private final boolean enabled;
     private final boolean autoEvaluate;
     private final String baseUrl;
     private final String model;
+    // The effective prompt (stored, or the default when nothing is stored). The
+    // UI pre-populates the editable textarea with this.
+    private final String systemPrompt;
+    // The built-in default, always sent so the UI's "Reset to default" button
+    // has the canonical text without hard-coding it in the frontend.
+    private final String defaultSystemPrompt;
     private final boolean apiKeyPresent;
 
     public LlmConfigStatus(boolean enabled, boolean autoEvaluate, String baseUrl, String model,
-                           boolean apiKeyPresent) {
+                           String systemPrompt, String defaultSystemPrompt, boolean apiKeyPresent) {
         this.enabled = enabled;
         this.autoEvaluate = autoEvaluate;
         this.baseUrl = baseUrl;
         this.model = model;
+        this.systemPrompt = systemPrompt;
+        this.defaultSystemPrompt = defaultSystemPrompt;
         this.apiKeyPresent = apiKeyPresent;
     }
 
@@ -59,10 +68,11 @@ public class LlmConfigStatus {
         if (config == null) {
             // Auto-evaluate defaults to true so a user enabling the integration
             // for the first time gets the automatic-suggestions-on-new-situations
-            // behavior without an extra checkbox click. baseUrl/model surface the
-            // defaults so the config form can pre-populate them.
+            // behavior without an extra checkbox click. baseUrl/model/systemPrompt
+            // surface the defaults so the config form can pre-populate them.
             return new LlmConfigStatus(false, true,
-                    LlmConfigImpl.DEFAULT_BASE_URL, LlmConfigImpl.DEFAULT_MODEL, false);
+                    LlmConfigImpl.DEFAULT_BASE_URL, LlmConfigImpl.DEFAULT_MODEL,
+                    LlmConfigImpl.DEFAULT_SYSTEM_PROMPT, LlmConfigImpl.DEFAULT_SYSTEM_PROMPT, false);
         }
         String key = config.getApiKey();
         return new LlmConfigStatus(
@@ -70,6 +80,8 @@ public class LlmConfigStatus {
                 config.isAutoEvaluate(),
                 config.getBaseUrl(),
                 config.getModel(),
+                config.getSystemPrompt(),
+                LlmConfigImpl.DEFAULT_SYSTEM_PROMPT,
                 key != null && !key.isEmpty());
     }
 
@@ -87,6 +99,14 @@ public class LlmConfigStatus {
 
     public String getModel() {
         return model;
+    }
+
+    public String getSystemPrompt() {
+        return systemPrompt;
+    }
+
+    public String getDefaultSystemPrompt() {
+        return defaultSystemPrompt;
     }
 
     public boolean isApiKeyPresent() {

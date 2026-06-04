@@ -43,7 +43,7 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
  * persisted key; it is not persisted itself.
  */
 @JsonDeserialize(builder = LlmConfigImpl.Builder.class)
-@JsonPropertyOrder({"enabled", "autoEvaluate", "baseUrl", "model", "apiKey", "clearApiKey"})
+@JsonPropertyOrder({"enabled", "autoEvaluate", "baseUrl", "model", "systemPrompt", "apiKey", "clearApiKey"})
 public interface LlmConfig {
     boolean isEnabled();
 
@@ -67,6 +67,14 @@ public interface LlmConfig {
      * {@code openai/gpt-4o}. The exact form depends on the chosen provider.
      */
     String getModel();
+
+    /**
+     * System prompt that frames the root-cause analysis. Operators can customize
+     * it (e.g. to add site-specific context) or leave it blank to use the
+     * built-in default ({@link LlmConfigImpl#DEFAULT_SYSTEM_PROMPT}). Unlike the
+     * API key, this is not a secret, so it is echoed back in GET responses.
+     */
+    String getSystemPrompt();
 
     String getApiKey();
 

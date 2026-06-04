@@ -26,6 +26,12 @@ export type TLLMConfigStatus = {
 	// defaults (OpenRouter + a Claude model) when nothing is stored yet.
 	baseUrl: string
 	model: string
+	// systemPrompt is the effective prompt (the stored custom prompt, or the
+	// default when none is stored). defaultSystemPrompt is always the built-in
+	// default — the UI uses it to power the "Reset to default" button without
+	// hard-coding the (long) prompt text in the frontend.
+	systemPrompt: string
+	defaultSystemPrompt: string
 	apiKeyPresent: boolean
 }
 
@@ -39,6 +45,8 @@ export type TLLMConfigRequest = {
 	autoEvaluate: boolean
 	baseUrl?: string
 	model?: string
+	// Custom system prompt. Blank falls back to the server default.
+	systemPrompt?: string
 	apiKey?: string
 	clearApiKey?: boolean
 }

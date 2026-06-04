@@ -96,7 +96,11 @@ public class LlmConfigReader {
             String apiKey = node.path("apiKey").asText("");
             String baseUrl = blankToDefault(node.path("baseUrl").asText(""), DEFAULT_BASE_URL);
             String model = blankToDefault(node.path("model").asText(""), DEFAULT_MODEL);
-            return Optional.of(new Config(enabled, autoEvaluate, apiKey, baseUrl, model));
+            // Older config records (persisted before the prompt was configurable)
+            // leave this blank; fall back to the built-in default.
+            String systemPrompt = blankToDefault(node.path("systemPrompt").asText(""),
+                    LlmSuggestionServiceImpl.DEFAULT_SYSTEM_PROMPT);
+            return Optional.of(new Config(enabled, autoEvaluate, apiKey, baseUrl, model, systemPrompt));
         } catch (IOException e) {
             LOG.warn("Malformed LLM config at {}/{}: {}", CONFIG_CONTEXT, CONFIG_KEY, e.getMessage());
             return Optional.empty();
@@ -114,13 +118,17 @@ public class LlmConfigReader {
         private final String apiKey;
         private final String baseUrl;
         private final String model;
+        private final String systemPrompt;
 
-        public Config(boolean enabled, boolean autoEvaluate, String apiKey, String baseUrl, String model) {
+        public Config(boolean enabled, boolean autoEvaluate, String apiKey, String baseUrl, String model,
+                      String systemPrompt) {
             this.enabled = enabled;
             this.autoEvaluate = autoEvaluate;
             this.apiKey = apiKey == null ? "" : apiKey;
             this.baseUrl = blankToDefault(baseUrl, DEFAULT_BASE_URL);
             this.model = blankToDefault(model, DEFAULT_MODEL);
+            this.systemPrompt = blankToDefault(systemPrompt,
+                    LlmSuggestionServiceImpl.DEFAULT_SYSTEM_PROMPT);
         }
 
         public boolean isEnabled() {
@@ -152,6 +160,11 @@ public class LlmConfigReader {
         /** Model identifier to request, never blank (falls back to default). */
         public String getModel() {
             return model;
+        }
+
+        /** System prompt framing the analysis, never blank (falls back to default). */
+        public String getSystemPrompt() {
+            return systemPrompt;
         }
 
         @Override

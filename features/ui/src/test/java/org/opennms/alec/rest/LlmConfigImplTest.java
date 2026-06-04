@@ -116,6 +116,39 @@ public class LlmConfigImplTest {
     }
 
     @Test
+    public void systemPromptRoundtripsAndBlankFallsBackToDefault() throws JsonProcessingException {
+        LlmConfig custom = LlmConfigImpl.newBuilder()
+                .apiKey("k")
+                .systemPrompt("Custom ACME prompt.")
+                .build();
+        LlmConfig back = objectMapper.readValue(objectMapper.writeValueAsString(custom),
+                LlmConfigImpl.class);
+        assertThat(back.getSystemPrompt(), equalTo("Custom ACME prompt."));
+
+        // Blank in == default out, so clearing the textarea never persists an
+        // empty system message.
+        LlmConfig blank = LlmConfigImpl.newBuilder().apiKey("k").systemPrompt("  ").build();
+        assertThat(blank.getSystemPrompt(), equalTo(LlmConfigImpl.DEFAULT_SYSTEM_PROMPT));
+    }
+
+    @Test
+    public void statusCarriesEffectiveAndDefaultSystemPrompt() {
+        LlmConfig c = LlmConfigImpl.newBuilder()
+                .apiKey("k")
+                .systemPrompt("Custom ACME prompt.")
+                .build();
+        LlmConfigStatus s = LlmConfigStatus.from(c);
+        assertThat(s.getSystemPrompt(), equalTo("Custom ACME prompt."));
+        assertThat(s.getDefaultSystemPrompt(), equalTo(LlmConfigImpl.DEFAULT_SYSTEM_PROMPT));
+
+        // A null config (nothing stored yet) surfaces the default as both the
+        // effective and the default prompt so the form pre-populates correctly.
+        LlmConfigStatus fromNull = LlmConfigStatus.from(null);
+        assertThat(fromNull.getSystemPrompt(), equalTo(LlmConfigImpl.DEFAULT_SYSTEM_PROMPT));
+        assertThat(fromNull.getDefaultSystemPrompt(), equalTo(LlmConfigImpl.DEFAULT_SYSTEM_PROMPT));
+    }
+
+    @Test
     public void autoEvaluateDefaultsToTrueOnFreshBuilder() {
         LlmConfig c = LlmConfigImpl.newBuilder().enabled(true).apiKey("k").build();
         assertThat("autoEvaluate is opt-out, not opt-in — default true preserves the original "

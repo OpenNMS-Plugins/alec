@@ -77,7 +77,7 @@ public class LlmSituationHandlerTest {
     @Test
     public void nullSituationIsANoOp() {
         handler.onSituation(null);
-        verify(service, never()).requestSuggestions(any(), any(), any(), any());
+        verify(service, never()).requestSuggestions(any(), any(), any(), any(), any());
     }
 
     @Test
@@ -89,7 +89,7 @@ public class LlmSituationHandlerTest {
         // The UUID-shaped reduction key (getId) is stable from the moment the
         // situation is created.
         writeConfig(true, "sk-ant-key");
-        when(service.requestSuggestions(any(), eq("sk-ant-key"), any(), any()))
+        when(service.requestSuggestions(any(), eq("sk-ant-key"), any(), any(), any()))
                 .thenReturn(new CompletableFuture<>());
 
         Situation s = mock(Situation.class);
@@ -108,7 +108,7 @@ public class LlmSituationHandlerTest {
     @Test
     public void skipsWhenNoConfigPersisted() {
         handler.onSituation(stubSituation(1L));
-        verify(service, never()).requestSuggestions(any(), any(), any(), any());
+        verify(service, never()).requestSuggestions(any(), any(), any(), any(), any());
         assertThat(store.get(stubKey(1L)).isPresent(), is(false));
     }
 
@@ -116,7 +116,7 @@ public class LlmSituationHandlerTest {
     public void skipsWhenConfigDisabledEvenWithApiKey() {
         writeConfig(false, "sk-ant-key");
         handler.onSituation(stubSituation(1L));
-        verify(service, never()).requestSuggestions(any(), any(), any(), any());
+        verify(service, never()).requestSuggestions(any(), any(), any(), any(), any());
         // Disabled = clean off-switch. We don't even leave a 'pending' breadcrumb.
         assertFalse(store.get(stubKey(1L)).isPresent());
     }
@@ -125,7 +125,7 @@ public class LlmSituationHandlerTest {
     public void skipsWhenConfigEnabledButApiKeyMissing() {
         writeConfig(true, "");
         handler.onSituation(stubSituation(1L));
-        verify(service, never()).requestSuggestions(any(), any(), any(), any());
+        verify(service, never()).requestSuggestions(any(), any(), any(), any(), any());
     }
 
     // --- existing-record gates ---
@@ -135,7 +135,7 @@ public class LlmSituationHandlerTest {
         writeConfig(true, "sk-ant-key");
         store.putPending(stubKey(1L), 500L, LlmConfigReader.DEFAULT_MODEL);
         handler.onSituation(stubSituation(1L));
-        verify(service, never()).requestSuggestions(any(), any(), any(), any());
+        verify(service, never()).requestSuggestions(any(), any(), any(), any(), any());
     }
 
     @Test
@@ -144,19 +144,19 @@ public class LlmSituationHandlerTest {
         store.putReady(stubKey(1L), 500L, 600L, LlmConfigReader.DEFAULT_MODEL,
                 Arrays.asList("c"), Arrays.asList("r"));
         handler.onSituation(stubSituation(1L));
-        verify(service, never()).requestSuggestions(any(), any(), any(), any());
+        verify(service, never()).requestSuggestions(any(), any(), any(), any(), any());
     }
 
     @Test
     public void retriesWhenExistingRecordIsFailed() {
         writeConfig(true, "sk-ant-key");
         store.putFailed(stubKey(1L), 500L, 600L, LlmConfigReader.DEFAULT_MODEL, "old error");
-        when(service.requestSuggestions(any(), eq("sk-ant-key"), any(), any()))
+        when(service.requestSuggestions(any(), eq("sk-ant-key"), any(), any(), any()))
                 .thenReturn(new CompletableFuture<>()); // pending, never completes
 
         handler.onSituation(stubSituation(1L));
 
-        verify(service).requestSuggestions(any(), eq("sk-ant-key"), any(), any());
+        verify(service).requestSuggestions(any(), eq("sk-ant-key"), any(), any(), any());
         // Pending record overwrites the previous failed one.
         SuggestionRecord r = store.get(stubKey(1L)).orElseThrow();
         assertThat(r.getStatus(), equalTo(SuggestionRecord.STATUS_PENDING));
@@ -169,7 +169,7 @@ public class LlmSituationHandlerTest {
     public void writesPendingSynchronouslyAndThenReadyWhenServiceCompletes() {
         writeConfig(true, "sk-ant-key");
         CompletableFuture<Suggestions> future = new CompletableFuture<>();
-        when(service.requestSuggestions(any(), eq("sk-ant-key"), any(), any())).thenReturn(future);
+        when(service.requestSuggestions(any(), eq("sk-ant-key"), any(), any(), any())).thenReturn(future);
 
         // Step 1: pending appears immediately, before the future resolves.
         handler.onSituation(stubSituation(1L));
@@ -200,7 +200,7 @@ public class LlmSituationHandlerTest {
     public void writesFailedWhenServiceFutureCompletesExceptionally() {
         writeConfig(true, "sk-ant-key");
         CompletableFuture<Suggestions> future = new CompletableFuture<>();
-        when(service.requestSuggestions(any(), eq("sk-ant-key"), any(), any())).thenReturn(future);
+        when(service.requestSuggestions(any(), eq("sk-ant-key"), any(), any(), any())).thenReturn(future);
 
         handler.onSituation(stubSituation(1L));
         mockNow = 1_500L;
@@ -221,7 +221,7 @@ public class LlmSituationHandlerTest {
         // though everything else (enabled + key) is in place.
         writeConfigWithAutoEval(true, "sk-ant-key", false);
         handler.onSituation(stubSituation(1L));
-        verify(service, never()).requestSuggestions(any(), any(), any(), any());
+        verify(service, never()).requestSuggestions(any(), any(), any(), any(), any());
         assertThat("no record written when auto-eval is off",
                 store.get(stubKey(1L)).isPresent(), is(false));
     }
@@ -232,12 +232,12 @@ public class LlmSituationHandlerTest {
         // that's the whole point of having the manual fallback.
         writeConfigWithAutoEval(true, "sk-ant-key", false);
         CompletableFuture<Suggestions> future = new CompletableFuture<>();
-        when(service.requestSuggestions(any(), eq("sk-ant-key"), any(), any())).thenReturn(future);
+        when(service.requestSuggestions(any(), eq("sk-ant-key"), any(), any(), any())).thenReturn(future);
 
         Situation s = stubSituation(7L);
         handler.forceReanalyze(s);
 
-        verify(service).requestSuggestions(any(), eq("sk-ant-key"), any(), any());
+        verify(service).requestSuggestions(any(), eq("sk-ant-key"), any(), any(), any());
         assertThat(store.get(stubKey(7L)).orElseThrow().getStatus(),
                 equalTo(SuggestionRecord.STATUS_PENDING));
     }
@@ -249,7 +249,7 @@ public class LlmSituationHandlerTest {
         // method is a defense in depth.
         writeConfig(false, "sk-ant-key");
         handler.forceReanalyze(stubSituation(1L));
-        verify(service, never()).requestSuggestions(any(), any(), any(), any());
+        verify(service, never()).requestSuggestions(any(), any(), any(), any(), any());
     }
 
     // --- usage recording on completion ---
@@ -258,7 +258,7 @@ public class LlmSituationHandlerTest {
     public void recordsSuccessUsageRowOnReady() {
         writeConfig(true, "sk-ant-key");
         CompletableFuture<Suggestions> future = new CompletableFuture<>();
-        when(service.requestSuggestions(any(), eq("sk-ant-key"), any(), any())).thenReturn(future);
+        when(service.requestSuggestions(any(), eq("sk-ant-key"), any(), any(), any())).thenReturn(future);
 
         // Use real wall-clock for usage recording — UsageStore.aggregate filters
         // by ts vs System.currentTimeMillis(), so a 1970-era mockNow would fall
@@ -284,7 +284,7 @@ public class LlmSituationHandlerTest {
     public void recordsFailureUsageRowWithZeroTokens() {
         writeConfig(true, "sk-ant-key");
         CompletableFuture<Suggestions> future = new CompletableFuture<>();
-        when(service.requestSuggestions(any(), eq("sk-ant-key"), any(), any())).thenReturn(future);
+        when(service.requestSuggestions(any(), eq("sk-ant-key"), any(), any(), any())).thenReturn(future);
 
         mockNow = System.currentTimeMillis();
         handler.onSituation(stubSituation(2L));
