@@ -173,6 +173,12 @@ commands:
 
       - run:
           name: Run the tests
+          # The ubuntu-2204:current machine image's Docker daemon now requires
+          # API >= 1.40, but Testcontainers 1.17.2's docker-java client defaults
+          # to 1.32 ("client version 1.32 is too old"). Pin a supported API
+          # version so docker-java skips its stale default.
+          environment:
+            DOCKER_API_VERSION: "1.41"
           command: |
             sudo apt update && sudo apt install -y openjdk-17-jdk
             mkdir $TEST_RECORDING_DIR
