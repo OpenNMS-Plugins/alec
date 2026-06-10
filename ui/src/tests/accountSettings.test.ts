@@ -1,4 +1,4 @@
-import { test, expect, vi } from 'vitest'
+import { test, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import AccountSettings from '@/containers/AccountSettings.vue'
 import { createTestingPinia } from '@pinia/testing'
@@ -29,6 +29,19 @@ const buildWrapper = () => {
 	store.getLLMUsage = vi.fn().mockResolvedValue(null)
 	return { wrapper, store }
 }
+
+// Saving with the LLM integration enabled against a remote endpoint pops a
+// cost-confirmation dialog (window.confirm). Default it to "accept" for the
+// suite so the save-path tests exercise the save rather than the dialog; the
+// dedicated cost-warning tests below override the return value per-case.
+const spyOnConfirm = () => vi.spyOn(window, 'confirm')
+let confirmSpy: ReturnType<typeof spyOnConfirm>
+beforeEach(() => {
+	confirmSpy = spyOnConfirm().mockReturnValue(true)
+})
+afterEach(() => {
+	confirmSpy.mockRestore()
+})
 
 test('Page title is "Correlation Engine Configuration Page"', () => {
 	const { wrapper } = buildWrapper()
@@ -311,8 +324,8 @@ test('Save sends new API key + enabled flag when both provided', async () => {
 	expect((store.setLLMConfig as any).mock.calls[0][0]).toEqual({
 		enabled: true,
 		autoEvaluate: true,
-		baseUrl: 'https://openrouter.ai/api/v1',
-		model: 'anthropic/claude-sonnet-4.6',
+		baseUrl: 'https://api.anthropic.com/v1/',
+		model: 'claude-sonnet-4-6',
 		systemPrompt: '',
 		apiKey: 'sk-ant-new-key'
 	})
@@ -328,8 +341,8 @@ test('Save omits apiKey when the input is blank so server preserves stored key',
 	expect((store.setLLMConfig as any).mock.calls[0][0]).toEqual({
 		enabled: false,
 		autoEvaluate: true,
-		baseUrl: 'https://openrouter.ai/api/v1',
-		model: 'anthropic/claude-sonnet-4.6',
+		baseUrl: 'https://api.anthropic.com/v1/',
+		model: 'claude-sonnet-4-6',
 		systemPrompt: ''
 	})
 })
@@ -350,8 +363,8 @@ test('Clear Key sends clearApiKey=true and forces enabled=false', async () => {
 	expect((store.setLLMConfig as any).mock.calls[0][0]).toEqual({
 		enabled: false,
 		autoEvaluate: true,
-		baseUrl: 'https://openrouter.ai/api/v1',
-		model: 'anthropic/claude-sonnet-4.6',
+		baseUrl: 'https://api.anthropic.com/v1/',
+		model: 'claude-sonnet-4-6',
 		systemPrompt: '',
 		clearApiKey: true
 	})
@@ -371,8 +384,8 @@ test('Auto-evaluate checkbox is exposed, defaults to true, and rides along on Sa
 	expect((store.setLLMConfig as any).mock.calls[0][0]).toEqual({
 		enabled: true,
 		autoEvaluate: false,
-		baseUrl: 'https://openrouter.ai/api/v1',
-		model: 'anthropic/claude-sonnet-4.6',
+		baseUrl: 'https://api.anthropic.com/v1/',
+		model: 'claude-sonnet-4-6',
 		systemPrompt: '',
 		apiKey: 'sk-ant-fresh'
 	})
@@ -389,14 +402,23 @@ test('API key help icon toggles a popover with step-by-step instructions', async
 	expect(popover.exists()).toBe(true)
 
 	const html = popover.html()
-	// The popover must explain the provider-agnostic setup: pick an
-	// OpenAI-compatible provider (OpenRouter by default) and configure the
-	// endpoint + model.
-	expect(html).toContain('OpenRouter')
+	// Option A — the hosted Claude default points at Anthropic directly with the
+	// native model id, and warns against the OpenRouter-only dotted spelling.
+	expect(html).toContain('api.anthropic.com')
+	expect(html).toContain('claude-sonnet-4-6')
 	expect(html).toContain('chat/completions')
 	expect(html).toContain('payment method')
-	// Numbered list (4 steps as authored).
-	expect(popover.findAll('li').length).toBe(4)
+	// OpenRouter is still mentioned as an alternative provider.
+	expect(html).toContain('OpenRouter')
+	// Option B — pointing ALEC at a locally run LLM (no cost).
+	expect(html).toContain('LM Studio')
+	expect(html).toContain('127.0.0.1:1234')
+	// Troubleshooting must call out the two failure modes we hit: a model with
+	// no function calling, and reasoning models running out of room.
+	expect(html).toContain('report_suggestions')
+	expect(html.toLowerCase()).toContain('reasoning')
+	// 4 steps for Option A + 4 for Option B + 3 requirement/troubleshooting items.
+	expect(popover.findAll('li').length).toBe(11)
 
 	// Toggles closed on second click.
 	await wrapper.find('[data-test="llm-key-help"]').trigger('click')
@@ -433,6 +455,74 @@ test('Provider/key-match hint is shown', () => {
 	expect(hint.text()).toContain('same provider as the Endpoint')
 })
 
+test('Saving with LLM enabled (remote endpoint) warns about cost; cancelling aborts the save', async () => {
+	const { wrapper, store } = buildWrapper()
+	// The suite default accepts; override to simulate the user clicking Cancel.
+	confirmSpy.mockReturnValue(false)
+	wrapper.vm.llmApiKey = 'sk-ant-new'
+	wrapper.vm.llmEnabled = true
+	await wrapper.find('[data-test="save-btn"]').trigger('click')
+	await flushPromises()
+
+	// User declined → nothing is persisted, neither engine nor LLM config.
+	expect(confirmSpy).toHaveBeenCalledTimes(1)
+	expect((confirmSpy.mock.calls[0][0] as string)).toContain('may incur')
+	expect(store.setLLMConfig).not.toHaveBeenCalled()
+	expect(store.setEngineInfo).not.toHaveBeenCalled()
+})
+
+test('Saving with LLM enabled against a local endpoint skips the cost warning', async () => {
+	const { wrapper, store } = buildWrapper()
+	wrapper.vm.llmApiKey = 'sk-local'
+	wrapper.vm.llmEnabled = true
+	wrapper.vm.llmBaseUrl = 'http://127.0.0.1:1234/v1'
+	await wrapper.find('[data-test="save-btn"]').trigger('click')
+	await flushPromises()
+
+	// A local endpoint bills nothing, so no confirmation should appear and the
+	// save proceeds straight through.
+	expect(confirmSpy).not.toHaveBeenCalled()
+	expect(store.setLLMConfig).toHaveBeenCalledTimes(1)
+})
+
+test('Saving with LLM disabled never shows the cost warning', async () => {
+	const { wrapper, store } = buildWrapper()
+	wrapper.vm.llmEnabled = false
+	await wrapper.find('[data-test="save-btn"]').trigger('click')
+	await flushPromises()
+
+	expect(confirmSpy).not.toHaveBeenCalled()
+	expect(store.setLLMConfig).toHaveBeenCalledTimes(1)
+})
+
+test('Endpoint and Model each expose a "Reset to default" control', async () => {
+	const { wrapper } = buildWrapper()
+	const baseReset = wrapper.find('[data-test="llm-base-url-reset"]')
+	const modelReset = wrapper.find('[data-test="llm-model-reset"]')
+	expect(baseReset.exists()).toBe(true)
+	expect(modelReset.exists()).toBe(true)
+
+	// At the shipped defaults there's nothing to reset.
+	expect(wrapper.vm.llmBaseUrlIsCustom).toBe(false)
+	expect(wrapper.vm.llmModelIsCustom).toBe(false)
+
+	// Drift each field — the reset controls become active.
+	wrapper.vm.llmBaseUrl = 'http://127.0.0.1:1234/v1'
+	wrapper.vm.llmModel = 'google/gemma-4-e4b'
+	await wrapper.vm.$nextTick()
+	expect(wrapper.vm.llmBaseUrlIsCustom).toBe(true)
+	expect(wrapper.vm.llmModelIsCustom).toBe(true)
+
+	// Resetting snaps each field back to the Anthropic Claude default.
+	wrapper.vm.resetBaseUrlToDefault()
+	wrapper.vm.resetModelToDefault()
+	await wrapper.vm.$nextTick()
+	expect(wrapper.vm.llmBaseUrl).toBe('https://api.anthropic.com/v1/')
+	expect(wrapper.vm.llmModel).toBe('claude-sonnet-4-6')
+	expect(wrapper.vm.llmBaseUrlIsCustom).toBe(false)
+	expect(wrapper.vm.llmModelIsCustom).toBe(false)
+})
+
 test('System prompt textarea is exposed and a custom prompt rides along on Save', async () => {
 	const { wrapper, store } = buildWrapper()
 	expect(wrapper.find('[data-test="llm-system-prompt"]').exists()).toBe(true)
@@ -445,8 +535,8 @@ test('System prompt textarea is exposed and a custom prompt rides along on Save'
 	expect((store.setLLMConfig as any).mock.calls[0][0]).toEqual({
 		enabled: true,
 		autoEvaluate: true,
-		baseUrl: 'https://openrouter.ai/api/v1',
-		model: 'anthropic/claude-sonnet-4.6',
+		baseUrl: 'https://api.anthropic.com/v1/',
+		model: 'claude-sonnet-4-6',
 		systemPrompt: 'You are an ACME network expert.',
 		apiKey: 'sk-ant-fresh'
 	})
@@ -601,8 +691,8 @@ test('Input is scrubbed and cleared-flag reset after a successful save', async (
 		store.llmConfig = {
 			enabled: true,
 			autoEvaluate: true,
-			baseUrl: 'https://openrouter.ai/api/v1',
-			model: 'anthropic/claude-sonnet-4.6',
+			baseUrl: 'https://api.anthropic.com/v1/',
+			model: 'claude-sonnet-4-6',
 			systemPrompt: '',
 			defaultSystemPrompt: '',
 			apiKeyPresent: true

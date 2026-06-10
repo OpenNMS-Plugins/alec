@@ -76,10 +76,13 @@ const llmEnabled = ref(userStore.llmConfig?.enabled ?? false)
 // behavior). When false, new situations get no LLM call until the user clicks
 // Re-evaluate on the AI Suggestions tab.
 const llmAutoEvaluate = ref(userStore.llmConfig?.autoEvaluate ?? true)
-// OpenAI-compatible endpoint + model. Defaults mirror the server (OpenRouter
-// routing to a Claude model) so the feature works across providers.
-const LLM_DEFAULT_BASE_URL = 'https://openrouter.ai/api/v1'
-const LLM_DEFAULT_MODEL = 'anthropic/claude-sonnet-4.6'
+// OpenAI-compatible endpoint + model. Defaults mirror the server: Anthropic's
+// own OpenAI-compatible Claude API. NOTE the model id is Anthropic's native
+// spelling `claude-sonnet-4-6` (dashes, no `anthropic/` vendor prefix) — that
+// prefixed/dotted form is OpenRouter-only and is rejected by api.anthropic.com.
+// Keep these two constants in sync with LlmConfigImpl.DEFAULT_BASE_URL/MODEL.
+const LLM_DEFAULT_BASE_URL = 'https://api.anthropic.com/v1/'
+const LLM_DEFAULT_MODEL = 'claude-sonnet-4-6'
 const llmBaseUrl = ref(userStore.llmConfig?.baseUrl ?? LLM_DEFAULT_BASE_URL)
 const llmModel = ref(userStore.llmConfig?.model ?? LLM_DEFAULT_MODEL)
 // The system prompt is editable. The server hands us both the effective prompt
@@ -97,6 +100,22 @@ const llmSystemPromptIsCustom = computed(
 )
 const resetSystemPromptToDefault = () => {
 	llmSystemPrompt.value = llmDefaultSystemPrompt.value
+}
+// Endpoint and Model can drift to a bad value (e.g. a local server that's no
+// longer running, or a typo'd model id). These let the user snap each field
+// back to the shipped Anthropic Claude default to recover from a glaring
+// misconfiguration, mirroring the system-prompt reset above.
+const llmBaseUrlIsCustom = computed(
+	() => llmBaseUrl.value.trim() !== LLM_DEFAULT_BASE_URL
+)
+const llmModelIsCustom = computed(
+	() => llmModel.value.trim() !== LLM_DEFAULT_MODEL
+)
+const resetBaseUrlToDefault = () => {
+	llmBaseUrl.value = LLM_DEFAULT_BASE_URL
+}
+const resetModelToDefault = () => {
+	llmModel.value = LLM_DEFAULT_MODEL
 }
 const llmApiKey = ref('')
 const llmApiKeyPresent = ref(userStore.llmConfig?.apiKeyPresent ?? false)
@@ -222,6 +241,30 @@ const buildLLMRequest = (): TLLMConfigRequest => {
 }
 
 const saveConfiguration = async () => {
+	// Saving with the integration enabled means ALEC will start sending alarm
+	// data to the configured LLM endpoint and billing against the stored key.
+	// Warn before that first request can fire. Skipped when the key is being
+	// cleared (the server forces enabled=false in that case) or when local —
+	// a local endpoint (e.g. LM Studio at 127.0.0.1 / localhost) bills nothing.
+	const willEnableLlm = llmEnabled.value && !llmApiKeyCleared.value
+	const isLocalEndpoint = /\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])/i.test(
+		llmBaseUrl.value
+	)
+	if (willEnableLlm && !isLocalEndpoint) {
+		if (
+			!window.confirm(
+				'LLM Root Cause Analysis is enabled.\n\n' +
+					'ALEC will send each new situation to the configured LLM endpoint ' +
+					`(${llmBaseUrl.value.trim()}, model ${llmModel.value.trim()}). ` +
+					'This calls a third-party provider with your API key and may incur ' +
+					'usage charges billed by that provider. You are responsible for any ' +
+					'costs on the associated account.\n\n' +
+					'Continue and save?'
+			)
+		) {
+			return
+		}
+	}
 	const overrides: {
 		alpha: number
 		beta: number
@@ -368,7 +411,8 @@ const handleReEvaluate = async () => {
 				suggest up to 3 probable root causes and 3 possible resolutions based
 				on the clustered alarms. Suggestions appear on the situation detail
 				page. ALEC talks to any OpenAI-compatible API — the defaults below use
-				OpenRouter (which can route to Claude, GPT, Gemini and others). The
+				Anthropic's Claude API directly (<code>https://api.anthropic.com/v1/</code>,
+					model <code>claude-sonnet-4-6</code>). The
 				endpoint, model and API key are stored on the OpenNMS server and apply
 				to all users of this plugin.
 			</div>
@@ -377,41 +421,148 @@ const handleReEvaluate = async () => {
 				class="help-popover"
 				data-test="llm-key-help-popover"
 			>
-				<strong>How to get an API key:</strong>
-				<ol>
-					<li>
-						Pick a provider that exposes an OpenAI-compatible
-						<code>/chat/completions</code> endpoint —
+				<p class="help-intro">
+					ALEC works with any service that speaks the OpenAI-compatible
+					<code>/chat/completions</code> API. The two setups below are the ones
+					most people use: a hosted provider (Claude, the shipped default) or a
+					model running locally on your own hardware (LM Studio). The endpoint,
+					model and API key are stored on the OpenNMS server and apply to every
+					user of the plugin.
+				</p>
+
+				<div class="help-scenario">
+					<strong>Option A — Claude via Anthropic (hosted, the default)</strong>
+					<p>
+						ALEC ships pointed at
+						<a
+							href="https://www.anthropic.com/api"
+							target="_blank"
+							rel="noopener noreferrer"
+							>Anthropic's Claude API</a
+						>. The <em>Reset to default</em> links next to Endpoint and Model
+						restore this exact configuration.
+					</p>
+					<ol>
+						<li>
+							Create an Anthropic account at
+							<a
+								href="https://console.anthropic.com/"
+								target="_blank"
+								rel="noopener noreferrer"
+								>console.anthropic.com</a
+							>, generate an API key (it starts with <code>sk-ant-</code>), and
+							add a payment method.
+						</li>
+						<li>
+							Leave <em>Endpoint</em> at
+							<code>https://api.anthropic.com/v1/</code> (ALEC appends
+							<code>/chat/completions</code>).
+						</li>
+						<li>
+							Leave <em>Model</em> at <code>claude-sonnet-4-6</code> — Anthropic's
+							native model id (dashes, no vendor prefix). The dotted,
+							<code>anthropic/claude-sonnet-4.6</code> form is an OpenRouter
+							spelling and is rejected by <code>api.anthropic.com</code>.
+						</li>
+						<li>
+							Paste the key below, click <em>Validate key</em>, then
+							<em>Save Changes</em>. The key is stored on the OpenNMS server and is
+							never returned to the browser. Using a hosted provider bills your
+							account per token — see <em>Cost</em> below.
+						</li>
+					</ol>
+					<p class="help-note">
+						Prefer a different provider? Set the Endpoint to its base URL and use
+						a matching key — an
 						<a
 							href="https://openrouter.ai/"
 							target="_blank"
 							rel="noopener noreferrer"
 							>OpenRouter</a
 						>
-						(the default, one key for many models), OpenAI, or Anthropic's
-						compatibility endpoint.
+						key (<code>sk-or-</code>) for <code>https://openrouter.ai/api/v1</code>
+						with a model like <code>anthropic/claude-sonnet-4.6</code>, or an
+						OpenAI key for <code>https://api.openai.com/v1</code> with
+						<code>gpt-4o</code>.
+					</p>
+				</div>
+
+				<hr class="help-divider" />
+
+				<div class="help-scenario">
+					<strong>Option B — LM Studio (local, free, private)</strong>
+					<p>
+						Running the model on your own hardware means no data leaves your
+						network and there are no provider charges.
+						<a
+							href="https://lmstudio.ai/"
+							target="_blank"
+							rel="noopener noreferrer"
+							>LM Studio</a
+						>,
+						<a
+							href="https://ollama.com/"
+							target="_blank"
+							rel="noopener noreferrer"
+							>Ollama</a
+						>
+						and vLLM all expose the same OpenAI-compatible API.
+					</p>
+					<ol>
+						<li>
+							In LM Studio, open the <em>Developer</em> tab, load a model that
+							supports <em>tool/function calling</em> (for example a recent
+							Llama, Qwen, or Gemma instruct model), and toggle the server to
+							<em>Running</em>.
+						</li>
+						<li>
+							Set <em>Endpoint</em> to the base URL the server reports — for LM
+							Studio that is <code>http://127.0.0.1:1234/v1</code>. The OpenNMS
+							server must be able to reach that host and port: if OpenNMS runs on
+							a different machine, use the model host's LAN address instead of
+							<code>127.0.0.1</code> and enable <em>Serve on Local Network</em>
+							in LM Studio.
+						</li>
+						<li>
+							Set <em>Model</em> to the server's model identifier (copy it from
+							the loaded-model list), for example
+							<code>google/gemma-4-e4b</code>.
+						</li>
+						<li>
+							Local servers ignore the API key but the field must be non-empty —
+							paste any placeholder such as <code>sk-local</code>. Click
+							<em>Validate key</em>, then <em>Save Changes</em>.
+						</li>
+					</ol>
+				</div>
+
+				<hr class="help-divider" />
+
+				<strong>Requirements &amp; troubleshooting</strong>
+				<ul>
+					<li>
+						<strong>Tool calling is required.</strong> ALEC forces the model to
+						answer by calling a single <code>report_suggestions</code> function.
+						A model without function-calling support fails validation with
+						<em>model did not call report_suggestions</em> — pick a different
+						model.
 					</li>
 					<li>
-						Create an API key in that provider's dashboard and add a payment
-						method if it requires one.
+						<strong>Reasoning models need room.</strong> Models that "think"
+						before answering (Gemma, DeepSeek-R1, the o-series) spend output
+						tokens on reasoning first. ALEC requests a generous output budget,
+						but on a local server also make sure the model's
+						<em>context length</em> is large enough (a small context can cut the
+						model off before it emits the tool call). If validation passes but
+						situations report <em>model did not call report_suggestions</em>,
+						raise the context window or choose a less verbose model.
 					</li>
 					<li>
-						Set <em>Endpoint</em> to the provider's base URL (ALEC appends
-						<code>/chat/completions</code>) and <em>Model</em> to a model the
-						provider offers, e.g. <code>anthropic/claude-sonnet-4.6</code> or
-						<code>openai/gpt-4o</code>.
+						<strong>Cost.</strong> Hosted providers bill per token — a single
+						situation is typically a few hundred to a few thousand tokens. Local
+						models are free. Track 30-day usage in the panel below after you save.
 					</li>
-					<li>
-						Paste the key into the field below and click
-						<em>Save Changes</em>. The key is stored on the OpenNMS server; it
-						is never returned to the browser after saving.
-					</li>
-				</ol>
-				<p class="pricing-hint">
-					Cost depends on the provider and model you choose. A single situation
-					analysis is typically a few hundred tokens. Track 30-day usage in the
-					panel below after you save.
-				</p>
+				</ul>
 			</div>
 			<FeatherCheckbox
 				v-model="llmEnabled"
@@ -441,18 +592,50 @@ const handleReEvaluate = async () => {
 			>
 				Enter an API key to enable.
 			</div>
-			<FeatherInput
-				v-model="llmBaseUrl"
-				label="Endpoint (OpenAI-compatible base URL)"
-				data-test="llm-base-url"
-				class="llm-text-input"
-			/>
-			<FeatherInput
-				v-model="llmModel"
-				label="Model"
-				data-test="llm-model"
-				class="llm-text-input"
-			/>
+			<div class="llm-field-block">
+				<div class="llm-field-header">
+					<span class="llm-field-label">Endpoint (OpenAI-compatible base URL)</span>
+					<button
+						type="button"
+						class="llm-prompt-reset"
+						:disabled="!llmBaseUrlIsCustom"
+						data-test="llm-base-url-reset"
+						@click="resetBaseUrlToDefault"
+					>
+						<FeatherIcon :icon="Icons.Restore" class="reset-inline-icon" />
+						Reset to default
+					</button>
+				</div>
+				<FeatherInput
+					v-model="llmBaseUrl"
+					label="Endpoint (OpenAI-compatible base URL)"
+					hideLabel
+					data-test="llm-base-url"
+					class="llm-text-input"
+				/>
+			</div>
+			<div class="llm-field-block">
+				<div class="llm-field-header">
+					<span class="llm-field-label">Model</span>
+					<button
+						type="button"
+						class="llm-prompt-reset"
+						:disabled="!llmModelIsCustom"
+						data-test="llm-model-reset"
+						@click="resetModelToDefault"
+					>
+						<FeatherIcon :icon="Icons.Restore" class="reset-inline-icon" />
+						Reset to default
+					</button>
+				</div>
+				<FeatherInput
+					v-model="llmModel"
+					label="Model"
+					hideLabel
+					data-test="llm-model"
+					class="llm-text-input"
+				/>
+			</div>
 			<div class="llm-prompt-block" data-test="llm-prompt-block">
 				<div class="llm-prompt-header">
 					<span class="llm-prompt-label">System prompt</span>
@@ -485,10 +668,10 @@ const handleReEvaluate = async () => {
 			</div>
 			<div class="llm-key-match-hint" data-test="llm-key-match-hint">
 				Your API key must come from the same provider as the Endpoint above —
-				an OpenRouter key (<code>sk-or-…</code>) for
-				<code>openrouter.ai</code>, an Anthropic key (<code>sk-ant-…</code>)
-				for <code>api.anthropic.com</code>, an OpenAI key for
-				<code>api.openai.com</code>.
+				an Anthropic key (<code>sk-ant-…</code>) for
+				<code>api.anthropic.com</code> (the default), an OpenRouter key
+				(<code>sk-or-…</code>) for <code>openrouter.ai</code>, or an OpenAI
+				key for <code>api.openai.com</code>.
 			</div>
 			<div class="llm-key-row">
 				<FeatherInput
@@ -888,6 +1071,29 @@ const handleReEvaluate = async () => {
 		font-style: italic;
 	}
 
+	.help-intro {
+		margin: 0 0 12px;
+	}
+
+	.help-scenario {
+		margin: 8px 0;
+
+		> strong {
+			display: block;
+			margin-bottom: 4px;
+		}
+
+		p {
+			margin: 4px 0;
+		}
+	}
+
+	.help-note {
+		font-size: 12px;
+		color: #555;
+		font-style: italic;
+	}
+
 	code {
 		font-family: monospace;
 		font-size: 12px;
@@ -942,6 +1148,30 @@ const handleReEvaluate = async () => {
 .llm-text-input {
 	margin-top: 8px;
 	max-width: 480px;
+}
+
+.llm-field-block {
+	margin-top: 12px;
+	max-width: 480px;
+}
+
+.llm-field-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.llm-field-label {
+	font-size: 14px;
+	font-weight: 600;
+	color: #222;
+}
+
+.help-divider {
+	border: none;
+	border-top: 1px solid variables.$border-grey;
+	margin: 12px 0;
 }
 
 .llm-prompt-block {
