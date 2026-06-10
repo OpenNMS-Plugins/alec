@@ -61,11 +61,13 @@ public class LlmConfigReader {
     static final String CONFIG_CONTEXT = "ALEC_CONFIG";
 
     // Defaults applied when a persisted config leaves baseUrl/model blank.
-    // OpenRouter speaks the OpenAI-compatible wire format and can route to a
-    // Claude model out of the box. Must match the defaults in features/ui
-    // LlmConfigImpl.
-    static final String DEFAULT_BASE_URL = "https://openrouter.ai/api/v1";
-    static final String DEFAULT_MODEL = "anthropic/claude-sonnet-4.6";
+    // ALEC ships pointed at Anthropic's own OpenAI-compatible Claude API. The
+    // model id is Anthropic's native spelling (claude-sonnet-4-6 — dashes, no
+    // vendor prefix); the anthropic/claude-sonnet-4.6 form is OpenRouter-only and
+    // is rejected by api.anthropic.com. Must match the defaults in features/ui
+    // LlmConfigImpl and LLM_DEFAULT_* in the UI.
+    static final String DEFAULT_BASE_URL = "https://api.anthropic.com/v1/";
+    static final String DEFAULT_MODEL = "claude-sonnet-4-6";
 
     private static final Logger LOG = LoggerFactory.getLogger(LlmConfigReader.class);
 

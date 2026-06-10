@@ -37,11 +37,14 @@ public class LlmConfigImpl implements LlmConfig {
 
     /**
      * Defaults must stay in sync with LlmConfigReader in the llm-suggestions
-     * bundle. OpenRouter speaks the OpenAI-compatible wire format and routes to
-     * a Claude model by default.
+     * bundle and with LLM_DEFAULT_* in the UI (AccountSettings.vue). ALEC ships
+     * pointed at Anthropic's own OpenAI-compatible Claude API. The model id uses
+     * Anthropic's native spelling ({@code claude-sonnet-4-6} — dashes, no vendor
+     * prefix); the {@code anthropic/claude-sonnet-4.6} form is an OpenRouter-only
+     * spelling that api.anthropic.com rejects.
      */
-    public static final String DEFAULT_BASE_URL = "https://openrouter.ai/api/v1";
-    public static final String DEFAULT_MODEL = "anthropic/claude-sonnet-4.6";
+    public static final String DEFAULT_BASE_URL = "https://api.anthropic.com/v1/";
+    public static final String DEFAULT_MODEL = "claude-sonnet-4-6";
 
     /**
      * Default system prompt. The UI shows this so an operator can edit it or

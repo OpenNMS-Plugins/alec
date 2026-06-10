@@ -71,12 +71,23 @@ public class LlmSuggestionServiceImpl implements LlmSuggestionService {
     private static final Logger LOG = LoggerFactory.getLogger(LlmSuggestionServiceImpl.class);
 
     static final String CHAT_COMPLETIONS_PATH = "/chat/completions";
-    static final int MAX_TOKENS = 1024;
+    // Output-token cap for an analysis. This must leave room for *reasoning*
+    // models (gemma, DeepSeek-R1, o-series, ...) that emit a chain-of-thought
+    // before the tool call: those reasoning tokens count against max_tokens, so
+    // too small a cap makes the model run out mid-thought and return with
+    // finish_reason="length" and an empty tool_calls array — surfacing as
+    // "model did not call report_suggestions". 1024 was enough for non-reasoning
+    // models like Claude but starved local reasoning models. The cap is not a
+    // target — providers that stop after the tool call (e.g. Claude) are billed
+    // only for what they actually generate, so raising it costs them nothing.
+    static final int MAX_TOKENS = 4096;
     static final String TOOL_NAME = "report_suggestions";
 
-    // Validation probe: a tiny forced tool-call request, just enough to confirm
-    // the endpoint, model, key and function-calling support all work.
-    static final int VALIDATION_MAX_TOKENS = 64;
+    // Validation probe: a small forced tool-call request, just enough to confirm
+    // the endpoint, model, key and function-calling support all work. Kept modest
+    // for speed, but large enough to clear a reasoning model's preamble before the
+    // tool call (a bare 64 can be exhausted by chain-of-thought alone).
+    static final int VALIDATION_MAX_TOKENS = 512;
     static final String VALIDATION_SYSTEM_PROMPT =
             "Connectivity check for OpenNMS ALEC. Respond by calling the report_suggestions tool once.";
     static final String VALIDATION_USER_PROMPT =
@@ -372,10 +383,14 @@ public class LlmSuggestionServiceImpl implements LlmSuggestionService {
         required.add("rootCauses");
         required.add("resolutions");
 
-        // Force the model to call our function rather than reply with free text.
-        ObjectNode toolChoice = root.putObject("tool_choice");
-        toolChoice.put("type", "function");
-        toolChoice.putObject("function").put("name", TOOL_NAME);
+        // Force the model to call a tool rather than reply with free text. We
+        // declare exactly one tool, so the string form "required" is equivalent
+        // to naming the function — and it is the portable spelling: OpenAI,
+        // OpenRouter, vLLM, Ollama and LM Studio all accept "required", whereas
+        // the named-function object form ({"type":"function",...}) is rejected
+        // by some local servers (e.g. LM Studio: "Invalid tool_choice type:
+        // 'object'. Supported string values: none, auto, required").
+        root.put("tool_choice", "required");
 
         return om.writeValueAsString(root);
     }

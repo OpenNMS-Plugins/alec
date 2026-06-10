@@ -154,14 +154,17 @@ public class LlmSuggestionServiceImplTest {
     }
 
     @Test
-    public void buildRequestBodyForcesFunctionToolChoice() throws IOException {
-        // tool_choice with type=function + our function name is what makes the
-        // model HAVE to call our function — without it the model could return
-        // free text and our injection defense disappears.
+    public void buildRequestBodyForcesToolChoice() throws IOException {
+        // tool_choice="required" makes the model HAVE to call a tool — without it
+        // the model could return free text and our injection defense disappears.
+        // We declare exactly one tool, so "required" forces report_suggestions.
+        // The string form (not the named-function object) is used because it is
+        // accepted by every OpenAI-compatible server, including local ones like
+        // LM Studio that reject {"type":"function",...}.
         JsonNode root = om.readTree(LlmSuggestionServiceImpl.buildRequestBody(stubSituation(), MODEL, om));
         JsonNode tc = root.get("tool_choice");
-        assertThat(tc.get("type").asText(), equalTo("function"));
-        assertThat(tc.get("function").get("name").asText(), equalTo("report_suggestions"));
+        assertThat(tc.isTextual(), is(true));
+        assertThat(tc.asText(), equalTo("required"));
     }
 
     @Test

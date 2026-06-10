@@ -53,10 +53,10 @@ public interface LlmSuggestionService {
      * @param apiKey    the provider API key, sent as a Bearer token
      *                  (server-side, never logged)
      * @param baseUrl   the OpenAI-compatible API base URL, e.g.
-     *                  {@code https://openrouter.ai/api/v1}; the client appends
+     *                  {@code https://api.anthropic.com/v1/}; the client appends
      *                  {@code /chat/completions}
      * @param model     the model identifier to request, e.g.
-     *                  {@code anthropic/claude-sonnet-4.6} or {@code openai/gpt-4o}
+     *                  {@code claude-sonnet-4-6} (Anthropic) or {@code openai/gpt-4o}
      * @param systemPrompt the system prompt that frames the analysis. A blank or
      *                  null value falls back to the built-in default
      *                  ({@link LlmSuggestionServiceImpl#DEFAULT_SYSTEM_PROMPT}).
