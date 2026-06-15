@@ -249,8 +249,30 @@ public class LlmSuggestionServiceImpl implements LlmSuggestionService {
             if (err != null && !err.isNull()) {
                 return ValidationResult.fail("Provider error: " + providerError(text, objectMapper));
             }
+            // The probe forces a tool call. If the response carries none, the
+            // model is unusable for ALEC — but there are two distinct reasons,
+            // and they need different fixes:
+            if (!responseHasReportToolCall(root)) {
+                if ("length".equals(firstChoiceFinishReason(root))) {
+                    // (a) finish_reason=length: the model ran out of output budget
+                    // before emitting the call — typically a reasoning model that
+                    // spent the budget "thinking". This is fixable by giving it
+                    // more room, not by switching models.
+                    return ValidationResult.fail("\"" + model + "\" is reachable and the API key "
+                            + "works, but it hit the output-token limit before making a tool call "
+                            + "— likely a reasoning model that spent its budget thinking. Increase "
+                            + "the model's available context/output length (on a local server, its "
+                            + "context window), or choose a less verbose model.");
+                }
+                // (b) otherwise the model answered with plain text: it does not
+                // support (or didn't honour) tool/function calling at all.
+                return ValidationResult.fail("\"" + model + "\" is reachable and the API key works, "
+                        + "but the model did not make a tool call. ALEC requires a model that "
+                        + "supports tool/function calling — choose a different model (for a local "
+                        + "server, also confirm a tool-capable model is loaded).");
+            }
             return ValidationResult.ok("Success — \"" + model + "\" is reachable at " + baseUrl
-                    + " and the API key works.");
+                    + ", the API key works, and the model supports the tool calling ALEC needs.");
         } catch (IllegalArgumentException e) {
             // OkHttp rejects header values with illegal characters (e.g. a key
             // pasted with a stray newline) before sending.
@@ -258,6 +280,56 @@ public class LlmSuggestionServiceImpl implements LlmSuggestionService {
         } catch (IOException e) {
             return ValidationResult.fail("Could not reach " + url + ": " + e.getMessage());
         }
+    }
+
+    /**
+     * True if a chat-completions response actually contains a tool call for our
+     * {@link #TOOL_NAME} function. A model that does not support tool/function
+     * calling answers a forced-tool request with plain text and an empty (or
+     * absent) {@code tool_calls} array, so this is what separates "the model can
+     * drive ALEC's function-calling flow" from "merely reachable + authenticated".
+     * Package-private + static so it can be unit-tested with raw JSON.
+     */
+    static boolean responseHasReportToolCall(JsonNode root) {
+        if (root == null) {
+            return false;
+        }
+        JsonNode choices = root.get("choices");
+        if (choices == null || !choices.isArray() || choices.isEmpty()) {
+            return false;
+        }
+        JsonNode message = choices.get(0).get("message");
+        if (message == null) {
+            return false;
+        }
+        JsonNode toolCalls = message.get("tool_calls");
+        if (toolCalls == null || !toolCalls.isArray() || toolCalls.isEmpty()) {
+            return false;
+        }
+        for (JsonNode call : toolCalls) {
+            JsonNode fn = call.get("function");
+            if (fn != null && TOOL_NAME.equals(textOrEmpty(fn, "name"))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * The {@code finish_reason} of the first choice (e.g. {@code stop},
+     * {@code tool_calls}, {@code length}), or empty if absent. Used to tell a
+     * model that ran out of output budget mid-reasoning ({@code length}) apart
+     * from one that simply can't call tools. Package-private + static for tests.
+     */
+    static String firstChoiceFinishReason(JsonNode root) {
+        if (root == null) {
+            return "";
+        }
+        JsonNode choices = root.get("choices");
+        if (choices == null || !choices.isArray() || choices.isEmpty()) {
+            return "";
+        }
+        return textOrEmpty(choices.get(0), "finish_reason");
     }
 
     /** Extract a provider's error.message if present, else a truncated body. */

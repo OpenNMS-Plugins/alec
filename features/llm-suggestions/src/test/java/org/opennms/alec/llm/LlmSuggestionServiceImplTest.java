@@ -31,6 +31,7 @@ package org.opennms.alec.llm;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -274,6 +275,72 @@ public class LlmSuggestionServiceImplTest {
         Suggestions s = LlmSuggestionServiceImpl.parseResponse(json, om);
         assertThat(s.getUsage().getInputTokens(), equalTo(0L));
         assertThat(s.getUsage().getOutputTokens(), equalTo(0L));
+    }
+
+    // --- responseHasReportToolCall (validation: model must support tool calling) ---
+
+    @Test
+    public void responseHasReportToolCallTrueWhenModelCallsOurFunction() throws IOException {
+        String json = "{\"choices\":[{\"message\":{\"tool_calls\":[{\"type\":\"function\","
+                + "\"function\":{\"name\":\"report_suggestions\","
+                + "\"arguments\":\"{\\\"rootCauses\\\":[],\\\"resolutions\\\":[]}\"}}]}}]}";
+        assertTrue("a forced tool call to our function is the success signal",
+                LlmSuggestionServiceImpl.responseHasReportToolCall(om.readTree(json)));
+    }
+
+    @Test
+    public void responseHasReportToolCallFalseForPlainTextReply() throws IOException {
+        // A model with no tool/function-calling support answers a forced-tool
+        // request with plain content and no tool_calls — validation must reject it.
+        String json = "{\"choices\":[{\"message\":{\"role\":\"assistant\","
+                + "\"content\":\"Sure! Here are some root causes...\"}}]}";
+        assertFalse("no tool_calls means the model can't drive ALEC's flow",
+                LlmSuggestionServiceImpl.responseHasReportToolCall(om.readTree(json)));
+    }
+
+    @Test
+    public void responseHasReportToolCallFalseForEmptyToolCallsArray() throws IOException {
+        // e.g. a reasoning model cut off by finish_reason="length" before emitting.
+        String json = "{\"choices\":[{\"message\":{\"role\":\"assistant\","
+                + "\"content\":\"\",\"tool_calls\":[]}}]}";
+        assertFalse(LlmSuggestionServiceImpl.responseHasReportToolCall(om.readTree(json)));
+    }
+
+    @Test
+    public void responseHasReportToolCallFalseWhenOnlyOtherToolCalled() throws IOException {
+        String json = "{\"choices\":[{\"message\":{\"tool_calls\":[{\"type\":\"function\","
+                + "\"function\":{\"name\":\"some_other_tool\",\"arguments\":\"{}\"}}]}}]}";
+        assertFalse(LlmSuggestionServiceImpl.responseHasReportToolCall(om.readTree(json)));
+    }
+
+    @Test
+    public void responseHasReportToolCallFalseWhenChoicesMissing() throws IOException {
+        assertFalse(LlmSuggestionServiceImpl.responseHasReportToolCall(om.readTree("{\"id\":\"x\"}")));
+    }
+
+    @Test
+    public void firstChoiceFinishReasonReadsLengthVsToolCalls() throws IOException {
+        // "length" -> reasoning model ran out of room; we surface a different,
+        // fixable message than "model can't call tools".
+        String cutOff = "{\"choices\":[{\"finish_reason\":\"length\","
+                + "\"message\":{\"role\":\"assistant\",\"content\":\"\",\"tool_calls\":[]}}]}";
+        assertThat(LlmSuggestionServiceImpl.firstChoiceFinishReason(om.readTree(cutOff)),
+                equalTo("length"));
+
+        String ok = "{\"choices\":[{\"finish_reason\":\"tool_calls\","
+                + "\"message\":{\"tool_calls\":[{\"type\":\"function\","
+                + "\"function\":{\"name\":\"report_suggestions\",\"arguments\":\"{}\"}}]}}]}";
+        assertThat(LlmSuggestionServiceImpl.firstChoiceFinishReason(om.readTree(ok)),
+                equalTo("tool_calls"));
+    }
+
+    @Test
+    public void firstChoiceFinishReasonEmptyWhenAbsentOrNoChoices() throws IOException {
+        assertThat(LlmSuggestionServiceImpl.firstChoiceFinishReason(om.readTree("{\"id\":\"x\"}")),
+                equalTo(""));
+        String noReason = "{\"choices\":[{\"message\":{\"content\":\"hi\"}}]}";
+        assertThat(LlmSuggestionServiceImpl.firstChoiceFinishReason(om.readTree(noReason)),
+                equalTo(""));
     }
 
     // --- requestSuggestions guardrails ---
