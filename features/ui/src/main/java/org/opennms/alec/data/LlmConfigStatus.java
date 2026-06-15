@@ -37,14 +37,19 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
  * cannot accidentally be serialized into a response — only its presence is
  * reported.
  */
-@JsonPropertyOrder({"enabled", "autoEvaluate", "baseUrl", "model", "systemPrompt",
-        "defaultSystemPrompt", "apiKeyPresent"})
+@JsonPropertyOrder({"enabled", "autoEvaluate", "baseUrl", "model", "defaultBaseUrl",
+        "defaultModel", "systemPrompt", "defaultSystemPrompt", "apiKeyPresent"})
 public class LlmConfigStatus {
 
     private final boolean enabled;
     private final boolean autoEvaluate;
     private final String baseUrl;
     private final String model;
+    // Operator-recorded per-field defaults (empty until "Set as default" is used).
+    // The UI's "Reset to default" for the endpoint/model fields targets these and
+    // stays disabled while they are empty.
+    private final String defaultBaseUrl;
+    private final String defaultModel;
     // The effective prompt (stored, or the default when nothing is stored). The
     // UI pre-populates the editable textarea with this.
     private final String systemPrompt;
@@ -54,11 +59,14 @@ public class LlmConfigStatus {
     private final boolean apiKeyPresent;
 
     public LlmConfigStatus(boolean enabled, boolean autoEvaluate, String baseUrl, String model,
+                           String defaultBaseUrl, String defaultModel,
                            String systemPrompt, String defaultSystemPrompt, boolean apiKeyPresent) {
         this.enabled = enabled;
         this.autoEvaluate = autoEvaluate;
         this.baseUrl = baseUrl;
         this.model = model;
+        this.defaultBaseUrl = defaultBaseUrl;
+        this.defaultModel = defaultModel;
         this.systemPrompt = systemPrompt;
         this.defaultSystemPrompt = defaultSystemPrompt;
         this.apiKeyPresent = apiKeyPresent;
@@ -66,12 +74,11 @@ public class LlmConfigStatus {
 
     public static LlmConfigStatus from(LlmConfig config) {
         if (config == null) {
-            // Auto-evaluate defaults to true so a user enabling the integration
-            // for the first time gets the automatic-suggestions-on-new-situations
-            // behavior without an extra checkbox click. baseUrl/model/systemPrompt
-            // surface the defaults so the config form can pre-populate them.
-            return new LlmConfigStatus(false, true,
-                    LlmConfigImpl.DEFAULT_BASE_URL, LlmConfigImpl.DEFAULT_MODEL,
+            // Fresh install: nothing configured. Auto-evaluate defaults to true so
+            // a user enabling the integration for the first time gets automatic
+            // suggestions without an extra click. Endpoint/model (and their
+            // recorded defaults) are blank — ALEC ships no built-in default.
+            return new LlmConfigStatus(false, true, "", "", "", "",
                     LlmConfigImpl.DEFAULT_SYSTEM_PROMPT, LlmConfigImpl.DEFAULT_SYSTEM_PROMPT, false);
         }
         String key = config.getApiKey();
@@ -80,6 +87,8 @@ public class LlmConfigStatus {
                 config.isAutoEvaluate(),
                 config.getBaseUrl(),
                 config.getModel(),
+                config.getDefaultBaseUrl(),
+                config.getDefaultModel(),
                 config.getSystemPrompt(),
                 LlmConfigImpl.DEFAULT_SYSTEM_PROMPT,
                 key != null && !key.isEmpty());
@@ -99,6 +108,14 @@ public class LlmConfigStatus {
 
     public String getModel() {
         return model;
+    }
+
+    public String getDefaultBaseUrl() {
+        return defaultBaseUrl;
+    }
+
+    public String getDefaultModel() {
+        return defaultModel;
     }
 
     public String getSystemPrompt() {

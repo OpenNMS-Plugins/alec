@@ -57,16 +57,32 @@ public interface LlmConfig {
 
     /**
      * OpenAI-compatible API base URL the suggestion client posts to (it appends
-     * {@code /chat/completions}). Defaults to OpenRouter. Lets operators point
-     * at OpenAI, Anthropic's compatibility endpoint, a local model server, etc.
+     * {@code /chat/completions}). No built-in default — blank until the operator
+     * configures a provider (OpenAI, Anthropic, OpenRouter, a local model server,
+     * etc.); the feature can't be enabled while it is blank.
      */
     String getBaseUrl();
 
     /**
-     * Model identifier to request, e.g. {@code anthropic/claude-sonnet-4.6} or
-     * {@code openai/gpt-4o}. The exact form depends on the chosen provider.
+     * Model identifier to request, e.g. {@code claude-sonnet-4-6} or
+     * {@code openai/gpt-4o}. The exact form depends on the chosen provider. No
+     * built-in default — blank until the operator picks a model.
      */
     String getModel();
+
+    /**
+     * Operator-recorded default endpoint, set via the UI's "Set as default"
+     * control; empty until recorded. Drives the UI's "Reset to default" for the
+     * endpoint field (disabled while empty). Not used by the runtime suggestion
+     * client — only the UI consumes it.
+     */
+    String getDefaultBaseUrl();
+
+    /**
+     * Operator-recorded default model, the model-field counterpart to
+     * {@link #getDefaultBaseUrl()}. Empty until recorded.
+     */
+    String getDefaultModel();
 
     /**
      * System prompt that frames the root-cause analysis. Operators can customize

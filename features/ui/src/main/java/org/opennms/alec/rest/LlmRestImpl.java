@@ -106,7 +106,10 @@ public class LlmRestImpl implements LlmRest {
      *   <li>{@code autoEvaluate} is carried through from the request (the UI
      *       always sends the current checkbox state, so we trust it directly).</li>
      *   <li>{@code baseUrl} and {@code model} are likewise carried through from
-     *       the request; a blank value falls back to the built-in default.</li>
+     *       the request, persisted as-is (blank stays blank — no shipped default).</li>
+     *   <li>{@code defaultBaseUrl} and {@code defaultModel} (the operator's
+     *       recorded per-field defaults, set via the UI's "Set as default") are
+     *       carried through from the request as well.</li>
      * </ul>
      */
     static LlmConfig merge(LlmConfig existing, LlmConfig request) {
@@ -114,13 +117,15 @@ public class LlmRestImpl implements LlmRest {
 
         if (request.isClearApiKey()) {
             // Clearing the key disables the integration but preserves the user's
-            // autoEvaluate / endpoint / model preferences so re-enabling later
-            // doesn't surprise them with different defaults.
+            // autoEvaluate / endpoint / model preferences (and recorded defaults)
+            // so re-enabling later doesn't surprise them.
             return builder
                     .enabled(false)
                     .autoEvaluate(request.isAutoEvaluate())
                     .baseUrl(request.getBaseUrl())
                     .model(request.getModel())
+                    .defaultBaseUrl(request.getDefaultBaseUrl())
+                    .defaultModel(request.getDefaultModel())
                     .systemPrompt(request.getSystemPrompt())
                     .apiKey(null)
                     .build();
@@ -134,11 +139,12 @@ public class LlmRestImpl implements LlmRest {
         }
         builder.enabled(request.isEnabled());
         builder.autoEvaluate(request.isAutoEvaluate());
-        // baseUrl/model/systemPrompt come straight from the request — the UI
-        // always submits the current form values (blank falls back to the
-        // default in the builder).
+        // baseUrl/model/defaults/systemPrompt come straight from the request —
+        // the UI always submits the current form values.
         builder.baseUrl(request.getBaseUrl());
         builder.model(request.getModel());
+        builder.defaultBaseUrl(request.getDefaultBaseUrl());
+        builder.defaultModel(request.getDefaultModel());
         builder.systemPrompt(request.getSystemPrompt());
         return builder.build();
     }

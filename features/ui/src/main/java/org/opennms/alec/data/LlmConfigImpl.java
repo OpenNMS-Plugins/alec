@@ -36,15 +36,16 @@ import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 public class LlmConfigImpl implements LlmConfig {
 
     /**
-     * Defaults must stay in sync with LlmConfigReader in the llm-suggestions
-     * bundle and with LLM_DEFAULT_* in the UI (AccountSettings.vue). ALEC ships
-     * pointed at Anthropic's own OpenAI-compatible Claude API. The model id uses
-     * Anthropic's native spelling ({@code claude-sonnet-4-6} — dashes, no vendor
-     * prefix); the {@code anthropic/claude-sonnet-4.6} form is an OpenRouter-only
-     * spelling that api.anthropic.com rejects.
+     * ALEC ships with NO built-in endpoint/model default — the operator picks a
+     * provider and model on the configuration page (the UI offers curated
+     * suggestions but the values are not pre-filled). A blank endpoint/model is
+     * therefore valid and is persisted as-is; the feature simply can't be enabled
+     * until both are set. Operators can record their own per-field default with
+     * the UI's "Set as default" control, stored in {@link #getDefaultBaseUrl()} /
+     * {@link #getDefaultModel()}.
      */
-    public static final String DEFAULT_BASE_URL = "https://api.anthropic.com/v1/";
-    public static final String DEFAULT_MODEL = "claude-sonnet-4-6";
+    public static final String DEFAULT_BASE_URL = "";
+    public static final String DEFAULT_MODEL = "";
 
     /**
      * Default system prompt. The UI shows this so an operator can edit it or
@@ -96,6 +97,11 @@ public class LlmConfigImpl implements LlmConfig {
     private final boolean autoEvaluate;
     private final String baseUrl;
     private final String model;
+    // Operator-recorded "default" endpoint/model (set via the UI's "Set as
+    // default" control). Empty until recorded; the UI's "Reset to default"
+    // restores these and stays disabled while they are empty.
+    private final String defaultBaseUrl;
+    private final String defaultModel;
     private final String systemPrompt;
     private final String apiKey;
     private final boolean clearApiKey;
@@ -105,6 +111,8 @@ public class LlmConfigImpl implements LlmConfig {
         this.autoEvaluate = builder.autoEvaluate;
         this.baseUrl = builder.baseUrl;
         this.model = builder.model;
+        this.defaultBaseUrl = builder.defaultBaseUrl;
+        this.defaultModel = builder.defaultModel;
         this.systemPrompt = builder.systemPrompt;
         this.apiKey = builder.apiKey;
         this.clearApiKey = builder.clearApiKey;
@@ -120,6 +128,8 @@ public class LlmConfigImpl implements LlmConfig {
         builder.autoEvaluate = copy.isAutoEvaluate();
         builder.baseUrl = copy.getBaseUrl();
         builder.model = copy.getModel();
+        builder.defaultBaseUrl = copy.getDefaultBaseUrl();
+        builder.defaultModel = copy.getDefaultModel();
         builder.systemPrompt = copy.getSystemPrompt();
         builder.apiKey = copy.getApiKey();
         builder.clearApiKey = copy.isClearApiKey();
@@ -144,6 +154,16 @@ public class LlmConfigImpl implements LlmConfig {
     @Override
     public String getModel() {
         return model;
+    }
+
+    @Override
+    public String getDefaultBaseUrl() {
+        return defaultBaseUrl;
+    }
+
+    @Override
+    public String getDefaultModel() {
+        return defaultModel;
     }
 
     @Override
@@ -173,11 +193,13 @@ public class LlmConfigImpl implements LlmConfig {
          * the first deserialization.
          */
         private boolean autoEvaluate = true;
-        // Default so config records persisted before these fields existed (and
-        // POST bodies that omit them) resolve to the OpenRouter + Claude target
-        // rather than null.
+        // No shipped endpoint/model default: blank is valid and persisted as-is
+        // (the operator must choose a provider + model). Only the system prompt
+        // still falls back to a built-in default.
         private String baseUrl = DEFAULT_BASE_URL;
         private String model = DEFAULT_MODEL;
+        private String defaultBaseUrl = "";
+        private String defaultModel = "";
         private String systemPrompt = DEFAULT_SYSTEM_PROMPT;
         private String apiKey;
         private boolean clearApiKey;
@@ -196,14 +218,24 @@ public class LlmConfigImpl implements LlmConfig {
         }
 
         public Builder baseUrl(String val) {
-            // Treat blank as "use the default" so the UI clearing the field
-            // doesn't persist an empty endpoint.
-            baseUrl = (val == null || val.trim().isEmpty()) ? DEFAULT_BASE_URL : val.trim();
+            // No shipped default: keep blank blank (persist exactly what the
+            // operator entered, or nothing on a fresh install).
+            baseUrl = (val == null) ? "" : val.trim();
             return this;
         }
 
         public Builder model(String val) {
-            model = (val == null || val.trim().isEmpty()) ? DEFAULT_MODEL : val.trim();
+            model = (val == null) ? "" : val.trim();
+            return this;
+        }
+
+        public Builder defaultBaseUrl(String val) {
+            defaultBaseUrl = (val == null) ? "" : val.trim();
+            return this;
+        }
+
+        public Builder defaultModel(String val) {
+            defaultModel = (val == null) ? "" : val.trim();
             return this;
         }
 
@@ -237,6 +269,8 @@ public class LlmConfigImpl implements LlmConfig {
                 .add("autoEvaluate=" + autoEvaluate)
                 .add("baseUrl=" + baseUrl)
                 .add("model=" + model)
+                .add("defaultBaseUrl=" + defaultBaseUrl)
+                .add("defaultModel=" + defaultModel)
                 // The prompt can be long and is not a secret; log only whether
                 // it's been customized away from the default.
                 .add("customSystemPrompt=" + !DEFAULT_SYSTEM_PROMPT.equals(systemPrompt))
