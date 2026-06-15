@@ -128,7 +128,7 @@ onMounted(async () => {
 	display: flex;
 	width: 100%;
 	flex-direction: row;
-	background-color: #fbfbfb;
+	background-color: var(--feather-elevation-background-0);
 	cursor: pointer;
 	border: 1px solid $border-grey;
 	height: 100%;
@@ -137,7 +137,7 @@ onMounted(async () => {
 	}
 
 	&.rejected {
-		background-color: #f3f3f3;
+		background-color: var(--feather-shade-3);
 		opacity: 0.4;
 	}
 }
@@ -166,11 +166,11 @@ onMounted(async () => {
 	font-size: 24px;
 }
 .accepted {
-	color: green;
+	color: var(--feather-success);
 }
 
 .rejected {
-	color: red;
+	color: var(--feather-error);
 }
 
 .count {
@@ -178,7 +178,7 @@ onMounted(async () => {
 	font-weight: 600;
 	padding-right: 8px;
 	padding-left: 3px;
-	color: #323647;
+	color: var(--feather-primary-text-on-surface);
 }
 
 .info-title {
@@ -199,16 +199,16 @@ onMounted(async () => {
 	cursor: help;
 
 	&.pending {
-		background: #e5e7eb;
-		color: #4b5563;
+		background: var(--feather-shade-3);
+		color: var(--feather-secondary-text-on-surface);
 	}
 	&.ready {
-		background: #dbeafe;
-		color: #1d4ed8;
+		background: var(--feather-elevation-background-2);
+		color: var(--feather-secondary);
 	}
 	&.failed {
-		background: #fee2e2;
-		color: #b91c1c;
+		background: var(--feather-elevation-background-2);
+		color: var(--feather-error);
 	}
 }
 </style>

@@ -195,16 +195,16 @@ const clickedTab = (tab: number | undefined) => {
 	padding: 12px;
 	cursor: pointer;
 	font-size: 22px;
-	border: 1px solid black;
-	background-color: #cacaca;
+	border: 1px solid var(--feather-border-on-surface);
+	background-color: var(--feather-shade-2);
 	width: fit-content;
 	margin-bottom: 20px;
 }
 
 .noSituation {
 	padding: 30px;
-	border: 1px solid #dfdfdf;
-	background-color: #ffffff;
+	border: 1px solid var(--feather-border-on-surface);
+	background-color: var(--feather-surface);
 	width: 600px;
 	text-align: center;
 	margin: 80px auto;

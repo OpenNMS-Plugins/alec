@@ -22,10 +22,15 @@ export type TEngine = {
 export type TLLMConfigStatus = {
 	enabled: boolean
 	autoEvaluate: boolean
-	// OpenAI-compatible API base URL and model id. The server returns its
-	// defaults (OpenRouter + a Claude model) when nothing is stored yet.
+	// OpenAI-compatible API base URL and model id. ALEC ships with NO default,
+	// so these are blank on a fresh install until the operator configures them.
 	baseUrl: string
 	model: string
+	// Operator-recorded per-field defaults (set via "Set as default"); blank
+	// until recorded. The endpoint/model "Reset to default" controls target
+	// these and stay disabled while blank.
+	defaultBaseUrl: string
+	defaultModel: string
 	// systemPrompt is the effective prompt (the stored custom prompt, or the
 	// default when none is stored). defaultSystemPrompt is always the built-in
 	// default — the UI uses it to power the "Reset to default" button without
@@ -39,12 +44,15 @@ export type TLLMConfigStatus = {
 // Send apiKey only when the user actually typed a new one; omitting it lets
 // the server keep the existing stored key while still flipping `enabled`.
 // Set clearApiKey: true to wipe the stored key (also forces enabled=false server-side).
-// baseUrl/model are sent on every save; blank values fall back to server defaults.
+// baseUrl/model are sent on every save and persisted as-is (no server default).
+// defaultBaseUrl/defaultModel carry the operator's recorded per-field defaults.
 export type TLLMConfigRequest = {
 	enabled: boolean
 	autoEvaluate: boolean
 	baseUrl?: string
 	model?: string
+	defaultBaseUrl?: string
+	defaultModel?: string
 	// Custom system prompt. Blank falls back to the server default.
 	systemPrompt?: string
 	apiKey?: string

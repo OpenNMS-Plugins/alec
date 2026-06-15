@@ -57,7 +57,7 @@ const isClustering = computed(
 	font-weight: 600;
 	line-height: 20px;
 	margin-left: 8px;
-	color: #636363;
+	color: var(--feather-secondary-text-on-surface);
 }
 
 .info-engine {
@@ -77,10 +77,10 @@ const isClustering = computed(
 .engine {
 	@extend .box-info;
 	.type {
-		color: #065eca;
+		color: var(--feather-secondary);
 
 		&.not-set {
-			color: #b91c1c;
+			color: var(--feather-error);
 		}
 	}
 }
@@ -94,11 +94,11 @@ const isClustering = computed(
 	@extend .box-info;
 	.optin-on {
 		font-size: 18px;
-		color: green;
+		color: var(--feather-success);
 	}
 	.optin-off {
 		font-size: 18px;
-		color: red;
+		color: var(--feather-error);
 	}
 }
 </style>

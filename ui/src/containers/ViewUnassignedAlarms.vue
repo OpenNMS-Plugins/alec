@@ -180,7 +180,7 @@ const filterList = (alarmsFiltered: TAlarm[]) => {
 	margin-bottom: var($spacing-m);
 }
 .action-btns {
-	background-color: white;
+	background-color: var(--feather-surface);
 	padding: 12px 15px;
 	border: 1px solid $border-grey;
 	> * {
@@ -216,14 +216,14 @@ const filterList = (alarmsFiltered: TAlarm[]) => {
 	vertical-align: sub;
 
 	&.move {
-		color: #7004f4;
+		color: var(--feather-secondary-variant);
 		font-size: 20px;
 	}
 }
 
 .filters {
 	min-width: 20%;
-	background-color: white;
+	background-color: var(--feather-surface);
 	margin-right: 15px;
 	border: 1px solid $border-grey;
 }

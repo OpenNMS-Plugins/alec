@@ -1,3 +1,8 @@
+// @vitest-environment jsdom
+// This suite renders SituationDetailTab, whose description goes through
+// DOMPurify (sanitizeHtml). DOMPurify needs a DOM that implements
+// createNodeIterator, which the default happy-dom env (v6) does not — so this
+// file runs under jsdom.
 import { test, expect, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import SituationDetailTab from '@/components/SituationDetailTab.vue'
@@ -68,4 +73,29 @@ test('Raw HTML description (already decoded) still renders correctly', () => {
 	const desc = w.find('[data-test="situation-description"]')
 	expect(desc.findAll('p').length).toBe(2)
 	expect(desc.text()).toContain('Raw paragraph one.')
+})
+
+test('Dangerous markup in the description is sanitized before v-html', () => {
+	// v-html bypasses Vue's escaping and the description is server-supplied, so
+	// scripts and event handlers must be stripped. Cover both the already-decoded
+	// form and the entity-encoded form (which decodeHtmlEntities turns into a real
+	// <script> before sanitizing).
+	const malicious = {
+		...situationsMock[0],
+		description:
+			'<p>Safe text.</p><script>window.__xss = 1</script>' +
+			'<img src="x" onerror="window.__xss = 2" />' +
+			'&lt;script&gt;window.__xss = 3&lt;/script&gt;'
+	}
+	const w = mount(SituationDetailTab, {
+		global: { plugins: [createTestingPinia()] },
+		props: { situationInfo: malicious }
+	} as any) as any
+	const desc = w.find('[data-test="situation-description"]')
+	const html = desc.html()
+	// No executable script survives, in either decoded or entity-encoded form.
+	expect(html).not.toContain('<script')
+	expect(html.toLowerCase()).not.toContain('onerror')
+	// The benign content is preserved.
+	expect(desc.text()).toContain('Safe text.')
 })

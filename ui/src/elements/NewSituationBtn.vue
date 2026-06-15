@@ -27,7 +27,7 @@ const addNewSituation = () => {
 <style lang="scss" scoped>
 .new-situation-btn {
 	height: 44px !important;
-	background-color: #46ae46 !important;
+	background-color: var(--feather-success) !important;
 	color: white !important;
 }
 

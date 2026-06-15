@@ -190,7 +190,7 @@ const filterList = (list: TSituation[]) => {
 }
 
 .view-situation-btn {
-	background-color: #465cae !important;
+	background-color: var(--feather-secondary) !important;
 	color: white !important;
 	height: 44px !important;
 }
@@ -203,7 +203,7 @@ const filterList = (list: TSituation[]) => {
 	font-weight: 600;
 	line-height: 20px;
 	margin-left: 8px;
-	color: #636363;
+	color: var(--feather-secondary-text-on-surface);
 }
 
 .info-engine {
@@ -223,7 +223,7 @@ const filterList = (list: TSituation[]) => {
 .engine {
 	@extend .box-info;
 	.type {
-		color: #065eca;
+		color: var(--feather-secondary);
 	}
 }
 
@@ -236,11 +236,11 @@ const filterList = (list: TSituation[]) => {
 	@extend .box-info;
 	.optin-on {
 		font-size: 18px;
-		color: green;
+		color: var(--feather-success);
 	}
 	.optin-off {
 		font-size: 18px;
-		color: red;
+		color: var(--feather-error);
 	}
 }
 
@@ -272,7 +272,7 @@ h2 {
 
 .left-filters {
 	width: 25%;
-	background-color: white;
+	background-color: var(--feather-surface);
 	margin-right: 15px;
 	border: 1px solid $border-grey;
 }
@@ -281,7 +281,7 @@ h2 {
 	padding-top: 20px;
 	flex-direction: column;
 	border: 1px solid $border-grey;
-	background-color: #ffffff;
+	background-color: var(--feather-surface);
 	width: 100%;
 	min-height: 750px;
 }

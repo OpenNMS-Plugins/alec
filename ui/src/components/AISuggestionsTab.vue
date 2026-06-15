@@ -289,7 +289,7 @@ const canReanalyze = computed(
 @use '@/styles/variables.scss';
 
 .ai-panel {
-	background-color: #ffffff;
+	background-color: var(--feather-surface);
 	border: 1px solid variables.$border-grey;
 	padding: 20px;
 	margin-top: 10px;
@@ -316,12 +316,12 @@ const canReanalyze = computed(
 	display: flex;
 	align-items: center;
 	gap: 12px;
-	color: #555;
+	color: var(--feather-secondary-text-on-surface);
 	font-size: 14px;
 
 	&.failed {
 		justify-content: space-between;
-		color: #963;
+		color: var(--feather-warning);
 	}
 
 	.failed-msg {
@@ -332,7 +332,7 @@ const canReanalyze = computed(
 	code {
 		font-family: monospace;
 		font-size: 12px;
-		background: #f5f0e6;
+		background: var(--feather-elevation-background-1);
 		padding: 1px 5px;
 		border-radius: 2px;
 	}
@@ -340,13 +340,13 @@ const canReanalyze = computed(
 
 .reanalyze-error {
 	margin-top: 8px;
-	color: #b91c1c;
+	color: var(--feather-error);
 	font-size: 13px;
 }
 
 .meta {
 	font-size: 13px;
-	color: #666;
+	color: var(--feather-secondary-text-on-surface);
 	margin-bottom: 12px;
 }
 
@@ -370,7 +370,7 @@ const canReanalyze = computed(
 
 .empty {
 	font-style: italic;
-	color: #888;
+	color: var(--feather-disabled-text-on-surface);
 	font-size: 13px;
 }
 </style>

@@ -7,18 +7,29 @@ import { FeatherTextarea } from '@featherds/textarea'
 import MarkComplete from '@featherds/icon/action/MarkComplete'
 import Help from '@featherds/icon/action/Help'
 import Restore from '@featherds/icon/action/Restore'
+import ExpandMore from '@featherds/icon/navigation/ExpandMore'
 import { FeatherIcon } from '@featherds/icon'
 import CONST from '@/helpers/constants'
 import { useUserStore } from '@/store/useUserStore'
-import { computed, markRaw, onMounted, ref } from 'vue'
+import { computed, markRaw, onMounted, onUnmounted, ref } from 'vue'
 import { FeatherButton } from '@featherds/button'
 import { FeatherSnackbar } from '@featherds/snackbar'
+import {
+	FeatherTab,
+	FeatherTabContainer,
+	FeatherTabPanel
+} from '@featherds/tabs'
 import {
 	closeAllOpenSituations,
 	reEvaluateAllOpenAlarms,
 	validateLLMConfig
 } from '@/services/AlecService'
 import { TLLMConfigRequest, TLLMValidationResult } from '@/types/TUser'
+import {
+	endpointSuggestions,
+	modelSuggestionsForUrl,
+	providerForUrl
+} from '@/helpers/llmSuggestions'
 
 // Humanize a token count for display: 1234567 -> "1.2M", 4800 -> "4.8K".
 // Raw count goes into the title attribute for hover.
@@ -28,15 +39,19 @@ const humanizeTokens = (n: number): string => {
 	return String(n)
 }
 
-const formatUsd = (n: number): string => {
-	if (n < 0.01) return '~$0.00'
-	return '~$' + n.toFixed(2)
-}
+// Dollar-value estimation is intentionally disabled for now — the cost model is
+// being reworked separately. Keep this helper (and its callsite, commented out
+// in the template) so it can be restored once the new estimation lands.
+// const formatUsd = (n: number): string => {
+// 	if (n < 0.01) return '~$0.00'
+// 	return '~$' + n.toFixed(2)
+// }
 
 const Icons = markRaw({
 	MarkComplete,
 	Help,
-	Restore
+	Restore,
+	ExpandMore
 })
 
 const ENGINE_DEFAULTS = {
@@ -76,15 +91,15 @@ const llmEnabled = ref(userStore.llmConfig?.enabled ?? false)
 // behavior). When false, new situations get no LLM call until the user clicks
 // Re-evaluate on the AI Suggestions tab.
 const llmAutoEvaluate = ref(userStore.llmConfig?.autoEvaluate ?? true)
-// OpenAI-compatible endpoint + model. Defaults mirror the server: Anthropic's
-// own OpenAI-compatible Claude API. NOTE the model id is Anthropic's native
-// spelling `claude-sonnet-4-6` (dashes, no `anthropic/` vendor prefix) — that
-// prefixed/dotted form is OpenRouter-only and is rejected by api.anthropic.com.
-// Keep these two constants in sync with LlmConfigImpl.DEFAULT_BASE_URL/MODEL.
-const LLM_DEFAULT_BASE_URL = 'https://api.anthropic.com/v1/'
-const LLM_DEFAULT_MODEL = 'claude-sonnet-4-6'
-const llmBaseUrl = ref(userStore.llmConfig?.baseUrl ?? LLM_DEFAULT_BASE_URL)
-const llmModel = ref(userStore.llmConfig?.model ?? LLM_DEFAULT_MODEL)
+// OpenAI-compatible endpoint + model. ALEC ships with NO default: both start
+// blank and the operator chooses a provider/model (the comboboxes below offer
+// curated suggestions but don't pre-fill). Each field also carries an
+// operator-recorded "default" (set via "Set as default") used by "Reset to
+// default" — both blank until recorded.
+const llmBaseUrl = ref(userStore.llmConfig?.baseUrl ?? '')
+const llmModel = ref(userStore.llmConfig?.model ?? '')
+const llmDefaultBaseUrl = ref(userStore.llmConfig?.defaultBaseUrl ?? '')
+const llmDefaultModel = ref(userStore.llmConfig?.defaultModel ?? '')
 // The system prompt is editable. The server hands us both the effective prompt
 // (stored or default) and the canonical default — we hold the default so the
 // Reset button doesn't need the long text hard-coded here. Until the config
@@ -101,21 +116,69 @@ const llmSystemPromptIsCustom = computed(
 const resetSystemPromptToDefault = () => {
 	llmSystemPrompt.value = llmDefaultSystemPrompt.value
 }
-// Endpoint and Model can drift to a bad value (e.g. a local server that's no
-// longer running, or a typo'd model id). These let the user snap each field
-// back to the shipped Anthropic Claude default to recover from a glaring
-// misconfiguration, mirroring the system-prompt reset above.
-const llmBaseUrlIsCustom = computed(
-	() => llmBaseUrl.value.trim() !== LLM_DEFAULT_BASE_URL
+
+// --- Endpoint / Model: reset-to-default + set-as-default ---
+// "Reset to default" restores the recorded default; enabled only once a default
+// exists and the field has drifted from it. "Set as default" records the current
+// value as that field's default; enabled when the field is non-blank and differs
+// from the recorded default. Both persist on Save.
+const canResetBaseUrl = computed(
+	() =>
+		llmDefaultBaseUrl.value.trim().length > 0 &&
+		llmBaseUrl.value.trim() !== llmDefaultBaseUrl.value.trim()
 )
-const llmModelIsCustom = computed(
-	() => llmModel.value.trim() !== LLM_DEFAULT_MODEL
+const canResetModel = computed(
+	() =>
+		llmDefaultModel.value.trim().length > 0 &&
+		llmModel.value.trim() !== llmDefaultModel.value.trim()
+)
+const canSetBaseUrlDefault = computed(
+	() =>
+		llmBaseUrl.value.trim().length > 0 &&
+		llmBaseUrl.value.trim() !== llmDefaultBaseUrl.value.trim()
+)
+const canSetModelDefault = computed(
+	() =>
+		llmModel.value.trim().length > 0 &&
+		llmModel.value.trim() !== llmDefaultModel.value.trim()
 )
 const resetBaseUrlToDefault = () => {
-	llmBaseUrl.value = LLM_DEFAULT_BASE_URL
+	llmBaseUrl.value = llmDefaultBaseUrl.value
 }
 const resetModelToDefault = () => {
-	llmModel.value = LLM_DEFAULT_MODEL
+	llmModel.value = llmDefaultModel.value
+}
+const setBaseUrlDefault = () => {
+	llmDefaultBaseUrl.value = llmBaseUrl.value.trim()
+}
+const setModelDefault = () => {
+	llmDefaultModel.value = llmModel.value.trim()
+}
+
+// --- Endpoint / Model suggestion comboboxes ---
+// The fields stay free-text (type any URL/model — essential for local servers);
+// these dropdowns just offer curated suggestions. Model suggestions are
+// contextual to the entered endpoint. See helpers/llmSuggestions.ts.
+const endpointOptions = endpointSuggestions()
+const showEndpointMenu = ref(false)
+const showModelMenu = ref(false)
+const modelOptions = computed(() => modelSuggestionsForUrl(llmBaseUrl.value))
+const matchedProvider = computed(() => providerForUrl(llmBaseUrl.value))
+const pickEndpoint = (url: string) => {
+	llmBaseUrl.value = url
+	showEndpointMenu.value = false
+}
+const pickModel = (id: string) => {
+	llmModel.value = id
+	showModelMenu.value = false
+}
+// Close any open suggestion menu when clicking outside the combobox.
+const closeMenusOnOutside = (e: MouseEvent) => {
+	const target = e.target as HTMLElement | null
+	if (!target || !target.closest('.llm-combo')) {
+		showEndpointMenu.value = false
+		showModelMenu.value = false
+	}
 }
 const llmApiKey = ref('')
 const llmApiKeyPresent = ref(userStore.llmConfig?.apiKeyPresent ?? false)
@@ -155,12 +218,21 @@ const validateLlm = async () => {
 }
 
 // True when there's nothing the server could persist as a key — neither one
-// already stored nor one freshly typed. The Enable checkbox guards on this to
-// stop the user from saving an enabled-but-keyless config the server will reject.
+// already stored nor one freshly typed.
 const llmNoKeyAvailable = computed(
 	() =>
 		(!llmApiKeyPresent.value || llmApiKeyCleared.value) &&
 		llmApiKey.value.trim().length === 0
+)
+// The Enable checkbox guards on this: enabling requires an endpoint, a model AND
+// a key. Since ALEC ships no endpoint/model default, a fresh install must be
+// configured before the integration can be turned on (the server would reject an
+// enabled-but-incomplete config anyway).
+const llmCannotEnable = computed(
+	() =>
+		llmNoKeyAvailable.value ||
+		llmBaseUrl.value.trim().length === 0 ||
+		llmModel.value.trim().length === 0
 )
 
 const clearLLMApiKey = () => {
@@ -171,6 +243,7 @@ const clearLLMApiKey = () => {
 }
 
 const showHelp = ref(false)
+const showEngineHelp = ref(false)
 const showLLMKeyHelp = ref(false)
 const showNotification = ref(false)
 const isError = ref(false)
@@ -179,6 +252,7 @@ const message = ref('')
 const showUsageDetails = ref(false)
 
 onMounted(async () => {
+	document.addEventListener('mousedown', closeMenusOnOutside)
 	// engineInfo is usually pre-populated by the app shell; the LLM config
 	// has no such pre-load, so fetch it here on first render.
 	if (userStore.llmConfig === null) {
@@ -186,8 +260,10 @@ onMounted(async () => {
 		if (result) {
 			llmEnabled.value = result.enabled
 			llmAutoEvaluate.value = result.autoEvaluate
-			llmBaseUrl.value = result.baseUrl || LLM_DEFAULT_BASE_URL
-			llmModel.value = result.model || LLM_DEFAULT_MODEL
+			llmBaseUrl.value = result.baseUrl || ''
+			llmModel.value = result.model || ''
+			llmDefaultBaseUrl.value = result.defaultBaseUrl || ''
+			llmDefaultModel.value = result.defaultModel || ''
 			llmDefaultSystemPrompt.value = result.defaultSystemPrompt || ''
 			llmSystemPrompt.value =
 				result.systemPrompt || result.defaultSystemPrompt || ''
@@ -196,6 +272,10 @@ onMounted(async () => {
 	}
 	// Fetch the usage rollup once on mount; refreshed after every successful save.
 	await userStore.getLLMUsage(30)
+})
+
+onUnmounted(() => {
+	document.removeEventListener('mousedown', closeMenusOnOutside)
 })
 
 const resetVariablesToDefaults = () => {
@@ -222,6 +302,8 @@ const buildLLMRequest = (): TLLMConfigRequest => {
 			autoEvaluate: llmAutoEvaluate.value,
 			baseUrl: llmBaseUrl.value.trim(),
 			model: llmModel.value.trim(),
+			defaultBaseUrl: llmDefaultBaseUrl.value.trim(),
+			defaultModel: llmDefaultModel.value.trim(),
 			systemPrompt: llmSystemPrompt.value,
 			clearApiKey: true
 		}
@@ -232,6 +314,8 @@ const buildLLMRequest = (): TLLMConfigRequest => {
 		autoEvaluate: llmAutoEvaluate.value,
 		baseUrl: llmBaseUrl.value.trim(),
 		model: llmModel.value.trim(),
+		defaultBaseUrl: llmDefaultBaseUrl.value.trim(),
+		defaultModel: llmDefaultModel.value.trim(),
 		systemPrompt: llmSystemPrompt.value
 	}
 	if (trimmedKey.length > 0) {
@@ -296,8 +380,10 @@ const saveConfiguration = async () => {
 		llmApiKeyPresent.value = userStore.llmConfig?.apiKeyPresent ?? false
 		llmEnabled.value = userStore.llmConfig?.enabled ?? false
 		llmAutoEvaluate.value = userStore.llmConfig?.autoEvaluate ?? true
-		llmBaseUrl.value = userStore.llmConfig?.baseUrl ?? LLM_DEFAULT_BASE_URL
-		llmModel.value = userStore.llmConfig?.model ?? LLM_DEFAULT_MODEL
+		llmBaseUrl.value = userStore.llmConfig?.baseUrl ?? ''
+		llmModel.value = userStore.llmConfig?.model ?? ''
+		llmDefaultBaseUrl.value = userStore.llmConfig?.defaultBaseUrl ?? ''
+		llmDefaultModel.value = userStore.llmConfig?.defaultModel ?? ''
 		if (userStore.llmConfig?.defaultSystemPrompt) {
 			llmDefaultSystemPrompt.value = userStore.llmConfig.defaultSystemPrompt
 		}
@@ -357,16 +443,67 @@ const handleReEvaluate = async () => {
 <template>
 	<SituationListBtn />
 	<div class="container">
-		<h3 data-test="page-title">Correlation Engine Configuration Page</h3>
+		<h3 data-test="page-title">ALEC Configuration</h3>
 
-		<div class="section">
-			<div class="title">
-				Choose the correlation engine that ALEC will use (see
-				<a target="_blank" :href="CONST.URL_DOCUMENTATION"
-					>Correlation Engines documentation</a
+		<FeatherTabContainer data-test="config-tabs">
+			<template v-slot:tabs>
+				<FeatherTab data-test="tab-engine">Correlation Engine</FeatherTab>
+				<FeatherTab data-test="tab-llm">LLM Root Cause Analysis</FeatherTab>
+			</template>
+
+			<!-- Tab 1 — Correlation Engine -->
+			<FeatherTabPanel class="config-panel">
+			<div class="section">
+				<div class="title-row">
+					<div class="title">
+						Choose the correlation engine that ALEC will use (see
+						<a target="_blank" :href="CONST.URL_DOCUMENTATION"
+							>Correlation Engines documentation</a
+						>
+						for more information):
+					</div>
+					<button
+						type="button"
+						class="icon-btn help-icon"
+						:aria-expanded="showEngineHelp"
+						aria-label="About the correlation engines and Hellinger distance"
+						data-test="engine-help"
+						@click="showEngineHelp = !showEngineHelp"
+					>
+						<FeatherIcon :icon="Icons.Help" />
+					</button>
+				</div>
+				<div
+					v-if="showEngineHelp"
+					class="help-popover"
+					data-test="engine-help-popover"
 				>
-				for more information):
-			</div>
+					<ul>
+						<li>
+							<strong>Clustering</strong> — the default engine. It runs the
+							DBSCAN algorithm over recent alarms and groups them into a
+							situation when they are close in both time and network topology.
+							Tune how aggressively it groups with the Correlation variables
+							below.
+						</li>
+						<li>
+							<strong>Hellinger distance</strong> — an optional, more refined way
+							for the Clustering engine to measure how far apart two alarms are.
+							Rather than a plain time/topology distance, it compares the
+							statistical distribution of each alarm's surroundings, which helps
+							separate unrelated alarms that merely happen to occur close
+							together. Enable it with the checkbox; it adds two extra tuning
+							variables (Hellinger w and bias). Only the Clustering engine
+							supports it.
+						</li>
+						<li>
+							<strong>LLM Based</strong> — a future engine that would let a large
+							language model drive correlation itself (coming soon). This is
+							separate from <em>LLM Root Cause Analysis</em> on the other tab,
+							which explains the situations the Clustering engine already builds.
+						</li>
+					</ul>
+				</div>
 			<FeatherRadioGroup vertical v-model="engineName" label="" hideLabel>
 				<FeatherRadio class="radio-item" :value="CONST.ENGINE_DBSCAN"
 					>Clustering</FeatherRadio
@@ -390,8 +527,106 @@ const handleReEvaluate = async () => {
 				</FeatherRadio>
 				<div class="caption" data-test="engine-llm-caption">Coming soon</div>
 			</FeatherRadioGroup>
-		</div>
+			</div>
 
+			<!-- Correlation variables (Clustering only) -->
+			<div v-if="isClustering" class="section" data-test="variables-section">
+				<div class="title-row">
+					<div class="title">Correlation variables</div>
+					<button
+						type="button"
+						class="icon-btn help-icon"
+						:aria-expanded="showHelp"
+						aria-label="Show help for correlation variables"
+						data-test="variables-help"
+						@click="showHelp = !showHelp"
+					>
+						<FeatherIcon :icon="Icons.Help" />
+					</button>
+					<button
+						type="button"
+						class="icon-btn reset-icon"
+						aria-label="Reset correlation variables to defaults"
+						data-test="variables-reset"
+						@click="resetVariablesToDefaults"
+					>
+						<FeatherIcon :icon="Icons.Restore" />
+					</button>
+				</div>
+				<div
+					v-if="showHelp"
+					class="help-popover"
+					data-test="variables-help-popover"
+				>
+					<ul>
+						<li>
+							<strong>Alpha (α)</strong> — overall scaling of inter-alarm
+							distance. Higher α &rarr; more conservative clustering (fewer
+							clusters). <em>Default: {{ ENGINE_DEFAULTS.alpha }}</em>
+						</li>
+						<li>
+							<strong>Beta (β)</strong> — weight between time (β) and topology
+							(1−β), in <code>[0, 1]</code>. Higher β emphasises time proximity;
+							lower β emphasises topology. <em>Default: {{ ENGINE_DEFAULTS.beta }}</em>
+						</li>
+						<li>
+							<strong>Epsilon (ε)</strong> — DBScan radius. Higher ε clusters more
+							aggressively; lower ε produces smaller, tighter clusters.
+							<em>Default: {{ ENGINE_DEFAULTS.epsilon }}</em>
+						</li>
+						<template v-if="showHellingerVars">
+							<li data-test="help-hellinger-w">
+								<strong>Hellinger w</strong> — variance scaling coefficient used
+								by the Hellinger distance measure. Larger values flatten the
+								distribution comparison. <em>Default: {{ ENGINE_DEFAULTS.hellingerW }}</em>
+							</li>
+							<li data-test="help-hellinger-bias">
+								<strong>Hellinger bias</strong> — additive offset applied inside
+								the Hellinger distance. Tunes the baseline separation between
+								alarms. <em>Default: {{ ENGINE_DEFAULTS.hellingerBias }}</em>
+							</li>
+						</template>
+					</ul>
+				</div>
+				<div class="variables">
+					<FeatherInput
+						v-model="alpha"
+						type="number"
+						label="Alpha"
+						data-test="variable-alpha"
+					/>
+					<FeatherInput
+						v-model="beta"
+						type="number"
+						label="Beta"
+						data-test="variable-beta"
+					/>
+					<FeatherInput
+						v-model="epsilon"
+						type="number"
+						label="Epsilon"
+						data-test="variable-epsilon"
+					/>
+					<FeatherInput
+						v-if="showHellingerVars"
+						v-model="hellingerW"
+						type="number"
+						label="Hellinger w"
+						data-test="variable-hellinger-w"
+					/>
+					<FeatherInput
+						v-if="showHellingerVars"
+						v-model="hellingerBias"
+						type="number"
+						label="Hellinger bias"
+						data-test="variable-hellinger-bias"
+					/>
+				</div>
+			</div>
+			</FeatherTabPanel>
+
+			<!-- Tab 2 — LLM Root Cause Analysis -->
+			<FeatherTabPanel class="config-panel">
 		<div class="section" data-test="llm-section">
 			<div class="title-row">
 				<div class="title">LLM Root Cause Analysis</div>
@@ -407,14 +642,12 @@ const handleReEvaluate = async () => {
 				</button>
 			</div>
 			<div class="llm-help">
-				When a new situation is created, ALEC asks a large language model to
-				suggest up to 3 probable root causes and 3 possible resolutions based
-				on the clustered alarms. Suggestions appear on the situation detail
-				page. ALEC talks to any OpenAI-compatible API — the defaults below use
-				Anthropic's Claude API directly (<code>https://api.anthropic.com/v1/</code>,
-					model <code>claude-sonnet-4-6</code>). The
-				endpoint, model and API key are stored on the OpenNMS server and apply
-				to all users of this plugin.
+				ALEC can automatically or manually request root cause analysis and a
+				suggested resolution strategy from a large language model (LLM). It works
+				with any OpenAI-compatible, API-enabled LLM — commercial or locally
+				hosted — and does not endorse any particular model. The endpoint, model
+				and API key are stored on the OpenNMS server and apply to all users of
+				this plugin.
 			</div>
 			<div
 				v-if="showLLMKeyHelp"
@@ -422,151 +655,31 @@ const handleReEvaluate = async () => {
 				data-test="llm-key-help-popover"
 			>
 				<p class="help-intro">
-					ALEC works with any service that speaks the OpenAI-compatible
-					<code>/chat/completions</code> API. The two setups below are the ones
-					most people use: a hosted provider (Claude, the shipped default) or a
-					model running locally on your own hardware (LM Studio). The endpoint,
-					model and API key are stored on the OpenNMS server and apply to every
-					user of the plugin.
+					ALEC sends each new situation to the model you configure and shows the
+					suggested root causes and resolutions on the situation's
+					<em>AI Suggestions</em> tab.
 				</p>
-
-				<div class="help-scenario">
-					<strong>Option A — Claude via Anthropic (hosted, the default)</strong>
-					<p>
-						ALEC ships pointed at
-						<a
-							href="https://www.anthropic.com/api"
-							target="_blank"
-							rel="noopener noreferrer"
-							>Anthropic's Claude API</a
-						>. The <em>Reset to default</em> links next to Endpoint and Model
-						restore this exact configuration.
-					</p>
-					<ol>
-						<li>
-							Create an Anthropic account at
-							<a
-								href="https://console.anthropic.com/"
-								target="_blank"
-								rel="noopener noreferrer"
-								>console.anthropic.com</a
-							>, generate an API key (it starts with <code>sk-ant-</code>), and
-							add a payment method.
-						</li>
-						<li>
-							Leave <em>Endpoint</em> at
-							<code>https://api.anthropic.com/v1/</code> (ALEC appends
-							<code>/chat/completions</code>).
-						</li>
-						<li>
-							Leave <em>Model</em> at <code>claude-sonnet-4-6</code> — Anthropic's
-							native model id (dashes, no vendor prefix). The dotted,
-							<code>anthropic/claude-sonnet-4.6</code> form is an OpenRouter
-							spelling and is rejected by <code>api.anthropic.com</code>.
-						</li>
-						<li>
-							Paste the key below, click <em>Validate key</em>, then
-							<em>Save Changes</em>. The key is stored on the OpenNMS server and is
-							never returned to the browser. Using a hosted provider bills your
-							account per token — see <em>Cost</em> below.
-						</li>
-					</ol>
-					<p class="help-note">
-						Prefer a different provider? Set the Endpoint to its base URL and use
-						a matching key — an
-						<a
-							href="https://openrouter.ai/"
-							target="_blank"
-							rel="noopener noreferrer"
-							>OpenRouter</a
-						>
-						key (<code>sk-or-</code>) for <code>https://openrouter.ai/api/v1</code>
-						with a model like <code>anthropic/claude-sonnet-4.6</code>, or an
-						OpenAI key for <code>https://api.openai.com/v1</code> with
-						<code>gpt-4o</code>.
-					</p>
-				</div>
-
-				<hr class="help-divider" />
-
-				<div class="help-scenario">
-					<strong>Option B — LM Studio (local, free, private)</strong>
-					<p>
-						Running the model on your own hardware means no data leaves your
-						network and there are no provider charges.
-						<a
-							href="https://lmstudio.ai/"
-							target="_blank"
-							rel="noopener noreferrer"
-							>LM Studio</a
-						>,
-						<a
-							href="https://ollama.com/"
-							target="_blank"
-							rel="noopener noreferrer"
-							>Ollama</a
-						>
-						and vLLM all expose the same OpenAI-compatible API.
-					</p>
-					<ol>
-						<li>
-							In LM Studio, open the <em>Developer</em> tab, load a model that
-							supports <em>tool/function calling</em> (for example a recent
-							Llama, Qwen, or Gemma instruct model), and toggle the server to
-							<em>Running</em>.
-						</li>
-						<li>
-							Set <em>Endpoint</em> to the base URL the server reports — for LM
-							Studio that is <code>http://127.0.0.1:1234/v1</code>. The OpenNMS
-							server must be able to reach that host and port: if OpenNMS runs on
-							a different machine, use the model host's LAN address instead of
-							<code>127.0.0.1</code> and enable <em>Serve on Local Network</em>
-							in LM Studio.
-						</li>
-						<li>
-							Set <em>Model</em> to the server's model identifier (copy it from
-							the loaded-model list), for example
-							<code>google/gemma-4-e4b</code>.
-						</li>
-						<li>
-							Local servers ignore the API key but the field must be non-empty —
-							paste any placeholder such as <code>sk-local</code>. Click
-							<em>Validate key</em>, then <em>Save Changes</em>.
-						</li>
-					</ol>
-				</div>
-
-				<hr class="help-divider" />
-
-				<strong>Requirements &amp; troubleshooting</strong>
 				<ul>
 					<li>
-						<strong>Tool calling is required.</strong> ALEC forces the model to
-						answer by calling a single <code>report_suggestions</code> function.
-						A model without function-calling support fails validation with
-						<em>model did not call report_suggestions</em> — pick a different
-						model.
+						Works with any service that exposes an OpenAI-compatible
+						<code>/chat/completions</code> API — a hosted provider (OpenAI,
+						Anthropic, OpenRouter, …) or a local server (LM Studio, Ollama, …).
+						The Endpoint and Model <em>▾</em> menus list common choices.
 					</li>
 					<li>
-						<strong>Reasoning models need room.</strong> Models that "think"
-						before answering (Gemma, DeepSeek-R1, the o-series) spend output
-						tokens on reasoning first. ALEC requests a generous output budget,
-						but on a local server also make sure the model's
-						<em>context length</em> is large enough (a small context can cut the
-						model off before it emits the tool call). If validation passes but
-						situations report <em>model did not call report_suggestions</em>,
-						raise the context window or choose a less verbose model.
+						The model must support <em>tool/function calling</em>. Use
+						<em>Validate key</em> to confirm the endpoint, model and key work
+						before saving.
 					</li>
 					<li>
-						<strong>Cost.</strong> Hosted providers bill per token — a single
-						situation is typically a few hundred to a few thousand tokens. Local
-						models are free. Track 30-day usage in the panel below after you save.
+						The API key is stored on the OpenNMS server and never shown again.
+						Hosted providers bill per token; local models are free.
 					</li>
 				</ul>
 			</div>
 			<FeatherCheckbox
 				v-model="llmEnabled"
-				:disabled="llmNoKeyAvailable"
+				:disabled="llmCannotEnable"
 				class="checkbox"
 				data-test="llm-enabled"
 			>
@@ -579,62 +692,150 @@ const handleReEvaluate = async () => {
 				data-test="llm-auto-evaluate"
 			>
 				Automatically AI Evaluate new situations
-				<div class="caption-inline">
-					When off, new situations are not analyzed automatically — click
-					Re-evaluate on the AI Suggestions tab to trigger an analysis on
-					demand.
-				</div>
 			</FeatherCheckbox>
 			<div
-				v-if="llmNoKeyAvailable"
+				v-if="llmCannotEnable"
 				class="caption"
 				data-test="llm-no-key-hint"
 			>
-				Enter an API key to enable.
+				Enter an endpoint, model and API key to enable.
 			</div>
+
+			<!-- Endpoint: free-text + curated provider suggestions -->
 			<div class="llm-field-block">
 				<div class="llm-field-header">
 					<span class="llm-field-label">Endpoint (OpenAI-compatible base URL)</span>
+					<div class="llm-field-actions">
+						<button
+							type="button"
+							class="llm-prompt-reset"
+							:disabled="!canResetBaseUrl"
+							data-test="llm-base-url-reset"
+							@click="resetBaseUrlToDefault"
+						>
+							<FeatherIcon :icon="Icons.Restore" class="reset-inline-icon" />
+							Reset to default
+						</button>
+						<button
+							type="button"
+							class="llm-prompt-reset"
+							:disabled="!canSetBaseUrlDefault"
+							data-test="llm-base-url-set-default"
+							@click="setBaseUrlDefault"
+						>
+							<FeatherIcon :icon="Icons.MarkComplete" class="reset-inline-icon" />
+							Set as default
+						</button>
+					</div>
+				</div>
+				<div class="llm-combo">
+					<FeatherInput
+						v-model="llmBaseUrl"
+						label="Endpoint (OpenAI-compatible base URL)"
+						hideLabel
+						data-test="llm-base-url"
+						class="llm-combo-input"
+					/>
 					<button
 						type="button"
-						class="llm-prompt-reset"
-						:disabled="!llmBaseUrlIsCustom"
-						data-test="llm-base-url-reset"
-						@click="resetBaseUrlToDefault"
+						class="llm-combo-toggle"
+						:aria-expanded="showEndpointMenu"
+						aria-label="Show endpoint suggestions"
+						data-test="llm-base-url-suggest"
+						@click="showEndpointMenu = !showEndpointMenu"
 					>
-						<FeatherIcon :icon="Icons.Restore" class="reset-inline-icon" />
-						Reset to default
+						<FeatherIcon :icon="Icons.ExpandMore" />
 					</button>
+					<ul
+						v-if="showEndpointMenu"
+						class="llm-combo-menu"
+						data-test="llm-base-url-menu"
+					>
+						<li class="llm-combo-hint">Common providers — or type your own</li>
+						<li
+							v-for="p in endpointOptions"
+							:key="p.baseUrl"
+							class="llm-combo-item"
+							@click="pickEndpoint(p.baseUrl)"
+						>
+							<span class="llm-combo-item-main">{{ p.name }}</span>
+							<span class="llm-combo-item-sub">
+								<code>{{ p.baseUrl }}</code> · {{ p.keyHint }}
+							</span>
+						</li>
+					</ul>
 				</div>
-				<FeatherInput
-					v-model="llmBaseUrl"
-					label="Endpoint (OpenAI-compatible base URL)"
-					hideLabel
-					data-test="llm-base-url"
-					class="llm-text-input"
-				/>
 			</div>
+
+			<!-- Model: free-text + suggestions contextual to the endpoint -->
 			<div class="llm-field-block">
 				<div class="llm-field-header">
 					<span class="llm-field-label">Model</span>
+					<div class="llm-field-actions">
+						<button
+							type="button"
+							class="llm-prompt-reset"
+							:disabled="!canResetModel"
+							data-test="llm-model-reset"
+							@click="resetModelToDefault"
+						>
+							<FeatherIcon :icon="Icons.Restore" class="reset-inline-icon" />
+							Reset to default
+						</button>
+						<button
+							type="button"
+							class="llm-prompt-reset"
+							:disabled="!canSetModelDefault"
+							data-test="llm-model-set-default"
+							@click="setModelDefault"
+						>
+							<FeatherIcon :icon="Icons.MarkComplete" class="reset-inline-icon" />
+							Set as default
+						</button>
+					</div>
+				</div>
+				<div class="llm-combo">
+					<FeatherInput
+						v-model="llmModel"
+						label="Model"
+						hideLabel
+						data-test="llm-model"
+						class="llm-combo-input"
+					/>
 					<button
 						type="button"
-						class="llm-prompt-reset"
-						:disabled="!llmModelIsCustom"
-						data-test="llm-model-reset"
-						@click="resetModelToDefault"
+						class="llm-combo-toggle"
+						:aria-expanded="showModelMenu"
+						aria-label="Show model suggestions"
+						data-test="llm-model-suggest"
+						@click="showModelMenu = !showModelMenu"
 					>
-						<FeatherIcon :icon="Icons.Restore" class="reset-inline-icon" />
-						Reset to default
+						<FeatherIcon :icon="Icons.ExpandMore" />
 					</button>
+					<ul
+						v-if="showModelMenu"
+						class="llm-combo-menu"
+						data-test="llm-model-menu"
+					>
+						<template v-if="modelOptions.length">
+							<li class="llm-combo-hint">
+								Suggested for {{ matchedProvider?.name }} — or type your own
+							</li>
+							<li
+								v-for="m in modelOptions"
+								:key="m.id"
+								class="llm-combo-item"
+								@click="pickModel(m.id)"
+							>
+								<span class="llm-combo-item-main"><code>{{ m.id }}</code></span>
+							</li>
+						</template>
+						<li v-else class="llm-combo-hint">
+							No preset models for this endpoint — type your model id. For a
+							local server (LM Studio, Ollama) copy it from the server's loaded-model list.
+						</li>
+					</ul>
 				</div>
-				<FeatherInput
-					v-model="llmModel"
-					label="Model"
-					hideLabel
-					data-test="llm-model"
-					class="llm-text-input"
-				/>
 			</div>
 			<div class="llm-prompt-block" data-test="llm-prompt-block">
 				<div class="llm-prompt-header">
@@ -654,8 +855,7 @@ const handleReEvaluate = async () => {
 					Instructions sent to the model for every analysis. Customize it to add
 					site-specific context (your topology, naming conventions, escalation
 					policy, vendors in use). Leave it as the default, or clear it to fall
-					back to the default. The situation's alarms are appended automatically —
-					don't paste alarm data here.
+					back to the default.
 				</div>
 				<FeatherTextarea
 					v-model="llmSystemPrompt"
@@ -757,6 +957,10 @@ const handleReEvaluate = async () => {
 					>
 						{{ humanizeTokens(userStore.llmUsage.totalTokens) }} tokens
 					</span>
+					<!--
+						Cost estimate intentionally hidden for now — dollar-value
+						estimation is being reworked separately. Keep the markup so it
+						can be restored once the new cost model lands.
 					<span
 						class="usage-cost"
 						:title="userStore.llmUsage.pricingNote"
@@ -764,6 +968,8 @@ const handleReEvaluate = async () => {
 					>
 						({{ formatUsd(userStore.llmUsage.estimatedCostUsd) }})
 					</span>
+					-->
+
 					<button
 						type="button"
 						class="usage-toggle"
@@ -808,106 +1014,20 @@ const handleReEvaluate = async () => {
 						<dt>Cache hit</dt>
 						<dd>{{ (userStore.llmUsage.cacheHitRatio * 100).toFixed(0) }}%</dd>
 					</div>
+					<!--
+						Pricing note hidden alongside the dollar estimate above — see note
+						on the usage-cost span. Restore with the new cost model.
 					<div class="pricing-note">
 						{{ userStore.llmUsage.pricingNote }}
 					</div>
+					-->
+
 				</dl>
 			</div>
 		</div>
+			</FeatherTabPanel>
+		</FeatherTabContainer>
 
-		<div v-if="isClustering" class="section" data-test="variables-section">
-			<div class="title-row">
-				<div class="title">Correlation variables</div>
-				<button
-					type="button"
-					class="icon-btn help-icon"
-					:aria-expanded="showHelp"
-					aria-label="Show help for correlation variables"
-					data-test="variables-help"
-					@click="showHelp = !showHelp"
-				>
-					<FeatherIcon :icon="Icons.Help" />
-				</button>
-				<button
-					type="button"
-					class="icon-btn reset-icon"
-					aria-label="Reset correlation variables to defaults"
-					data-test="variables-reset"
-					@click="resetVariablesToDefaults"
-				>
-					<FeatherIcon :icon="Icons.Restore" />
-				</button>
-			</div>
-			<div
-				v-if="showHelp"
-				class="help-popover"
-				data-test="variables-help-popover"
-			>
-				<ul>
-					<li>
-						<strong>Alpha (α)</strong> — overall scaling of inter-alarm
-						distance. Higher α &rarr; more conservative clustering (fewer
-						clusters). <em>Default: {{ ENGINE_DEFAULTS.alpha }}</em>
-					</li>
-					<li>
-						<strong>Beta (β)</strong> — weight between time (β) and topology
-						(1−β), in <code>[0, 1]</code>. Higher β emphasises time proximity;
-						lower β emphasises topology. <em>Default: {{ ENGINE_DEFAULTS.beta }}</em>
-					</li>
-					<li>
-						<strong>Epsilon (ε)</strong> — DBScan radius. Higher ε clusters more
-						aggressively; lower ε produces smaller, tighter clusters.
-						<em>Default: {{ ENGINE_DEFAULTS.epsilon }}</em>
-					</li>
-					<template v-if="showHellingerVars">
-						<li data-test="help-hellinger-w">
-							<strong>Hellinger w</strong> — variance scaling coefficient used
-							by the Hellinger distance measure. Larger values flatten the
-							distribution comparison. <em>Default: {{ ENGINE_DEFAULTS.hellingerW }}</em>
-						</li>
-						<li data-test="help-hellinger-bias">
-							<strong>Hellinger bias</strong> — additive offset applied inside
-							the Hellinger distance. Tunes the baseline separation between
-							alarms. <em>Default: {{ ENGINE_DEFAULTS.hellingerBias }}</em>
-						</li>
-					</template>
-				</ul>
-			</div>
-			<div class="variables">
-				<FeatherInput
-					v-model="alpha"
-					type="number"
-					label="Alpha"
-					data-test="variable-alpha"
-				/>
-				<FeatherInput
-					v-model="beta"
-					type="number"
-					label="Beta"
-					data-test="variable-beta"
-				/>
-				<FeatherInput
-					v-model="epsilon"
-					type="number"
-					label="Epsilon"
-					data-test="variable-epsilon"
-				/>
-				<FeatherInput
-					v-if="showHellingerVars"
-					v-model="hellingerW"
-					type="number"
-					label="Hellinger w"
-					data-test="variable-hellinger-w"
-				/>
-				<FeatherInput
-					v-if="showHellingerVars"
-					v-model="hellingerBias"
-					type="number"
-					label="Hellinger bias"
-					data-test="variable-hellinger-bias"
-				/>
-			</div>
-		</div>
 		<div class="action-row">
 			<FeatherButton
 				secondary
@@ -957,10 +1077,12 @@ const handleReEvaluate = async () => {
 	padding-top: 20px;
 	flex-direction: column;
 	border: 1px solid variables.$border-grey;
-	background-color: #ffffff;
+	background-color: var(--feather-surface);
 	min-height: 650px;
 	padding: 20px;
-	width: 700px;
+	// Wider box so the form uses the horizontal space and the user scrolls less.
+	// Responsive: capped at 1100px but shrinks on narrow viewports.
+	width: min(1100px, 94vw);
 	margin: 20px auto;
 }
 
@@ -990,20 +1112,11 @@ const handleReEvaluate = async () => {
 	margin-bottom: 8px !important;
 }
 
-.caption-inline {
-	display: block;
-	font-size: 12px;
-	color: #666;
-	font-weight: 400;
-	margin-top: 2px;
-	max-width: 540px;
-}
-
 .caption {
 	margin-left: var(--feather-spacing-xl);
 	margin-top: -8px;
 	font-size: 12px;
-	color: #666;
+	color: var(--feather-secondary-text-on-surface);
 	font-style: italic;
 }
 
@@ -1020,18 +1133,18 @@ const handleReEvaluate = async () => {
 	background: transparent;
 	border: none;
 	padding: 2px;
-	color: #666;
+	color: var(--feather-secondary-text-on-surface);
 	font-size: 18px;
 	cursor: pointer;
 	border-radius: 50%;
 
 	&:hover {
-		color: #222;
-		background: #f0f0f0;
+		color: var(--feather-primary-text-on-surface);
+		background: var(--feather-shade-3);
 	}
 
 	&:focus-visible {
-		outline: 2px solid #2086a4;
+		outline: 2px solid var(--feather-secondary);
 		outline-offset: 1px;
 	}
 }
@@ -1043,7 +1156,7 @@ const handleReEvaluate = async () => {
 .help-popover {
 	margin-top: 8px;
 	padding: 10px 14px;
-	background: #f8fafc;
+	background: var(--feather-elevation-background-1);
 	border: 1px solid variables.$border-grey;
 	border-radius: 4px;
 	font-size: 13px;
@@ -1060,14 +1173,14 @@ const handleReEvaluate = async () => {
 	}
 
 	a {
-		color: #2086a4;
+		color: var(--feather-secondary);
 		text-decoration: underline;
 	}
 
 	.pricing-hint {
 		margin: 10px 0 0;
 		font-size: 12px;
-		color: #666;
+		color: var(--feather-secondary-text-on-surface);
 		font-style: italic;
 	}
 
@@ -1075,35 +1188,16 @@ const handleReEvaluate = async () => {
 		margin: 0 0 12px;
 	}
 
-	.help-scenario {
-		margin: 8px 0;
-
-		> strong {
-			display: block;
-			margin-bottom: 4px;
-		}
-
-		p {
-			margin: 4px 0;
-		}
-	}
-
-	.help-note {
-		font-size: 12px;
-		color: #555;
-		font-style: italic;
-	}
-
 	code {
 		font-family: monospace;
 		font-size: 12px;
-		background: #eef2f6;
+		background: var(--feather-elevation-background-2);
 		padding: 0 4px;
 		border-radius: 2px;
 	}
 
 	em {
-		color: #555;
+		color: var(--feather-secondary-text-on-surface);
 	}
 }
 
@@ -1128,7 +1222,7 @@ const handleReEvaluate = async () => {
 
 .llm-help {
 	font-size: 13px;
-	color: #555;
+	color: var(--feather-secondary-text-on-surface);
 	line-height: 1.45;
 	margin: 8px 0 12px;
 }
@@ -1147,12 +1241,12 @@ const handleReEvaluate = async () => {
 
 .llm-text-input {
 	margin-top: 8px;
-	max-width: 480px;
+	max-width: 720px;
 }
 
 .llm-field-block {
 	margin-top: 12px;
-	max-width: 480px;
+	max-width: 720px;
 }
 
 .llm-field-header {
@@ -1165,18 +1259,109 @@ const handleReEvaluate = async () => {
 .llm-field-label {
 	font-size: 14px;
 	font-weight: 600;
-	color: #222;
+	color: var(--feather-primary-text-on-surface);
 }
 
-.help-divider {
+.llm-field-actions {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	flex-wrap: wrap;
+}
+
+// Editable combobox: free-text input + a suggestions dropdown toggle.
+.llm-combo {
+	position: relative;
+	max-width: 720px;
+	margin-top: 8px;
+}
+
+.llm-combo-input {
+	width: 100%;
+
+	:deep(input) {
+		padding-right: 36px; // room for the toggle
+	}
+}
+
+.llm-combo-toggle {
+	position: absolute;
+	top: 0;
+	right: 0;
+	height: 38px;
+	width: 34px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	background: transparent;
 	border: none;
-	border-top: 1px solid variables.$border-grey;
-	margin: 12px 0;
+	cursor: pointer;
+	color: var(--feather-secondary-text-on-surface);
+	font-size: 20px;
+
+	&:hover {
+		color: var(--feather-primary-text-on-surface);
+	}
+}
+
+.llm-combo-menu {
+	position: absolute;
+	z-index: 20;
+	top: 42px;
+	left: 0;
+	right: 0;
+	margin: 0;
+	padding: 4px 0;
+	list-style: none;
+	max-height: 320px;
+	overflow-y: auto;
+	background: var(--feather-surface);
+	border: 1px solid var(--feather-border-on-surface);
+	border-radius: 4px;
+	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+}
+
+.llm-combo-hint {
+	padding: 6px 12px;
+	font-size: 11px;
+	font-style: italic;
+	color: var(--feather-secondary-text-on-surface);
+}
+
+.llm-combo-item {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding: 7px 12px;
+	cursor: pointer;
+
+	&:hover {
+		background: var(--feather-shade-4);
+	}
+
+	code {
+		font-family: monospace;
+		font-size: 12px;
+	}
+}
+
+.llm-combo-item-main {
+	font-size: 13px;
+	color: var(--feather-primary-text-on-surface);
+}
+
+.llm-combo-item-sub {
+	font-size: 11px;
+	color: var(--feather-secondary-text-on-surface);
+}
+
+.config-panel {
+	padding-top: 8px;
 }
 
 .llm-prompt-block {
 	margin-top: 16px;
-	max-width: 600px;
+	max-width: 860px;
 }
 
 .llm-prompt-header {
@@ -1189,7 +1374,7 @@ const handleReEvaluate = async () => {
 .llm-prompt-label {
 	font-size: 14px;
 	font-weight: 600;
-	color: #222;
+	color: var(--feather-primary-text-on-surface);
 }
 
 .llm-prompt-reset {
@@ -1198,7 +1383,7 @@ const handleReEvaluate = async () => {
 	gap: 4px;
 	background: none;
 	border: none;
-	color: #2086a4;
+	color: var(--feather-secondary);
 	font-size: 12px;
 	cursor: pointer;
 	padding: 0;
@@ -1212,14 +1397,14 @@ const handleReEvaluate = async () => {
 	}
 
 	&:disabled {
-		color: #aaa;
+		color: var(--feather-disabled-text-on-surface);
 		cursor: default;
 	}
 }
 
 .llm-prompt-help {
 	font-size: 12px;
-	color: #555;
+	color: var(--feather-secondary-text-on-surface);
 	line-height: 1.4;
 	margin: 4px 0 8px;
 }
@@ -1236,12 +1421,12 @@ const handleReEvaluate = async () => {
 
 .llm-key-match-hint {
 	font-size: 12px;
-	color: #555;
+	color: var(--feather-secondary-text-on-surface);
 	line-height: 1.4;
 	margin: 4px 0 8px;
 
 	code {
-		background: #eef;
+		background: var(--feather-elevation-background-2);
 		padding: 0 3px;
 		border-radius: 3px;
 	}
@@ -1266,16 +1451,16 @@ const handleReEvaluate = async () => {
 	}
 
 	&.is-ok {
-		color: #166534; // green-800
+		color: var(--feather-success); // green-800
 		.result-icon {
-			color: #16a34a; // green-600
+			color: var(--feather-success); // green-600
 		}
 	}
 
 	&.is-error {
-		color: #b91c1c; // red-700
+		color: var(--feather-error); // red-700
 		.result-icon {
-			color: #dc2626; // red-600
+			color: var(--feather-error); // red-600
 		}
 	}
 }
@@ -1286,18 +1471,18 @@ const handleReEvaluate = async () => {
 	gap: 8px;
 	margin-top: 8px;
 	font-size: 13px;
-	color: #166534; // green-800
+	color: var(--feather-success); // green-800
 
 	.saved-icon {
 		font-size: 18px;
-		color: #16a34a; // green-600
+		color: var(--feather-success); // green-600
 	}
 }
 
 .llm-usage {
 	margin-top: 14px;
 	padding-top: 12px;
-	border-top: 1px dashed #ddd;
+	border-top: 1px dashed var(--feather-border-on-surface);
 }
 
 .usage-summary {
@@ -1309,24 +1494,24 @@ const handleReEvaluate = async () => {
 }
 
 .usage-label {
-	color: #555;
+	color: var(--feather-secondary-text-on-surface);
 	font-weight: 600;
 }
 
 .usage-tokens {
-	color: #222;
+	color: var(--feather-primary-text-on-surface);
 	font-weight: 700;
 }
 
 .usage-cost {
-	color: #555;
+	color: var(--feather-secondary-text-on-surface);
 }
 
 .usage-toggle {
 	margin-left: auto;
 	background: none;
 	border: none;
-	color: #2086a4;
+	color: var(--feather-secondary);
 	font-size: 12px;
 	cursor: pointer;
 	padding: 0;
@@ -1349,7 +1534,7 @@ const handleReEvaluate = async () => {
 	}
 
 	dt {
-		color: #555;
+		color: var(--feather-secondary-text-on-surface);
 		margin: 0;
 	}
 
@@ -1360,7 +1545,7 @@ const handleReEvaluate = async () => {
 
 	.muted {
 		font-weight: 400;
-		color: #888;
+		color: var(--feather-disabled-text-on-surface);
 		margin-left: 4px;
 	}
 
@@ -1368,7 +1553,7 @@ const handleReEvaluate = async () => {
 		grid-column: 1 / -1;
 		display: block;
 		font-size: 11px;
-		color: #888;
+		color: var(--feather-disabled-text-on-surface);
 		font-style: italic;
 		margin-top: 4px;
 	}

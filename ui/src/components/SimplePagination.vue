@@ -59,15 +59,15 @@ const onGotoPage = (nextPage: number) => {
 
 .nav {
 	font-size: 28px;
-	color: #0659a6;
+	color: var(--feather-secondary);
 	cursor: pointer;
 	&:hover {
-		border: 1px solid #dfdfdf;
+		border: 1px solid var(--feather-border-on-surface);
 		border-radius: 25px;
-		background-color: #dfdfdf;
+		background-color: var(--feather-border-on-surface);
 	}
 	&.disable {
-		color: #c6c6c6;
+		color: var(--feather-disabled-text-on-surface);
 	}
 }
 </style>

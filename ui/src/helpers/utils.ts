@@ -1,4 +1,5 @@
 import { format } from 'date-fns'
+import DOMPurify from 'dompurify'
 import CONST from '@/helpers/constants'
 import { TAlarm, TSituation } from '@/types/TSituation'
 import { isToday, isYesterday, isThisWeek } from 'date-fns'
@@ -30,6 +31,16 @@ const decodeHtmlEntities = (text: string): string =>
 		.replace(/&amp;/g, '&')
 		.replace(/&quot;/g, '"')
 		.replace(/&#39;/g, "'")
+
+// Sanitize an HTML string before handing it to v-html. Situation and alarm
+// descriptions originate from OpenNMS (and ultimately from event/alarm data that
+// can carry attacker-influenced content), so once decodeHtmlEntities turns the
+// encoded markup back into real tags we MUST strip anything dangerous — script
+// tags, event-handler attributes, javascript: URLs, etc. — before rendering.
+// DOMPurify keeps a safe subset of formatting markup (p, br, lists, links, ...)
+// and removes the rest. Always call this on the decoded string, never before
+// decoding (so that entity-encoded payloads like &lt;script&gt; are caught too).
+const sanitizeHtml = (html: string): string => DOMPurify.sanitize(html)
 
 const truncateText = (text: string, length: number) => {
 	const stripped = decodeHtmlEntities(text)
@@ -64,4 +75,10 @@ const filterListByDate = (
 	}
 	return filtered
 }
-export { formatDate, truncateText, decodeHtmlEntities, filterListByDate }
+export {
+	formatDate,
+	truncateText,
+	decodeHtmlEntities,
+	sanitizeHtml,
+	filterListByDate
+}

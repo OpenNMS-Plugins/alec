@@ -11,7 +11,7 @@ import MemoBox from '@/components/MemoBox.vue'
 
 import { FeatherButton } from '@featherds/button'
 import { computed, ref, watch } from 'vue'
-import { decodeHtmlEntities, formatDate } from '@/helpers/utils'
+import { decodeHtmlEntities, sanitizeHtml, formatDate } from '@/helpers/utils'
 import CONST from '@/helpers/constants'
 import { groupBy, size } from 'lodash'
 import AlarmActionBtns from '@/components/AlarmActionBtns.vue'
@@ -37,9 +37,11 @@ watch(props, () => {
 // OpenNMS returns the situation description either as raw HTML or as
 // entity-encoded HTML; in the latter case the browser shows literal "<p>"
 // text instead of paragraphs when we drop it into v-html. Decoding entities
-// first lets v-html render the markup as intended.
+// first lets v-html render the markup as intended. We then sanitize the result
+// (see sanitizeHtml) — v-html bypasses Vue's escaping, and the description is
+// server-supplied, so we must strip scripts/handlers before rendering.
 const renderedDescription = computed(() =>
-	decodeHtmlEntities(situationInfo.value?.description || '')
+	sanitizeHtml(decodeHtmlEntities(situationInfo.value?.description || ''))
 )
 
 const handleFeedbackSituation = async (action: string) => {
@@ -151,7 +153,7 @@ const handleFeedbackSituation = async (action: string) => {
 	padding: 15px;
 	border: 1px solid $border-grey;
 	margin-bottom: 20px;
-	background-color: #ffffff;
+	background-color: var(--feather-surface);
 	margin-top: 10px;
 	display: flex;
 	flex-direction: row;
@@ -209,16 +211,16 @@ const handleFeedbackSituation = async (action: string) => {
 .accept {
 	font-size: 16px;
 	margin-right: 3px;
-	color: green !important;
+	color: var(--feather-success) !important;
 }
 .reject {
 	font-size: 16px;
-	color: red !important;
+	color: var(--feather-error) !important;
 }
 .situation-detail {
 	display: flex;
 	flex-direction: row;
-	background-color: #ffffff;
+	background-color: var(--feather-surface);
 	padding: 15px;
 	border: 1px solid $border-grey;
 	margin-bottom: 20px;
@@ -235,15 +237,15 @@ const handleFeedbackSituation = async (action: string) => {
 	}
 }
 .clicked {
-	border: 2px solid #4b5ad6;
+	border: 2px solid var(--feather-secondary);
 }
 
 .accepted {
-	background-color: green !important;
+	background-color: var(--feather-success) !important;
 	color: #ffffff !important;
 }
 .rejected {
-	background-color: red !important;
+	background-color: var(--feather-error) !important;
 	margin-right: 3px;
 
 	color: #ffffff !important;

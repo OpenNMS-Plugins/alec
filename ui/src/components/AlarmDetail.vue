@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import SeverityStatus from '@/elements/SeverityStatus.vue'
-import { formatDate } from '@/helpers/utils'
+import { formatDate, sanitizeHtml } from '@/helpers/utils'
 import { TAlarm } from '@/types/TSituation'
 import AlarmActionBtns from '@/components/AlarmActionBtns.vue'
 import { FeatherCheckbox } from '@featherds/checkbox'
@@ -75,7 +75,10 @@ const actionClicked = async (id: number) => {
 				<strong> Duration: </strong>
 				{{ formatDistanceStrict(nowDate, new Date(alarm.firstEventTime)) }}
 			</div>
-			<div class="description" v-html="alarm.description"></div>
+			<div
+				class="description"
+				v-html="sanitizeHtml(alarm.description || '')"
+			></div>
 			<div>
 				<strong>First Event</strong>
 				- {{ formatDate(alarm.firstEventTime) }}
@@ -153,7 +156,7 @@ const actionClicked = async (id: number) => {
 
 .ack {
 	font-size: 27px;
-	color: green;
+	color: var(--feather-success);
 	margin-left: 10px;
 }
 </style>

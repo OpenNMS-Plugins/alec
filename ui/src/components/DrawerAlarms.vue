@@ -125,7 +125,7 @@ const filterList = (alarmsFiltered: TAlarm[]) => {
 
 .add-alarms-btn {
 	height: 44px !important;
-	background-color: #46ae46 !important;
+	background-color: var(--feather-success) !important;
 	color: white !important;
 }
 </style>
