@@ -31,13 +31,15 @@ Open the configuration page to set up the feature:
 
 The configuration page exposes the following settings.
 
-LLM Enabled Root Cause Analysis:: Turns the feature on or off. An API key must be stored before the feature can be enabled.
+LLM Enabled Root Cause Analysis:: Turns the feature on or off. ALEC ships with nothing pre-configured, so an endpoint, a model and a stored API key must all be set before the feature can be enabled.
 
 Automatically AI Evaluate new situations:: When enabled (the default), every new situation is analyzed automatically. When disabled, situations are not analyzed until you click *Re-evaluate* on the situation's *AI Suggestions* tab — useful for controlling cost or analyzing on demand only.
 
-Endpoint:: The OpenAI-compatible base URL of your provider. ALEC appends `/chat/completions` to this value. A *Reset to default* control restores the shipped default, `https://api.anthropic.com/v1/`.
+Endpoint:: The OpenAI-compatible base URL of your provider. ALEC appends `/chat/completions` to this value. ALEC ships with no default, so this is blank until you configure it. The field is free-text (type any URL — required for locally hosted servers) and also offers a *▾* menu of common providers.
 
-Model:: The model identifier to use, as named by your provider. A *Reset to default* control restores the shipped default, `claude-sonnet-4-6`. Use the provider's native spelling of the model id: Anthropic uses `claude-sonnet-4-6` (dashes, no vendor prefix), while OpenRouter would name the same model `anthropic/claude-sonnet-4.6`.
+Model:: The model identifier to use, as named by your provider. Free-text, with a *▾* menu that suggests models appropriate to the chosen endpoint (listed without price/capability labels). Use the provider's native spelling of the model id: Anthropic uses `claude-sonnet-4-6` (dashes, no vendor prefix), while OpenRouter names the same model `anthropic/claude-sonnet-4.6`.
+
+Set as default / Reset to default:: Next to the Endpoint and Model fields, *Set as default* records the current value as that field's default, and *Reset to default* restores it. They let you pin your site's preferred endpoint/model after first configuring them; *Reset to default* stays disabled until a default has been recorded.
 
 System prompt:: The instructions sent to the model for every analysis. Customize it to add site-specific context such as your topology, naming conventions, escalation policy, or the vendors you use. A *Reset to default* control restores the built-in prompt; clearing the field also falls back to the default. The situation's alarms are appended automatically — do not paste alarm data into this field.
 
@@ -47,8 +49,8 @@ Use the *Validate key* button to confirm — without saving — that the endpoin
 
 == Choose a provider
 
-The shipped default points ALEC at https://www.anthropic.com/api[Anthropic's Claude API] (`https://api.anthropic.com/v1/`, model `claude-sonnet-4-6`).
-Create a key at https://console.anthropic.com/[console.anthropic.com] (it starts with `sk-ant-`) and add a payment method.
+ALEC ships with no provider selected; pick one on the configuration page (the Endpoint/Model *▾* menus offer curated suggestions).
+A good hosted choice is https://www.anthropic.com/api[Anthropic's Claude API] (`https://api.anthropic.com/v1/`, model `claude-sonnet-4-6`): create a key at https://console.anthropic.com/[console.anthropic.com] (it starts with `sk-ant-`) and add a payment method.
 You can point ALEC at any other OpenAI-compatible provider instead — for example https://openrouter.ai/[OpenRouter] (one key, many models) at `https://openrouter.ai/api/v1` with a model like `anthropic/claude-sonnet-4.6`, or OpenAI at `https://api.openai.com/v1` with `gpt-4o`.
 
 Make sure the API key matches the endpoint's provider — for example, an Anthropic key (`sk-ant-…`) for `api.anthropic.com`, an OpenRouter key (`sk-or-…`) for `openrouter.ai`, or an OpenAI key for `api.openai.com`.
