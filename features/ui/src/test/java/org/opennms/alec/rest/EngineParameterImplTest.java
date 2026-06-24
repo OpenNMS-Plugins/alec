@@ -40,7 +40,7 @@ public class EngineParameterImplTest {
         String json = objectMapper.writeValueAsString(parameter);
         LOG.info("Serializing a plain String: {}", json);
 
-        assertThat(json, equalTo("{\"engineName\":\"dbscan\",\"distanceMeasureName\":\"test\",\"alpha\":1.0,\"beta\":2.0,\"epsilon\":3.0,\"hellingerW\":null,\"hellingerBias\":null,\"remoteUri\":null,\"token\":null,\"remote\":false}"));
+        assertThat(json, equalTo("{\"engineName\":\"dbscan\",\"distanceMeasureName\":\"test\",\"alpha\":1.0,\"beta\":2.0,\"epsilon\":3.0,\"hellingerW\":null,\"hellingerBias\":null,\"remoteUri\":null,\"token\":null,\"remote\":false,\"clusterFrequencyMs\":null,\"clusterPrompt\":null}"));
     }
 
     @Test

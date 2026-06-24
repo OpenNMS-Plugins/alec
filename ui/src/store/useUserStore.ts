@@ -63,7 +63,16 @@ export const useUserStore = defineStore('userStore', {
 			engine: string,
 			isHellinger: boolean,
 			overrides?: Partial<
-				Pick<TEngine, 'alpha' | 'beta' | 'epsilon' | 'hellingerW' | 'hellingerBias'>
+				Pick<
+					TEngine,
+					| 'alpha'
+					| 'beta'
+					| 'epsilon'
+					| 'hellingerW'
+					| 'hellingerBias'
+					| 'clusterFrequencyMs'
+					| 'clusterPrompt'
+				>
 			>
 		) {
 			const engineData: TEngine = {

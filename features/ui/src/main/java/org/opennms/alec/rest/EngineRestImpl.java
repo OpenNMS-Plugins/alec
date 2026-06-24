@@ -79,6 +79,14 @@ public class EngineRestImpl implements EngineRest {
         LOG.debug("Set engine configuration: {}", engineParameter);
         try {
             String engineName = engineParameter.getEngineName();
+            // LLM-based clustering: handled separately because its EngineFactory
+            // ships in the engine/llm bundle (ALEC-301 phase 3b). Until that bundle
+            // is installed there is no "llm" factory — we still persist the chosen
+            // clustering frequency/prompt so the settings are ready, and activate
+            // the engine if/when the factory becomes available.
+            if ("llm".equals(engineName)) {
+                return configureAndStoreLlm(engineParameter, driver);
+            }
             Optional<EngineFactory> factory = engineFactories.stream()
                     .filter(engineFactory -> engineName.equals(engineFactory.getName()))
                     .findFirst();
@@ -119,6 +127,33 @@ public class EngineRestImpl implements EngineRest {
                 objectMapper.writeValueAsString(engineParameter),
                 ALECRestUtils.ALEC_CONFIG);
         return Response.ok(future.join()).build();
+    }
+
+    private Response configureAndStoreLlm(EngineParameter engineParameter, Driver driver) {
+        // Activate the LLM clustering engine if its factory is present (3b);
+        // otherwise just persist the settings so they're applied once installed.
+        Optional<EngineFactory> llmFactory = engineFactories.stream()
+                .filter(f -> "llm".equals(f.getName()))
+                .findFirst();
+        if (llmFactory.isPresent()) {
+            driver.setEngineFactory(llmFactory.get().getEngineFactory());
+            Response response = driverInit(driver);
+            if (response != null) {
+                return response;
+            }
+        } else {
+            LOG.info("LLM clustering selected but the engine/llm bundle is not installed yet; "
+                    + "persisting settings — the engine will activate when the bundle is present.");
+        }
+        try {
+            return storeEngineParameter(EngineParameterImpl.newBuilder()
+                    .engineName("llm")
+                    .clusterFrequencyMs(engineParameter.getClusterFrequencyMs())
+                    .clusterPrompt(engineParameter.getClusterPrompt())
+                    .build());
+        } catch (JsonProcessingException e) {
+            return ALECRestUtils.somethingWentWrong(e);
+        }
     }
 
     private Response configureAndStoreCluster(Driver driver, ClusterEngineFactory clusterEngineFactory) {

@@ -13,6 +13,10 @@ export type TEngine = {
 	epsilon: number
 	hellingerW?: number | null
 	hellingerBias?: number | null
+	// LLM-based clustering engine ("llm"): how often to re-cluster, and the
+	// operator-editable clustering prompt.
+	clusterFrequencyMs?: number | null
+	clusterPrompt?: string | null
 }
 
 // Server-returned shape of the LLM integration config (GET /alec/llm/configuration).

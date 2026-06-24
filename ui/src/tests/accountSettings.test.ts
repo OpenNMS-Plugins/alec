@@ -70,14 +70,59 @@ test('Deep Learning option is not rendered', () => {
 	expect(wrapper.html()).not.toContain('Deep Learning')
 })
 
-test('LLM Based option is rendered, disabled, with "Coming soon" caption', () => {
-	const { wrapper } = buildWrapper()
+test('LLM Based engine is selectable and gated on a valid LLM setup', async () => {
+	const { wrapper, store } = buildWrapper()
 	const llm = wrapper.find('[data-test="engine-llm"]')
-	const caption = wrapper.find('[data-test="engine-llm-caption"]')
 	expect(llm.exists()).toBe(true)
 	expect(llm.text()).toContain('LLM Based')
-	expect(caption.exists()).toBe(true)
-	expect(caption.text()).toBe('Coming soon')
+
+	// Select it with no LLM configured → guard shows, no clustering config.
+	wrapper.vm.engineName = CONST.ENGINE_LLM
+	await wrapper.vm.$nextTick()
+	expect(wrapper.find('[data-test="llm-cluster-no-setup"]').exists()).toBe(true)
+	expect(wrapper.find('[data-test="llm-cluster-frequency"]').exists()).toBe(false)
+	// Hellinger correlation variables are not shown for the LLM engine.
+	expect(wrapper.find('[data-test="variables-section"]').exists()).toBe(false)
+
+	// With a valid LLM setup → frequency + clustering prompt appear, guard gone.
+	store.llmConfig = {
+		baseUrl: 'https://api.anthropic.com/v1/',
+		model: 'claude-sonnet-4-6',
+		apiKeyPresent: true
+	} as any
+	await wrapper.vm.$nextTick()
+	expect(wrapper.find('[data-test="llm-cluster-no-setup"]').exists()).toBe(false)
+	expect(wrapper.find('[data-test="llm-cluster-frequency"]').exists()).toBe(true)
+	expect(wrapper.find('[data-test="llm-cluster-prompt"]').exists()).toBe(true)
+})
+
+test('Save is blocked for LLM Based engine without a valid LLM setup', async () => {
+	const { wrapper, store } = buildWrapper()
+	wrapper.vm.engineName = CONST.ENGINE_LLM
+	await wrapper.vm.$nextTick()
+	await wrapper.find('[data-test="save-btn"]').trigger('click')
+	await flushPromises()
+	// Neither engine nor LLM config is persisted — the user is told to set up LLM.
+	expect(store.setEngineInfo).not.toHaveBeenCalled()
+})
+
+test('Save sends clustering frequency + prompt for the LLM engine', async () => {
+	const { wrapper, store } = buildWrapper()
+	store.llmConfig = {
+		baseUrl: 'https://api.anthropic.com/v1/',
+		model: 'claude-sonnet-4-6',
+		apiKeyPresent: true
+	} as any
+	wrapper.vm.engineName = CONST.ENGINE_LLM
+	wrapper.vm.clusterFrequencyOption = { label: 'Every 15 minutes', value: 900000 }
+	await wrapper.vm.$nextTick()
+	await wrapper.find('[data-test="save-btn"]').trigger('click')
+	await flushPromises()
+
+	const args = (store.setEngineInfo as any).mock.calls[0]
+	expect(args[0]).toBe(CONST.ENGINE_LLM)
+	expect(args[2].clusterFrequencyMs).toBe(900000)
+	expect(typeof args[2].clusterPrompt).toBe('string')
 })
 
 test('Hellinger checkbox defaults to checked on a fresh system (no saved config)', () => {

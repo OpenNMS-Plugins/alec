@@ -25,6 +25,10 @@ public class EngineParameterImpl implements EngineParameter {
     private final String remoteUri;
     private final String token;
     private final boolean remote;
+    // LLM-based clustering (engineName "llm"): how often to ask the LLM to
+    // re-cluster, and the operator-editable clustering prompt. Null when unset.
+    private final Integer clusterFrequencyMs;
+    private final String clusterPrompt;
 
     private EngineParameterImpl(Builder builder) {
         alpha = builder.alpha;
@@ -33,6 +37,8 @@ public class EngineParameterImpl implements EngineParameter {
         hellingerW = builder.hellingerW;
         hellingerBias = builder.hellingerBias;
         distanceMeasureName = builder.distanceMeasureName;
+        clusterFrequencyMs = builder.clusterFrequencyMs;
+        clusterPrompt = builder.clusterPrompt;
         engineName = builder.engineName;
         remoteUri = builder.remoteUri;
         token = builder.token;
@@ -55,6 +61,8 @@ public class EngineParameterImpl implements EngineParameter {
         builder.remoteUri = copy.getRemoteUri();
         builder.token = copy.getToken();
         builder.remote = copy.isRemote();
+        builder.clusterFrequencyMs = copy.getClusterFrequencyMs();
+        builder.clusterPrompt = copy.getClusterPrompt();
         return builder;
     }
 
@@ -154,6 +162,16 @@ public class EngineParameterImpl implements EngineParameter {
         return remote;
     }
 
+    @Override
+    public Integer getClusterFrequencyMs() {
+        return clusterFrequencyMs;
+    }
+
+    @Override
+    public String getClusterPrompt() {
+        return clusterPrompt;
+    }
+
     /**
      * The {@link JsonIgnoreProperties} is intentional: persisted JSON in the
      * KV store may contain fields added by future versions (e.g. ALEC-297's
@@ -173,6 +191,8 @@ public class EngineParameterImpl implements EngineParameter {
         private String remoteUri;
         private String token;
         private boolean remote;
+        private Integer clusterFrequencyMs;
+        private String clusterPrompt;
 
         private Builder() {
         }
@@ -228,6 +248,16 @@ public class EngineParameterImpl implements EngineParameter {
 
         public Builder remote(boolean val) {
             remote = val;
+            return this;
+        }
+
+        public Builder clusterFrequencyMs(Integer val) {
+            clusterFrequencyMs = val;
+            return this;
+        }
+
+        public Builder clusterPrompt(String val) {
+            clusterPrompt = val;
             return this;
         }
 
