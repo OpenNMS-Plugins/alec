@@ -37,6 +37,9 @@ export type TLLMConfigStatus = {
 	// hard-coding the (long) prompt text in the frontend.
 	systemPrompt: string
 	defaultSystemPrompt: string
+	// Shared "LLM Setup" token budgets (0 = unlimited).
+	dailyTokenLimit: number
+	monthlyTokenLimit: number
 	apiKeyPresent: boolean
 }
 
@@ -55,6 +58,9 @@ export type TLLMConfigRequest = {
 	defaultModel?: string
 	// Custom system prompt. Blank falls back to the server default.
 	systemPrompt?: string
+	// Shared "LLM Setup" token budgets (0 = unlimited).
+	dailyTokenLimit?: number
+	monthlyTokenLimit?: number
 	apiKey?: string
 	clearApiKey?: boolean
 }

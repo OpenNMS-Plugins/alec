@@ -43,7 +43,8 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
  * persisted key; it is not persisted itself.
  */
 @JsonDeserialize(builder = LlmConfigImpl.Builder.class)
-@JsonPropertyOrder({"enabled", "autoEvaluate", "baseUrl", "model", "systemPrompt", "apiKey", "clearApiKey"})
+@JsonPropertyOrder({"enabled", "autoEvaluate", "baseUrl", "model", "systemPrompt",
+        "dailyTokenLimit", "monthlyTokenLimit", "apiKey", "clearApiKey"})
 public interface LlmConfig {
     boolean isEnabled();
 
@@ -91,6 +92,20 @@ public interface LlmConfig {
      * API key, this is not a secret, so it is echoed back in GET responses.
      */
     String getSystemPrompt();
+
+    /**
+     * Maximum LLM tokens ALEC may consume per UTC day across all LLM features
+     * (root cause analysis and, later, LLM-based clustering). 0 means no limit.
+     * Part of the shared "LLM Setup". When the day's recorded usage reaches this
+     * cap, ALEC stops issuing LLM requests until the next day.
+     */
+    long getDailyTokenLimit();
+
+    /**
+     * Maximum LLM tokens per calendar month (UTC), shared across all LLM
+     * features. 0 means no limit. Counterpart to {@link #getDailyTokenLimit()}.
+     */
+    long getMonthlyTokenLimit();
 
     String getApiKey();
 

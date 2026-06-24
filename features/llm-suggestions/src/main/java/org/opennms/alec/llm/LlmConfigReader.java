@@ -102,7 +102,12 @@ public class LlmConfigReader {
             // leave this blank; fall back to the built-in default.
             String systemPrompt = blankToDefault(node.path("systemPrompt").asText(""),
                     LlmSuggestionServiceImpl.DEFAULT_SYSTEM_PROMPT);
-            return Optional.of(new Config(enabled, autoEvaluate, apiKey, baseUrl, model, systemPrompt));
+            // Shared "LLM Setup" token budgets (0 = unlimited). Negative or absent
+            // values are treated as no limit.
+            long dailyTokenLimit = Math.max(0, node.path("dailyTokenLimit").asLong(0));
+            long monthlyTokenLimit = Math.max(0, node.path("monthlyTokenLimit").asLong(0));
+            return Optional.of(new Config(enabled, autoEvaluate, apiKey, baseUrl, model, systemPrompt,
+                    dailyTokenLimit, monthlyTokenLimit));
         } catch (IOException e) {
             LOG.warn("Malformed LLM config at {}/{}: {}", CONFIG_CONTEXT, CONFIG_KEY, e.getMessage());
             return Optional.empty();
@@ -121,9 +126,16 @@ public class LlmConfigReader {
         private final String baseUrl;
         private final String model;
         private final String systemPrompt;
+        private final long dailyTokenLimit;
+        private final long monthlyTokenLimit;
 
         public Config(boolean enabled, boolean autoEvaluate, String apiKey, String baseUrl, String model,
                       String systemPrompt) {
+            this(enabled, autoEvaluate, apiKey, baseUrl, model, systemPrompt, 0, 0);
+        }
+
+        public Config(boolean enabled, boolean autoEvaluate, String apiKey, String baseUrl, String model,
+                      String systemPrompt, long dailyTokenLimit, long monthlyTokenLimit) {
             this.enabled = enabled;
             this.autoEvaluate = autoEvaluate;
             this.apiKey = apiKey == null ? "" : apiKey;
@@ -131,6 +143,8 @@ public class LlmConfigReader {
             this.model = blankToDefault(model, DEFAULT_MODEL);
             this.systemPrompt = blankToDefault(systemPrompt,
                     LlmSuggestionServiceImpl.DEFAULT_SYSTEM_PROMPT);
+            this.dailyTokenLimit = Math.max(0, dailyTokenLimit);
+            this.monthlyTokenLimit = Math.max(0, monthlyTokenLimit);
         }
 
         public boolean isEnabled() {
@@ -167,6 +181,16 @@ public class LlmConfigReader {
         /** System prompt framing the analysis, never blank (falls back to default). */
         public String getSystemPrompt() {
             return systemPrompt;
+        }
+
+        /** Per-UTC-day token budget shared across LLM features; 0 = unlimited. */
+        public long getDailyTokenLimit() {
+            return dailyTokenLimit;
+        }
+
+        /** Per-calendar-month token budget shared across LLM features; 0 = unlimited. */
+        public long getMonthlyTokenLimit() {
+            return monthlyTokenLimit;
         }
 
         @Override

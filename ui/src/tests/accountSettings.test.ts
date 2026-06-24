@@ -357,6 +357,8 @@ test('Save sends new API key + enabled flag when both provided', async () => {
 		model: 'claude-sonnet-4-6',
 		defaultBaseUrl: '',
 		defaultModel: '',
+		dailyTokenLimit: 0,
+		monthlyTokenLimit: 0,
 		systemPrompt: '',
 		apiKey: 'sk-ant-new-key'
 	})
@@ -376,6 +378,8 @@ test('Save omits apiKey when the input is blank so server preserves stored key',
 		model: '',
 		defaultBaseUrl: '',
 		defaultModel: '',
+		dailyTokenLimit: 0,
+		monthlyTokenLimit: 0,
 		systemPrompt: ''
 	})
 })
@@ -400,6 +404,8 @@ test('Clear Key sends clearApiKey=true and forces enabled=false', async () => {
 		model: '',
 		defaultBaseUrl: '',
 		defaultModel: '',
+		dailyTokenLimit: 0,
+		monthlyTokenLimit: 0,
 		systemPrompt: '',
 		clearApiKey: true
 	})
@@ -425,39 +431,69 @@ test('Auto-evaluate checkbox is exposed, defaults to true, and rides along on Sa
 		model: 'claude-sonnet-4-6',
 		defaultBaseUrl: '',
 		defaultModel: '',
+		dailyTokenLimit: 0,
+		monthlyTokenLimit: 0,
 		systemPrompt: '',
 		apiKey: 'sk-ant-fresh'
 	})
 })
 
-test('Help icon toggles a concise, provider-agnostic popover', async () => {
+test('RCA help "?" describes the analysis and points to LLM Setup', async () => {
 	const { wrapper } = buildWrapper()
-	expect(wrapper.find('[data-test="llm-key-help-popover"]').exists()).toBe(
-		false
-	)
+	expect(wrapper.find('[data-test="llm-key-help-popover"]').exists()).toBe(false)
 
 	await wrapper.find('[data-test="llm-key-help"]').trigger('click')
 	const popover = wrapper.find('[data-test="llm-key-help-popover"]')
 	expect(popover.exists()).toBe(true)
-
 	const html = popover.html()
-	// Concise + provider-agnostic: the essentials only, no Claude-vs-LM-Studio
-	// walkthrough (field-level guidance already lives on the inputs).
+	// RCA-specific now: AI Suggestions, auto-evaluate, system prompt, and a
+	// pointer to the LLM Setup tab for the connection.
+	expect(html).toContain('AI Suggestions')
+	expect(html).toContain('System prompt')
+	expect(html).toContain('LLM Setup')
+	expect(html.toLowerCase()).not.toContain('option a')
+
+	await wrapper.find('[data-test="llm-key-help"]').trigger('click')
+	expect(wrapper.find('[data-test="llm-key-help-popover"]').exists()).toBe(false)
+})
+
+test('LLM Setup tab exposes Daily/Monthly token limits that ride along on Save', async () => {
+	const { wrapper, store } = buildWrapper()
+	expect(wrapper.find('[data-test="tab-llm-setup"]').exists()).toBe(true)
+	expect(wrapper.find('[data-test="llm-daily-limit"]').exists()).toBe(true)
+	expect(wrapper.find('[data-test="llm-monthly-limit"]').exists()).toBe(true)
+
+	wrapper.vm.llmApiKey = 'sk-ant-fresh'
+	wrapper.vm.llmBaseUrl = 'https://api.anthropic.com/v1/'
+	wrapper.vm.llmModel = 'claude-sonnet-4-6'
+	wrapper.vm.llmEnabled = true
+	wrapper.vm.llmDailyTokenLimit = 100000
+	wrapper.vm.llmMonthlyTokenLimit = 2000000
+	await wrapper.find('[data-test="save-btn"]').trigger('click')
+
+	const payload = (store.setLLMConfig as any).mock.calls[0][0]
+	expect(payload.dailyTokenLimit).toBe(100000)
+	expect(payload.monthlyTokenLimit).toBe(2000000)
+})
+
+test('LLM Setup help "?" covers the shared connection essentials', async () => {
+	const { wrapper } = buildWrapper()
+	expect(wrapper.find('[data-test="llm-setup-help-popover"]').exists()).toBe(false)
+
+	await wrapper.find('[data-test="llm-setup-help"]').trigger('click')
+	const popover = wrapper.find('[data-test="llm-setup-help-popover"]')
+	expect(popover.exists()).toBe(true)
+	const html = popover.html()
+	// The connection guidance lives here now: OpenAI-compatible, tool calling,
+	// validate, key storage, token limits.
 	expect(html).toContain('OpenAI-compatible')
 	expect(html).toContain('chat/completions')
 	expect(html.toLowerCase()).toContain('tool/function calling')
 	expect(html).toContain('Validate key')
-	// Kept short — a small handful of bullet points, not a multi-step guide.
-	expect(popover.findAll('li').length).toBeLessThanOrEqual(4)
-	// No longer framed as two named options.
-	expect(html).not.toContain('Option A')
-	expect(html).not.toContain('Option B')
+	expect(html).toContain('token limit')
 
-	// Toggles closed on second click.
-	await wrapper.find('[data-test="llm-key-help"]').trigger('click')
-	expect(wrapper.find('[data-test="llm-key-help-popover"]').exists()).toBe(
-		false
-	)
+	await wrapper.find('[data-test="llm-setup-help"]').trigger('click')
+	expect(wrapper.find('[data-test="llm-setup-help-popover"]').exists()).toBe(false)
 })
 
 test('Endpoint + model inputs are exposed and custom values ride along on Save', async () => {
@@ -478,6 +514,8 @@ test('Endpoint + model inputs are exposed and custom values ride along on Save',
 		model: 'openai/gpt-4o',
 		defaultBaseUrl: '',
 		defaultModel: '',
+		dailyTokenLimit: 0,
+		monthlyTokenLimit: 0,
 		systemPrompt: '',
 		apiKey: 'sk-openai-test'
 	})
@@ -623,6 +661,8 @@ test('System prompt textarea is exposed and a custom prompt rides along on Save'
 		model: 'claude-sonnet-4-6',
 		defaultBaseUrl: '',
 		defaultModel: '',
+		dailyTokenLimit: 0,
+		monthlyTokenLimit: 0,
 		systemPrompt: 'You are an ACME network expert.',
 		apiKey: 'sk-ant-fresh'
 	})
@@ -782,6 +822,8 @@ test('Input is scrubbed and cleared-flag reset after a successful save', async (
 			model: 'claude-sonnet-4-6',
 			defaultBaseUrl: '',
 			defaultModel: '',
+			dailyTokenLimit: 0,
+			monthlyTokenLimit: 0,
 			systemPrompt: '',
 			defaultSystemPrompt: '',
 			apiKeyPresent: true

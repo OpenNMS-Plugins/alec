@@ -127,6 +127,8 @@ public class LlmRestImpl implements LlmRest {
                     .defaultBaseUrl(request.getDefaultBaseUrl())
                     .defaultModel(request.getDefaultModel())
                     .systemPrompt(request.getSystemPrompt())
+                    .dailyTokenLimit(request.getDailyTokenLimit())
+                    .monthlyTokenLimit(request.getMonthlyTokenLimit())
                     .apiKey(null)
                     .build();
         }
@@ -139,13 +141,15 @@ public class LlmRestImpl implements LlmRest {
         }
         builder.enabled(request.isEnabled());
         builder.autoEvaluate(request.isAutoEvaluate());
-        // baseUrl/model/defaults/systemPrompt come straight from the request —
-        // the UI always submits the current form values.
+        // baseUrl/model/defaults/systemPrompt/token-limits come straight from the
+        // request — the UI always submits the current form values.
         builder.baseUrl(request.getBaseUrl());
         builder.model(request.getModel());
         builder.defaultBaseUrl(request.getDefaultBaseUrl());
         builder.defaultModel(request.getDefaultModel());
         builder.systemPrompt(request.getSystemPrompt());
+        builder.dailyTokenLimit(request.getDailyTokenLimit());
+        builder.monthlyTokenLimit(request.getMonthlyTokenLimit());
         return builder.build();
     }
 
