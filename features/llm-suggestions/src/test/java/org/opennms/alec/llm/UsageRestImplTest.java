@@ -41,13 +41,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public class UsageRestImplTest {
 
     private UsageStore store;
+    private InMemoryKVStore kv;
     private UsageRestImpl rest;
 
     @Before
     public void setUp() {
-        InMemoryKVStore kv = new InMemoryKVStore();
-        store = new UsageStore(kv, new ObjectMapper());
-        rest = new UsageRestImpl(store);
+        kv = new InMemoryKVStore();
+        ObjectMapper om = new ObjectMapper();
+        store = new UsageStore(kv, om);
+        rest = new UsageRestImpl(store, new LlmConfigReader(kv, om));
     }
 
     @Test
@@ -74,6 +76,33 @@ public class UsageRestImplTest {
         assertThat(report.getSuccessfulCalls(), equalTo(1L));
         assertThat(report.getFailedCalls(), equalTo(1L));
         assertThat(report.getInputTokens(), equalTo(100L));
+    }
+
+    @Test
+    public void budgetReportsNotBlockedWhenNoLimitsConfigured() {
+        Response r = rest.getBudget();
+        assertThat(r.getStatus(), equalTo(200));
+        BudgetStatus status = (BudgetStatus) r.getEntity();
+        assertThat(status.isBlocked(), equalTo(false));
+        assertThat(status.getDailyLimit(), equalTo(0L));
+    }
+
+    @Test
+    public void budgetBlocksWhenDailyLimitReached() {
+        long now = System.currentTimeMillis();
+        // Persist a config with a small daily limit.
+        kv.put("LLM_CONFIG",
+                "{\"enabled\":true,\"apiKey\":\"sk\",\"dailyTokenLimit\":100}",
+                "ALEC_CONFIG");
+        // Record usage at/over the limit.
+        store.record(UsageRecord.newBuilder()
+                .ts(now).success(true).inputTokens(80).outputTokens(40).build());
+
+        Response r = rest.getBudget();
+        BudgetStatus status = (BudgetStatus) r.getEntity();
+        assertThat(status.getDailyLimit(), equalTo(100L));
+        assertThat(status.getDailyUsed(), equalTo(120L));
+        assertThat(status.isBlocked(), equalTo(true));
     }
 
     @Test

@@ -5,7 +5,8 @@ import {
 	saveEngineParameter,
 	getLLMConfig,
 	saveLLMConfig,
-	getLLMUsage
+	getLLMUsage,
+	getLLMBudget
 } from '@/services/AlecService'
 import CONST from '@/helpers/constants'
 
@@ -13,7 +14,8 @@ import {
 	TEngine,
 	TLLMConfigRequest,
 	TLLMConfigStatus,
-	TLLMUsage
+	TLLMUsage,
+	TLLMBudget
 } from '@/types/TUser'
 
 type TState = {
@@ -22,6 +24,7 @@ type TState = {
 	engineInfo: TEngine | null
 	llmConfig: TLLMConfigStatus | null
 	llmUsage: TLLMUsage | null
+	llmBudget: TLLMBudget | null
 }
 
 const engineDefaultValues = {
@@ -38,7 +41,8 @@ export const useUserStore = defineStore('userStore', {
 		userId: null,
 		engineInfo: null,
 		llmConfig: null,
-		llmUsage: null
+		llmUsage: null,
+		llmBudget: null
 	}),
 	actions: {
 		async getUserRole() {
@@ -100,6 +104,13 @@ export const useUserStore = defineStore('userStore', {
 			const result = await getLLMUsage(days)
 			if (result) {
 				this.llmUsage = result
+			}
+			return result
+		},
+		async getLLMBudget() {
+			const result = await getLLMBudget()
+			if (result) {
+				this.llmBudget = result
 			}
 			return result
 		}

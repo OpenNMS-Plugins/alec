@@ -73,6 +73,17 @@ export type TLLMValidationResult = {
 	message: string
 }
 
+// GET /alec/llm/budget — shared token-budget status. `blocked` means the daily
+// or monthly cap is reached and ALEC has paused LLM requests; `reason` explains.
+export type TLLMBudget = {
+	dailyLimit: number
+	dailyUsed: number
+	monthlyLimit: number
+	monthlyUsed: number
+	blocked: boolean
+	reason: string | null
+}
+
 // GET /alec/llm/suggestions/{situationId}.
 // status one of "pending" | "ready" | "failed". Server returns 204 when no
 // record exists yet — the service layer maps that to null below.
