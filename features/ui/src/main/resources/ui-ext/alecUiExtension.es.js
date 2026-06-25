@@ -14766,7 +14766,7 @@ const S0 = [
 }, Pz = () => S0, Fz = (e) => {
   var o, r;
   return (r = (o = k0(e)) == null ? void 0 : o.models) != null ? r : [];
-}, Uz = window.Vue.defineComponent, se = window.Vue.createVNode, S = window.Vue.createElementVNode, X = window.Vue.createTextVNode, F = window.Vue.unref, st = window.Vue.withCtx, Fe = window.Vue.openBlock, Ye = window.Vue.createElementBlock, bt = window.Vue.createCommentVNode, Ai = window.Vue.Fragment, Je = window.Vue.toDisplayString, xf = window.Vue.createBlock, fg = window.Vue.renderList, Wz = window.Vue.normalizeClass, Hz = window.Vue.pushScopeId, zz = window.Vue.popScopeId, de = (e) => (Hz("data-v-fb3a3e8b"), e = e(), zz(), e), qz = { class: "container" }, Gz = /* @__PURE__ */ de(() => /* @__PURE__ */ S("h3", { "data-test": "page-title" }, "ALEC Configuration", -1)), Yz = /* @__PURE__ */ X("Correlation Engine"), jz = /* @__PURE__ */ X("LLM Root Cause Analysis"), Zz = /* @__PURE__ */ X("LLM Setup"), Kz = { class: "section" }, Jz = { class: "title-row" }, Xz = { class: "title" }, Qz = /* @__PURE__ */ X(" Choose the correlation engine that ALEC will use (see "), eq = ["href"], tq = /* @__PURE__ */ X(" for more information): "), nq = ["aria-expanded"], oq = {
+}, Uz = window.Vue.defineComponent, se = window.Vue.createVNode, S = window.Vue.createElementVNode, X = window.Vue.createTextVNode, F = window.Vue.unref, st = window.Vue.withCtx, Fe = window.Vue.openBlock, Ye = window.Vue.createElementBlock, bt = window.Vue.createCommentVNode, Ai = window.Vue.Fragment, Je = window.Vue.toDisplayString, xf = window.Vue.createBlock, fg = window.Vue.renderList, Wz = window.Vue.normalizeClass, Hz = window.Vue.pushScopeId, zz = window.Vue.popScopeId, de = (e) => (Hz("data-v-d4c127d6"), e = e(), zz(), e), qz = { class: "container" }, Gz = /* @__PURE__ */ de(() => /* @__PURE__ */ S("h3", { "data-test": "page-title" }, "ALEC Configuration", -1)), Yz = /* @__PURE__ */ X("Correlation Engine"), jz = /* @__PURE__ */ X("LLM Root Cause Analysis"), Zz = /* @__PURE__ */ X("LLM Setup"), Kz = { class: "section" }, Jz = { class: "title-row" }, Xz = { class: "title" }, Qz = /* @__PURE__ */ X(" Choose the correlation engine that ALEC will use (see "), eq = ["href"], tq = /* @__PURE__ */ X(" for more information): "), nq = ["aria-expanded"], oq = {
   key: 0,
   class: "help-popover",
   "data-test": "engine-help-popover"
@@ -14780,7 +14780,7 @@ const S0 = [
     /* @__PURE__ */ X(" \u2014 an optional, more refined way for the Clustering engine to measure how far apart two alarms are. Rather than a plain time/topology distance, it compares the statistical distribution of each alarm's surroundings, which helps separate unrelated alarms that merely happen to occur close together. Enable it with the checkbox; it adds two extra tuning variables (Hellinger w and bias). Only the Clustering engine supports it. ")
   ]),
   /* @__PURE__ */ S("li", null, [
-    /* @__PURE__ */ S("strong", null, "LLM Based"),
+    /* @__PURE__ */ S("strong", null, "LLM Based (Experimental)"),
     /* @__PURE__ */ X(" \u2014 instead of DBSCAN, a large language model groups active alarms into situations using the topology and alarm data. Requires a configured LLM (LLM Setup tab) and replaces the Correlation variables with a re-clustering frequency and an editable prompt. Separate from "),
     /* @__PURE__ */ S("em", null, "LLM Root Cause Analysis"),
     /* @__PURE__ */ X(" on the other tab, which explains situations an engine already built. Only one engine runs at a time. ")
@@ -14789,7 +14789,7 @@ const S0 = [
   rq
 ], iq = /* @__PURE__ */ X("Clustering"), aq = /* @__PURE__ */ de(() => /* @__PURE__ */ S("div", { class: "hellinger" }, [
   /* @__PURE__ */ S("strong", null, "Hellinger distance")
-], -1)), lq = /* @__PURE__ */ X(" LLM Based "), uq = {
+], -1)), lq = /* @__PURE__ */ X(" LLM Based (Experimental) "), uq = {
   key: 0,
   class: "section",
   "data-test": "llm-cluster-section"
@@ -15805,7 +15805,7 @@ Continue and save?`
     ], 64));
   }
 });
-const TY = /* @__PURE__ */ Te(AY, [["__scopeId", "data-v-fb3a3e8b"]]), LY = window.VueRouter.createRouter, xY = window.VueRouter.createWebHistory, MY = async () => {
+const TY = /* @__PURE__ */ Te(AY, [["__scopeId", "data-v-d4c127d6"]]), LY = window.VueRouter.createRouter, xY = window.VueRouter.createWebHistory, MY = async () => {
   const e = zr();
   e.userId || await e.getUserRole();
 }, I0 = [

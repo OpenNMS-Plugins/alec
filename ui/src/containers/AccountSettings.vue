@@ -577,7 +577,7 @@ const handleReEvaluate = async () => {
 							supports it.
 						</li>
 						<li>
-							<strong>LLM Based</strong> — instead of DBSCAN, a large language
+							<strong>LLM Based (Experimental)</strong> — instead of DBSCAN, a large language
 							model groups active alarms into situations using the topology and
 							alarm data. Requires a configured LLM (LLM Setup tab) and replaces
 							the Correlation variables with a re-clustering frequency and an
@@ -605,7 +605,7 @@ const handleReEvaluate = async () => {
 					:value="CONST.ENGINE_LLM"
 					data-test="engine-llm"
 				>
-					LLM Based
+					LLM Based (Experimental)
 				</FeatherRadio>
 			</FeatherRadioGroup>
 			</div>
