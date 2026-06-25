@@ -44,6 +44,7 @@ import org.opennms.alec.engine.api.EngineRegistry;
 import org.opennms.alec.engine.cluster.ClusterEngineFactory;
 import org.opennms.alec.engine.dbscan.DBScanEngineFactory;
 import org.opennms.alec.engine.deeplearning.DeepLearningEngineFactory;
+import org.opennms.alec.engine.llm.LlmEngineFactory;
 import org.opennms.integration.api.v1.distributed.KeyValueStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -130,13 +131,14 @@ public class EngineRestImpl implements EngineRest {
     }
 
     private Response configureAndStoreLlm(EngineParameter engineParameter, Driver driver) {
-        // Activate the LLM clustering engine if its factory is present (3b);
-        // otherwise just persist the settings so they're applied once installed.
-        Optional<EngineFactory> llmFactory = engineFactories.stream()
+        Optional<EngineFactory> llmFactoryOpt = engineFactories.stream()
                 .filter(f -> "llm".equals(f.getName()))
                 .findFirst();
-        if (llmFactory.isPresent()) {
-            driver.setEngineFactory(llmFactory.get().getEngineFactory());
+        if (llmFactoryOpt.isPresent()) {
+            LlmEngineFactory factory = (LlmEngineFactory) llmFactoryOpt.get().getEngineFactory();
+            factory.setClusterFrequencyMs(engineParameter.getClusterFrequencyMs());
+            factory.setClusterPrompt(engineParameter.getClusterPrompt());
+            driver.setEngineFactory(llmFactoryOpt.get().getEngineFactory());
             Response response = driverInit(driver);
             if (response != null) {
                 return response;
