@@ -30,6 +30,8 @@ package org.opennms.alec.datasource.opennms.jvm;
 
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.Arrays;
@@ -42,6 +44,7 @@ import org.opennms.integration.api.v1.dao.AlarmDao;
 import org.opennms.integration.api.v1.events.EventForwarder;
 import org.opennms.integration.api.v1.model.Alarm;
 import org.opennms.integration.api.v1.model.Node;
+import org.opennms.integration.api.v1.model.Severity;
 
 public class DirectAlarmDataSourceTest {
 
@@ -125,5 +128,41 @@ public class DirectAlarmDataSourceTest {
         when(alarm.getFirstEventTime()).thenReturn(new Date());
         when(alarm.getLastEventTime()).thenReturn(new Date());
         assertTrue(dac.getAlarm(2).isEmpty());
+    }
+
+    @Test
+    public void testInitSkipsBulkLoadWhenAlarmCountExceedsCap() {
+        AlarmDao cappedAlarmDao = mock(AlarmDao.class);
+        when(cappedAlarmDao.getAlarmCount()).thenReturn(60_000L);
+        DirectAlarmDatasource capped = new DirectAlarmDatasource(cappedAlarmDao, mockEventForwarder, mockMapper, 50_000L);
+        capped.init();
+        capped.waitUntilReady(); // must return immediately — initLock was released despite skipping load
+        verify(cappedAlarmDao, never()).getAlarms();
+    }
+
+    @Test
+    public void testInitFiltersClearedAlarmsAtStartup() throws InterruptedException {
+        AlarmDao filteredAlarmDao = mock(AlarmDao.class);
+
+        Alarm activeAlarm = mock(Alarm.class);
+        when(activeAlarm.getId()).thenReturn(10);
+        when(activeAlarm.getSeverity()).thenReturn(Severity.MAJOR);
+        when(activeAlarm.getReductionKey()).thenReturn("active-key");
+        when(activeAlarm.getManagedObjectInstance()).thenReturn("test:10");
+        when(activeAlarm.getManagedObjectType()).thenReturn(ManagedObjectType.EntPhysicalEntity.getName());
+        when(activeAlarm.getFirstEventTime()).thenReturn(new Date());
+        when(activeAlarm.getLastEventTime()).thenReturn(new Date());
+
+        Alarm clearedAlarm = mock(Alarm.class);
+        when(clearedAlarm.getId()).thenReturn(11);
+        when(clearedAlarm.getSeverity()).thenReturn(Severity.CLEARED);
+
+        when(filteredAlarmDao.getAlarms()).thenReturn(Arrays.asList(activeAlarm, clearedAlarm));
+
+        DirectAlarmDatasource filtered = new DirectAlarmDatasource(filteredAlarmDao, mockEventForwarder, mockMapper);
+        filtered.init();
+
+        assertTrue("active alarm must be in state", filtered.getAlarm(10).isPresent());
+        assertTrue("cleared alarm must be filtered out at init", filtered.getAlarm(11).isEmpty());
     }
 }

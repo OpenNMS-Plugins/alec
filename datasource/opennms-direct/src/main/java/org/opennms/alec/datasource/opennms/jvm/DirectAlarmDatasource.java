@@ -62,6 +62,10 @@ public class DirectAlarmDatasource implements AlarmDatasource, AlarmLifecycleLis
 
     private static final Logger LOG = LoggerFactory.getLogger(DirectAlarmDatasource.class);
 
+    // Alarms above this count are skipped at startup to prevent OOM; ALEC catches up via
+    // AlarmLifecycleListener callbacks. Set to 0 to disable the cap. Configurable via Blueprint.
+    static final long DEFAULT_MAX_ALARMS_AT_STARTUP = 50_000L;
+
     private final HandlerRegistry<AlarmHandler> alarmHandlers = new HandlerRegistry<>();
     private final HandlerRegistry<SituationHandler> situationHandlers = new HandlerRegistry<>();
 
@@ -73,16 +77,45 @@ public class DirectAlarmDatasource implements AlarmDatasource, AlarmLifecycleLis
     private final AlarmDao alarmDao;
     private final EventForwarder eventForwarder;
     private final ApiMapper mapper;
+    private final long maxAlarmsAtStartup;
 
     public DirectAlarmDatasource(AlarmDao alarmDao, EventForwarder eventForwarder, ApiMapper mapper) {
+        this(alarmDao, eventForwarder, mapper, DEFAULT_MAX_ALARMS_AT_STARTUP);
+    }
+
+    public DirectAlarmDatasource(AlarmDao alarmDao, EventForwarder eventForwarder, ApiMapper mapper,
+                                 long maxAlarmsAtStartup) {
         this.alarmDao = Objects.requireNonNull(alarmDao);
         this.eventForwarder = Objects.requireNonNull(eventForwarder);
         this.mapper = Objects.requireNonNull(mapper);
+        this.maxAlarmsAtStartup = maxAlarmsAtStartup;
     }
 
     public void init() {
-        // Populate the map with the current set of alarms
-        alarmDao.getAlarms().forEach(a -> alarmsById.put(a.getId(), a));
+        Long count = alarmDao.getAlarmCount();
+        if (count != null && maxAlarmsAtStartup > 0 && count > maxAlarmsAtStartup) {
+            LOG.warn("ALEC startup: {} alarms in OpenNMS exceeds the safe startup limit of {}. "
+                    + "Skipping initial bulk alarm load to prevent OutOfMemoryError. "
+                    + "ALEC will build its alarm state from ongoing OpenNMS lifecycle callbacks. "
+                    + "Correlation of pre-existing alarms may be incomplete until the next alarm snapshot. "
+                    + "To raise or disable this limit, set maxAlarmsAtStartup in "
+                    + "org.opennms.alec.datasource.opennms.direct.cfg (0 = no limit).",
+                    count, maxAlarmsAtStartup);
+            initLock.countDown();
+            return;
+        }
+
+        if (count != null && count > maxAlarmsAtStartup * 0.8 && maxAlarmsAtStartup > 0) {
+            LOG.warn("ALEC startup: {} alarms detected — approaching the safe startup limit of {}. "
+                    + "Consider running 'demo cleanup' or clearing stale alarms.",
+                    count, maxAlarmsAtStartup);
+        }
+
+        // Only load non-cleared alarms: cleared alarms never produce handler callbacks
+        // so holding them in memory is pure overhead.
+        alarmDao.getAlarms().stream()
+                .filter(a -> !isCleared(a))
+                .forEach(a -> alarmsById.put(a.getId(), a));
         initLock.countDown();
     }
     
