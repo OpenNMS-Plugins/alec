@@ -26,39 +26,19 @@
  *     http://www.opennms.com/
  *******************************************************************************/
 
-package org.opennms.alec.rest;
+package org.opennms.alec.data;
 
-import javax.ws.rs.Consumes;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
-import org.opennms.alec.data.ChatRequest;
-import org.opennms.alec.data.LlmConfig;
+/** Request body for POST /alec/llm/chat */
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class ChatRequest {
+    private String question;
+    private String pageContext;
 
-@Path("alec/llm")
-@Produces({MediaType.APPLICATION_JSON})
-@Consumes({MediaType.APPLICATION_JSON})
-public interface LlmRest {
+    public String getQuestion() { return question; }
+    public void setQuestion(String question) { this.question = question; }
 
-    @GET
-    @Path("/configuration")
-    Response getConfiguration();
-
-    @POST
-    @Path("/configuration")
-    Response setConfiguration(LlmConfig config);
-
-    /**
-     * Conversational endpoint for the ALEC chatbot overlay (ALEC-302).
-     * Accepts a natural-language question plus optional page context, calls the
-     * configured LLM, and returns a plain-text answer.
-     * Returns 503 when the LLM is not configured or not enabled.
-     */
-    @POST
-    @Path("/chat")
-    Response chat(ChatRequest request);
+    public String getPageContext() { return pageContext; }
+    public void setPageContext(String pageContext) { this.pageContext = pageContext; }
 }

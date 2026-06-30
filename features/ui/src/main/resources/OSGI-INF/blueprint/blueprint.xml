@@ -9,6 +9,8 @@
             <property name="menuEntry" value="ALEC"/>
             <property name="resourceRoot" value="ui-ext"/>
             <property name="moduleFileName" value="alecUiExtension.es.js"/>
+            <!-- Global chatbot overlay — mounted on every OpenNMS page once OIA PR #181 + OpenNMS PR #8602 merge. -->
+            <property name="globalModuleFileName" value="alecChatbot.es.js"/>
         </bean>
     </service>
 

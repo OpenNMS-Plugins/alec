@@ -33,6 +33,7 @@ public class UIExtension implements org.opennms.integration.api.v1.ui.UIExtensio
     private String menuEntry;
     private String moduleFileName;
     private String resourceRoot;
+    private String globalModuleFileName;
 
     @Override
     public String getExtensionId() {
@@ -73,6 +74,19 @@ public class UIExtension implements org.opennms.integration.api.v1.ui.UIExtensio
 
     public void setResourceRoot(String resourceRoot) {
         this.resourceRoot = resourceRoot;
+    }
+
+    /**
+     * Module to be mounted globally on every OpenNMS page (via Teleport to body).
+     * Returns null if no global component is registered.
+     * Recognised by OpenNMS once OIA PR #181 + OpenNMS PR #8602 merge.
+     */
+    public String getGlobalModuleFileName() {
+        return globalModuleFileName;
+    }
+
+    public void setGlobalModuleFileName(String globalModuleFileName) {
+        this.globalModuleFileName = globalModuleFileName;
     }
 
 }

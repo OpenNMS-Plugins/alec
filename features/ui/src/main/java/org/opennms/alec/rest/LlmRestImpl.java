@@ -28,11 +28,19 @@
 
 package org.opennms.alec.rest;
 
+import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import javax.ws.rs.core.Response;
 
+import org.opennms.alec.data.ChatRequest;
+import org.opennms.alec.data.ChatResponse;
 import org.opennms.alec.data.LlmConfig;
 import org.opennms.alec.data.LlmConfigImpl;
 import org.opennms.alec.data.LlmConfigStatus;
@@ -42,18 +50,33 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 public class LlmRestImpl implements LlmRest {
 
     private static final Logger LOG = LoggerFactory.getLogger(LlmRestImpl.class);
 
+    private static final String CHAT_COMPLETIONS_PATH = "/chat/completions";
+    private static final String CHAT_SYSTEM_PROMPT =
+            "You are an OpenNMS monitoring assistant embedded in the OpenNMS web interface. "
+            + "Answer concisely and focus on the operational context the user has provided. "
+            + "When the user asks about nodes, alarms, or situations, use the page context "
+            + "to give a relevant answer. If you are unsure, say so.";
+    private static final int CHAT_MAX_TOKENS = 1024;
+
     private final ObjectMapper objectMapper;
     private final KeyValueStore<String> kvStore;
+    private final HttpClient httpClient;
 
     public LlmRestImpl(KeyValueStore<String> kvStore) {
         this.kvStore = kvStore;
         this.objectMapper = new ObjectMapper();
+        this.httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(10))
+                .build();
     }
 
     @Override
@@ -94,6 +117,76 @@ public class LlmRestImpl implements LlmRest {
         } catch (JsonProcessingException e) {
             return ALECRestUtils.somethingWentWrong(e);
         }
+    }
+
+    @Override
+    public Response chat(ChatRequest request) {
+        if (request == null || request.getQuestion() == null || request.getQuestion().isBlank()) {
+            return Response.status(Response.Status.BAD_REQUEST).entity("Missing question").build();
+        }
+        LlmConfig config;
+        try {
+            config = readPersisted().orElse(null);
+        } catch (JsonProcessingException e) {
+            return ALECRestUtils.somethingWentWrong(e);
+        }
+        if (config == null || !config.isEnabled()
+                || config.getApiKey() == null || config.getApiKey().isEmpty()) {
+            return Response.status(Response.Status.SERVICE_UNAVAILABLE)
+                    .entity("LLM is not configured or not enabled. "
+                            + "Configure it under Plugins → ALEC → LLM Setup.")
+                    .build();
+        }
+
+        String model = config.getModel() != null && !config.getModel().isEmpty()
+                ? config.getModel() : "gpt-4o-mini";
+        String baseUrl = config.getBaseUrl() != null && !config.getBaseUrl().isEmpty()
+                ? config.getBaseUrl() : "https://api.openai.com/v1";
+        String url = baseUrl.endsWith("/")
+                ? baseUrl.substring(0, baseUrl.length() - 1) + CHAT_COMPLETIONS_PATH
+                : baseUrl + CHAT_COMPLETIONS_PATH;
+
+        try {
+            String body = buildChatBody(model, request.getQuestion(), request.getPageContext());
+            HttpRequest httpReq = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .timeout(Duration.ofSeconds(60))
+                    .header("Authorization", "Bearer " + config.getApiKey())
+                    .header("Content-Type", "application/json")
+                    .header("X-Title", "OpenNMS ALEC")
+                    .POST(HttpRequest.BodyPublishers.ofString(body))
+                    .build();
+            HttpResponse<String> resp = httpClient.send(httpReq, HttpResponse.BodyHandlers.ofString());
+            if (resp.statusCode() < 200 || resp.statusCode() >= 300) {
+                LOG.warn("LLM chat returned HTTP {}", resp.statusCode());
+                return Response.status(Response.Status.BAD_GATEWAY)
+                        .entity("LLM provider returned HTTP " + resp.statusCode()).build();
+            }
+            String answer = extractAnswer(resp.body());
+            return Response.ok().entity(new ChatResponse(answer)).build();
+        } catch (IOException | InterruptedException e) {
+            LOG.warn("LLM chat request failed", e);
+            return ALECRestUtils.somethingWentWrong(e);
+        }
+    }
+
+    private String buildChatBody(String model, String question, String pageContext) throws IOException {
+        ObjectNode root = objectMapper.createObjectNode();
+        root.put("model", model);
+        root.put("max_tokens", CHAT_MAX_TOKENS);
+        ArrayNode messages = root.putArray("messages");
+        messages.addObject().put("role", "system").put("content", CHAT_SYSTEM_PROMPT);
+        String userContent = (pageContext != null && !pageContext.isBlank())
+                ? "Page context: " + pageContext + "\n\n" + question
+                : question;
+        messages.addObject().put("role", "user").put("content", userContent);
+        return objectMapper.writeValueAsString(root);
+    }
+
+    private String extractAnswer(String responseBody) throws IOException {
+        JsonNode root = objectMapper.readTree(responseBody);
+        JsonNode content = root.path("choices").path(0).path("message").path("content");
+        return content.isMissingNode() ? "(no response)" : content.asText();
     }
 
     /**

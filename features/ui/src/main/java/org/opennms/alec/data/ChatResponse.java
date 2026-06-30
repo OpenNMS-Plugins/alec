@@ -26,39 +26,15 @@
  *     http://www.opennms.com/
  *******************************************************************************/
 
-package org.opennms.alec.rest;
+package org.opennms.alec.data;
 
-import javax.ws.rs.Consumes;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
+/** Response body for POST /alec/llm/chat */
+public class ChatResponse {
+    private final String answer;
 
-import org.opennms.alec.data.ChatRequest;
-import org.opennms.alec.data.LlmConfig;
+    public ChatResponse(String answer) {
+        this.answer = answer;
+    }
 
-@Path("alec/llm")
-@Produces({MediaType.APPLICATION_JSON})
-@Consumes({MediaType.APPLICATION_JSON})
-public interface LlmRest {
-
-    @GET
-    @Path("/configuration")
-    Response getConfiguration();
-
-    @POST
-    @Path("/configuration")
-    Response setConfiguration(LlmConfig config);
-
-    /**
-     * Conversational endpoint for the ALEC chatbot overlay (ALEC-302).
-     * Accepts a natural-language question plus optional page context, calls the
-     * configured LLM, and returns a plain-text answer.
-     * Returns 503 when the LLM is not configured or not enabled.
-     */
-    @POST
-    @Path("/chat")
-    Response chat(ChatRequest request);
+    public String getAnswer() { return answer; }
 }
