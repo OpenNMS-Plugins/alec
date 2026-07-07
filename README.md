@@ -1,4 +1,4 @@
-#  Architecture for Learning Enabled Correlation (ALEC) [![CircleCI](https://circleci.com/gh/OpenNMS/alec.svg?style=svg)](https://circleci.com/gh/OpenNMS/alec)
+#  Architecture for Learning Enabled Correlation (ALEC) [![CircleCI](https://circleci.com/gh/OpenNMS-Plugins/alec.svg?style=svg)](https://circleci.com/gh/OpenNMS-Plugins/alec)
 
 The OpenNMS Architecture for Learning Enabled Correlation (ALEC) provides a framework for performing correlation of alarms (i.e. faults) into higher level situations.
 

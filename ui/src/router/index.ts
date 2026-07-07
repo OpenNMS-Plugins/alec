@@ -3,10 +3,8 @@ import SituationList from '@/containers/SituationList.vue'
 import SituationDetail from '@/containers/SituationDetail.vue'
 import AddSituation from '@/containers/AddSituation.vue'
 
-import WelcomePage from '@/components/WelcomePage.vue'
 import ErrorPage from '@/components/ErrorPage.vue'
 import ViewUnassignedAlarms from '@/containers/ViewUnassignedAlarms.vue'
-import ConfigurationPage from '@/components/ConfigurationPage.vue'
 import AccountSettings from '@/containers/AccountSettings.vue'
 
 import { useUserStore } from '@/store/useUserStore'
@@ -15,7 +13,6 @@ const checkUser = async () => {
 	const userStore = useUserStore()
 	if (!userStore.userId) {
 		await userStore.getUserRole()
-		await userStore.getAlecInfo()
 	}
 }
 
@@ -27,26 +24,9 @@ const routes = [
 			const r = (window as any).VRouter || router
 			const userStore = useUserStore()
 			await userStore.getUserRole()
-			await userStore.getAlecInfo()
-			if (userStore.firstTime) {
-				r.push({ name: 'welcome', params: to.params })
-			} else {
-				r.push({ name: 'situations', params: to.params })
-			}
+			r.push({ name: 'situations', params: to.params })
 		},
 		component: {}
-	},
-	{
-		path: '/welcome',
-		name: 'welcome',
-		beforeEnter: () => checkUser(),
-		component: WelcomePage
-	},
-	{
-		path: '/setup',
-		name: 'configuration',
-		beforeEnter: () => checkUser(),
-		component: ConfigurationPage
 	},
 	{
 		path: '/situations',
@@ -79,7 +59,6 @@ const routes = [
 		name: 'settings',
 		beforeEnter: async () => {
 			const userStore = useUserStore()
-			await userStore.getAlecInfo()
 			await userStore.getEngineInfo()
 		},
 		component: AccountSettings

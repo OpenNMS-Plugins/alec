@@ -1,8 +1,8 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2022 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2022 The OpenNMS Group, Inc.
+ * Copyright (C) 2026 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2026 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
@@ -26,46 +26,51 @@
  *     http://www.opennms.com/
  *******************************************************************************/
 
-package org.opennms.alec.data;
+package org.opennms.alec.demo.client.model;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-public class AgreementImpl implements Agreement {
-    private final boolean agreed;
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class AlarmList {
+    private Integer totalCount;
+    private Integer count;
+    private Integer offset;
+    @JsonProperty("alarm")
+    private List<Alarm> alarms = new ArrayList<>();
 
-    private AgreementImpl(Builder builder) {
-        agreed = builder.agreed;
+    public Integer getTotalCount() {
+        return totalCount;
     }
 
-    public static Builder newBuilder() {
-        return new Builder();
+    public void setTotalCount(Integer totalCount) {
+        this.totalCount = totalCount;
     }
 
-    public static Builder newBuilder(AgreementImpl copy) {
-        Builder builder = new Builder();
-        builder.agreed = copy.isAgreed();
-        return builder;
+    public Integer getCount() {
+        return count;
     }
 
-    @Override
-    public boolean isAgreed() {
-        return agreed;
+    public void setCount(Integer count) {
+        this.count = count;
     }
 
-    public static final class Builder {
-        @JsonProperty("agreed")
-        private boolean agreed;
+    public Integer getOffset() {
+        return offset;
+    }
 
-        private Builder() {
-        }
+    public void setOffset(Integer offset) {
+        this.offset = offset;
+    }
 
-        public Builder agreed(boolean val) {
-            agreed = val;
-            return this;
-        }
+    public List<Alarm> getAlarms() {
+        return alarms;
+    }
 
-        public AgreementImpl build() {
-            return new AgreementImpl(this);
-        }
+    public void setAlarms(List<Alarm> alarms) {
+        this.alarms = alarms;
     }
 }

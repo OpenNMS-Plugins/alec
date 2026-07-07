@@ -199,6 +199,45 @@ public class EngineRestImplTest {
         assertThat(argumentCaptor.getValue(), equalTo(getParameterAsString(getParameter().alpha(DBScanEngine.DEFAULT_ALPHA).build())));
     }
 
+    @Test
+    public void testReEvaluateAllOpenAlarmsTriggersDriverReinit() {
+        EngineRestImpl underTest = new EngineRestImpl(kvStore, engineRegistry, engineFactories);
+
+        try (Response result = underTest.reEvaluateAllOpenAlarms()) {
+            assertThat(result.getStatus(), equalTo(Response.Status.OK.getStatusCode()));
+        }
+        verify(driver, times(1)).destroy();
+        verify(driver, times(1)).initAsync();
+    }
+
+    @Test
+    public void testSetDbScanAppliesAlphaBetaEpsilonToFactory() throws JsonProcessingException {
+        EngineRestImpl underTest = new EngineRestImpl(kvStore, engineRegistry, engineFactories);
+
+        when(kvStore.putAsync(anyString(), anyString(), anyString())).thenReturn(future);
+        when(future.join()).thenReturn(1L);
+
+        EngineParameter custom = EngineParameterImpl.newBuilder()
+                .alpha(42d)
+                .beta(0.7d)
+                .epsilon(250d)
+                .distanceMeasureName("alarminspaceandtimedistance")
+                .engineName("dbscan")
+                .build();
+
+        try (Response result = underTest.setEngineConfiguration(custom)) {
+            assertThat(result.getStatus(), equalTo(Response.Status.OK.getStatusCode()));
+        }
+
+        DBScanEngineFactory dbScanFactory = (DBScanEngineFactory) engineFactories.stream()
+                .filter(f -> "dbscan".equals(f.getName()))
+                .findFirst()
+                .orElseThrow();
+        assertThat(dbScanFactory.getAlpha(), equalTo(42d));
+        assertThat(dbScanFactory.getBeta(), equalTo(0.7d));
+        assertThat(dbScanFactory.getEpsilon(), equalTo(250d));
+    }
+
     private EngineParameterImpl.Builder getParameter() {
         return EngineParameterImpl.newBuilder()
                 .alpha(1d)
