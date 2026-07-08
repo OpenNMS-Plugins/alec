@@ -12,7 +12,26 @@ const buildWrapper = () => {
 			plugins: [
 				createTestingPinia({
 					createSpy: vi.fn,
-					stubActions: false
+					stubActions: false,
+					// Pre-seed llmConfig the way production does (app shell /
+					// mount-time fetch) so llmConfigLoaded starts true. Without
+					// it the save path (correctly) skips the LLM POST — that
+					// guard has its own dedicated test below.
+					initialState: {
+						userStore: {
+							llmConfig: {
+								enabled: false,
+								autoEvaluate: true,
+								baseUrl: '',
+								model: '',
+								defaultBaseUrl: '',
+								defaultModel: '',
+								systemPrompt: '',
+								defaultSystemPrompt: '',
+								apiKeyPresent: false
+							}
+						}
+					}
 				})
 			]
 		}
@@ -799,4 +818,52 @@ test('Input is scrubbed and cleared-flag reset after a successful save', async (
 	expect(wrapper.vm.llmApiKey).toBe('')
 	expect(wrapper.vm.llmApiKeyCleared).toBe(false)
 	expect(wrapper.vm.llmApiKeyPresent).toBe(true)
+})
+
+test('Save never POSTs the LLM section when the stored config failed to load', async () => {
+	// Mount WITHOUT the pre-seeded llmConfig: the store starts empty and the
+	// mount-time fetch fails, so the form holds blank initial values that must
+	// not overwrite the server's stored endpoint/model/prompt.
+	const wrapper = mount(AccountSettings, {
+		global: {
+			plugins: [createTestingPinia({ createSpy: vi.fn, stubActions: false })]
+		}
+	} as any) as any
+	const store = useUserStore()
+	store.setEngineInfo = vi.fn().mockResolvedValue(true)
+	store.getEngineInfo = vi.fn()
+	store.setLLMConfig = vi.fn().mockResolvedValue(true)
+	store.getLLMConfig = vi.fn().mockResolvedValue(null) // fetch fails
+	store.getLLMUsage = vi.fn().mockResolvedValue(null)
+	await flushPromises()
+
+	await wrapper.find('[data-test="save-btn"]').trigger('click')
+	await flushPromises()
+
+	// Engine settings still save; the LLM POST is skipped entirely.
+	expect(store.setEngineInfo).toHaveBeenCalledTimes(1)
+	expect(store.setLLMConfig).not.toHaveBeenCalled()
+})
+
+test('Enable checkbox can always be turned OFF, even when re-enabling is blocked', async () => {
+	const { wrapper } = buildWrapper()
+	await flushPromises()
+	// Feature is on, but the endpoint has been blanked: re-enabling would be
+	// blocked (llmCannotEnable), yet the checkbox must stay operable so the
+	// user can switch the integration off.
+	wrapper.vm.llmEnabled = true
+	wrapper.vm.llmBaseUrl = ''
+	wrapper.vm.llmModel = ''
+	await wrapper.vm.$nextTick()
+
+	expect(wrapper.vm.llmCannotEnable).toBe(true)
+	const enabledBox = wrapper.findComponent('[data-test="llm-enabled"]') as any
+	expect(enabledBox.exists()).toBe(true)
+	// ON + blocked prerequisites → still operable (so the user can turn it off).
+	expect(enabledBox.props('disabled')).toBe(false)
+
+	// Once OFF with the prerequisites still missing, it locks (can't re-enable).
+	wrapper.vm.llmEnabled = false
+	await wrapper.vm.$nextTick()
+	expect(enabledBox.props('disabled')).toBe(true)
 })

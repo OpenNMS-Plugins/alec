@@ -30,6 +30,7 @@ package org.opennms.alec.rest;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.junit.Assert.assertThat;
 
 import org.junit.Before;
@@ -125,10 +126,19 @@ public class LlmConfigImplTest {
                 LlmConfigImpl.class);
         assertThat(back.getSystemPrompt(), equalTo("Custom ACME prompt."));
 
-        // Blank in == default out, so clearing the textarea never persists an
-        // empty system message.
+        // The DTO keeps a blank prompt blank (trimmed) — "blank means use the
+        // default" is applied by LlmRestImpl#merge before persisting, and by
+        // LlmConfigStatus#from when serving, so the raw request object stays
+        // able to distinguish "cleared" from "custom".
         LlmConfig blank = LlmConfigImpl.newBuilder().apiKey("k").systemPrompt("  ").build();
-        assertThat(blank.getSystemPrompt(), equalTo(LlmConfigImpl.DEFAULT_SYSTEM_PROMPT));
+        assertThat(blank.getSystemPrompt(), equalTo(""));
+        assertThat(LlmConfigStatus.from(blank).getSystemPrompt(),
+                equalTo(LlmConfigImpl.DEFAULT_SYSTEM_PROMPT));
+
+        // Never set at all -> null ("field not provided"), which merge treats
+        // as "preserve the stored prompt".
+        LlmConfig absent = LlmConfigImpl.newBuilder().apiKey("k").build();
+        assertThat(absent.getSystemPrompt(), nullValue());
     }
 
     @Test

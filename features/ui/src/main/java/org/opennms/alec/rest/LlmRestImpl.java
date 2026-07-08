@@ -63,7 +63,7 @@ public class LlmRestImpl implements LlmRest {
             LlmConfig persisted = readPersisted().orElse(null);
             return Response.ok().entity(LlmConfigStatus.from(persisted)).build();
         } catch (JsonProcessingException e) {
-            return ALECRestUtils.somethingWentWrong(e);
+            return configIoError(e);
         }
     }
 
@@ -83,52 +83,98 @@ public class LlmRestImpl implements LlmRest {
         try {
             LlmConfig existing = readPersisted().orElse(null);
             LlmConfig merged = merge(existing, request);
-            // Validation: enabling the feature requires a stored key.
-            if (merged.isEnabled() && (merged.getApiKey() == null || merged.getApiKey().isEmpty())) {
-                return Response.status(Response.Status.BAD_REQUEST)
-                        .entity("Cannot enable LLM integration without an API key")
-                        .build();
+            // Validation: the documented invariant is that the feature cannot be
+            // enabled until endpoint, model AND key are all present. Enforce all
+            // three here (not just the key) — merge() cannot produce a config
+            // that is enabled yet unusable, whatever partial body was POSTed.
+            if (merged.isEnabled()) {
+                StringBuilder missing = new StringBuilder();
+                if (isBlank(merged.getApiKey())) {
+                    missing.append("an API key");
+                }
+                if (isBlank(merged.getBaseUrl())) {
+                    missing.append(missing.length() > 0 ? ", " : "").append("an endpoint URL");
+                }
+                if (isBlank(merged.getModel())) {
+                    missing.append(missing.length() > 0 ? ", " : "").append("a model");
+                }
+                if (missing.length() > 0) {
+                    return Response.status(Response.Status.BAD_REQUEST)
+                            .entity("Cannot enable LLM integration without " + missing)
+                            .build();
+                }
             }
             persist(merged);
             return Response.ok().entity(LlmConfigStatus.from(merged)).build();
         } catch (JsonProcessingException e) {
-            return ALECRestUtils.somethingWentWrong(e);
+            return configIoError(e);
         }
+    }
+
+    private static boolean isBlank(String s) {
+        return s == null || s.trim().isEmpty();
+    }
+
+    /**
+     * 500 for a config (de)serialization failure. Deliberately NOT
+     * {@link ALECRestUtils#somethingWentWrong}: Jackson exception messages embed
+     * a snippet of the source document — here the persisted config blob, which
+     * contains the API key — so neither the response body nor the log line may
+     * carry {@code e.getMessage()}. {@code getOriginalMessage()} excludes the
+     * location/source part.
+     */
+    private static Response configIoError(JsonProcessingException e) {
+        LOG.error("LLM config (de)serialization failed: {}", e.getOriginalMessage());
+        return Response.serverError()
+                .entity("The stored LLM configuration could not be read or written")
+                .build();
     }
 
     /**
      * Merge a POST request onto the persisted record. Rules:
      * <ul>
+     *   <li>Every String field has preserve-when-absent semantics: a field that
+     *       is ABSENT from the request body (null after deserialization) keeps
+     *       its stored value; a field explicitly sent — including as {@code ""} —
+     *       replaces it. A partial POST (e.g. {@code {"enabled":true}}) can
+     *       therefore never silently wipe the endpoint/model/prompt.</li>
      *   <li>{@code clearApiKey=true} wipes the stored key (and forces enabled=false).</li>
      *   <li>A non-empty {@code apiKey} in the request replaces the stored key.</li>
      *   <li>An empty/null {@code apiKey} leaves the stored key untouched — UI can
      *       toggle the enabled flag without re-sending the secret.</li>
-     *   <li>{@code autoEvaluate} is carried through from the request (the UI
-     *       always sends the current checkbox state, so we trust it directly).</li>
-     *   <li>{@code baseUrl} and {@code model} are likewise carried through from
-     *       the request, persisted as-is (blank stays blank — no shipped default).</li>
-     *   <li>{@code defaultBaseUrl} and {@code defaultModel} (the operator's
-     *       recorded per-field defaults, set via the UI's "Set as default") are
-     *       carried through from the request as well.</li>
+     *   <li>{@code enabled}/{@code autoEvaluate} are carried through from the
+     *       request (booleans can't express "absent"; the UI always sends them).</li>
+     *   <li>The merged result is normalized: endpoint/model/defaults are never
+     *       null (blank at minimum) and a blank system prompt falls back to the
+     *       built-in default — persisted records always carry concrete values.</li>
      * </ul>
      */
     static LlmConfig merge(LlmConfig existing, LlmConfig request) {
-        LlmConfigImpl.Builder builder = LlmConfigImpl.newBuilder();
+        // null = "field not provided" -> preserve stored value.
+        String baseUrl = choose(request.getBaseUrl(), existing == null ? null : existing.getBaseUrl());
+        String model = choose(request.getModel(), existing == null ? null : existing.getModel());
+        String defaultBaseUrl = choose(request.getDefaultBaseUrl(),
+                existing == null ? null : existing.getDefaultBaseUrl());
+        String defaultModel = choose(request.getDefaultModel(),
+                existing == null ? null : existing.getDefaultModel());
+        String systemPrompt = choose(request.getSystemPrompt(),
+                existing == null ? null : existing.getSystemPrompt());
+
+        LlmConfigImpl.Builder builder = LlmConfigImpl.newBuilder()
+                .autoEvaluate(request.isAutoEvaluate())
+                .baseUrl(nz(baseUrl))
+                .model(nz(model))
+                .defaultBaseUrl(nz(defaultBaseUrl))
+                .defaultModel(nz(defaultModel))
+                // Blank means "use the default" so clearing the textarea in the
+                // UI doesn't persist an empty system message.
+                .systemPrompt(isBlank(systemPrompt) ? LlmConfigImpl.DEFAULT_SYSTEM_PROMPT : systemPrompt);
 
         if (request.isClearApiKey()) {
             // Clearing the key disables the integration but preserves the user's
             // autoEvaluate / endpoint / model preferences (and recorded defaults)
             // so re-enabling later doesn't surprise them.
-            return builder
-                    .enabled(false)
-                    .autoEvaluate(request.isAutoEvaluate())
-                    .baseUrl(request.getBaseUrl())
-                    .model(request.getModel())
-                    .defaultBaseUrl(request.getDefaultBaseUrl())
-                    .defaultModel(request.getDefaultModel())
-                    .systemPrompt(request.getSystemPrompt())
-                    .apiKey(null)
-                    .build();
+            return builder.enabled(false).apiKey(null).build();
         }
 
         String requestKey = request.getApiKey();
@@ -137,16 +183,16 @@ public class LlmRestImpl implements LlmRest {
         } else if (existing != null) {
             builder.apiKey(existing.getApiKey());
         }
-        builder.enabled(request.isEnabled());
-        builder.autoEvaluate(request.isAutoEvaluate());
-        // baseUrl/model/defaults/systemPrompt come straight from the request —
-        // the UI always submits the current form values.
-        builder.baseUrl(request.getBaseUrl());
-        builder.model(request.getModel());
-        builder.defaultBaseUrl(request.getDefaultBaseUrl());
-        builder.defaultModel(request.getDefaultModel());
-        builder.systemPrompt(request.getSystemPrompt());
-        return builder.build();
+        return builder.enabled(request.isEnabled()).build();
+    }
+
+    /** Request value when provided (non-null, "" counts as provided), else stored. */
+    private static String choose(String requested, String storedValue) {
+        return requested != null ? requested : storedValue;
+    }
+
+    private static String nz(String s) {
+        return s == null ? "" : s;
     }
 
     private Optional<LlmConfig> readPersisted() throws JsonProcessingException {
