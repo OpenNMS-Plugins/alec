@@ -114,6 +114,50 @@ public class EngineRestImpl implements EngineRest {
         }
     }
 
+    /**
+     * Range/sanity validation for a DBSCAN save. Rejecting here (400) beats the
+     * alternative — NaN distances make Commons Math DBSCAN silently stop
+     * producing situations while the save still returns 200.
+     *
+     * @return a 400 Response describing the problem, or null when valid
+     */
+    static Response validateDbscanParameters(EngineParameter p) {
+        StringBuilder problems = new StringBuilder();
+        requireFinite(problems, "alpha", p.getAlpha(), false);
+        requireFinite(problems, "beta", p.getBeta(), false);
+        requireFinite(problems, "epsilon", p.getEpsilon(), true);
+        requireFinite(problems, "hellingerW", p.getHellingerW(), false);
+        requireFinite(problems, "hellingerBias", p.getHellingerBias(), false);
+        // A zero bias yields zero variance for any first-occurrence alarm pair
+        // (var = ((t - firstT)·w + bias)² with t == firstT), driving the
+        // Hellinger formula to 0/0. The distance measure now guards the NaN,
+        // but a zero bias still degenerates the tuning — reject it up front.
+        if (p.getHellingerBias() != null && p.getHellingerBias() == 0d) {
+            problems.append(problems.length() > 0 ? "; " : "")
+                    .append("hellingerBias must be non-zero");
+        }
+        if (problems.length() == 0) {
+            return null;
+        }
+        return Response.status(Response.Status.BAD_REQUEST)
+                .entity("Invalid DBSCAN parameters: " + problems)
+                .build();
+    }
+
+    private static void requireFinite(StringBuilder problems, String name, Double value,
+                                      boolean strictlyPositive) {
+        if (value == null) {
+            return; // absent is fine — the factory keeps its current value
+        }
+        if (value.isNaN() || value.isInfinite()) {
+            problems.append(problems.length() > 0 ? "; " : "")
+                    .append(name).append(" must be a finite number");
+        } else if (strictlyPositive && value <= 0d) {
+            problems.append(problems.length() > 0 ? "; " : "")
+                    .append(name).append(" must be greater than zero");
+        }
+    }
+
     private Response storeEngineParameter(EngineParameter engineParameter) throws JsonProcessingException {
         CompletableFuture<Long> future = kvStore.putAsync(KeyEnum.ENGINE.toString(),
                 objectMapper.writeValueAsString(engineParameter),
@@ -137,15 +181,19 @@ public class EngineRestImpl implements EngineRest {
     }
 
     private Response configureAndStoreDBScan(EngineParameter engineParameter, Driver driver, DBScanEngineFactory dbScanEngineFactory) {
+        Response invalid = validateDbscanParameters(engineParameter);
+        if (invalid != null) {
+            return invalid;
+        }
         dbScanEngineFactory.setAlpha(engineParameter.getAlpha());
         dbScanEngineFactory.setBeta(engineParameter.getBeta());
         dbScanEngineFactory.setEpsilon(engineParameter.getEpsilon());
         dbScanEngineFactory.setDistanceMeasureFactoryName(engineParameter.getDistanceMeasureName());
         // Hellinger-specific tunables: only apply when the caller actually
-        // supplied them. EngineParameter#getHellingerW/Bias fall back to the
-        // Hellinger defaults when the distance measure is "hellinger", so even
-        // a non-Hellinger save won't clobber existing Hellinger values
-        // unintentionally.
+        // supplied them. EngineParameter#getHellingerW/Bias deliberately return
+        // null (no default substitution) when the save omits them, so an
+        // omitting save preserves the factory's current values instead of
+        // silently resetting an operator's tuned ones.
         if (engineParameter.getHellingerW() != null) {
             dbScanEngineFactory.setHellingerW(engineParameter.getHellingerW());
         }

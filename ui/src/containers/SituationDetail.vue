@@ -144,9 +144,13 @@ const clickedTab = (tab: number | undefined) => {
 					</FeatherTabPanel>
 					<FeatherTabPanel class="panel">
 						<!-- Mount only when active so the polling loop in
-						     AISuggestionsTab doesn't run for users who never open it. -->
+						     AISuggestionsTab doesn't run for users who never open it.
+						     :key forces a remount when the user navigates to another
+						     situation in place (next/prev) — without it the component
+						     keeps showing the previous situation's suggestions. -->
 						<AISuggestionsTab
 							v-if="tabNumber == 2"
+							:key="situation.id"
 							:situation-id="situation.id"
 						/>
 					</FeatherTabPanel>

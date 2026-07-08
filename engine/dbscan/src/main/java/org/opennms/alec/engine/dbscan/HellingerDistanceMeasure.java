@@ -37,7 +37,10 @@ import org.opennms.alec.engine.api.DistanceMeasure;
 import org.opennms.alec.engine.cluster.SpatialDistanceCalculator;
 
 public class HellingerDistanceMeasure implements DistanceMeasure {
-    public static final double  DEFAULT_EPSILON = 75d;
+    // Keep in sync with the blueprint default (blueprint.xml epsilon=150) and
+    // the UI's ENGINE_DEFAULTS — this constant is the server-side fallback when
+    // a REST save omits epsilon, so the three sources must agree.
+    public static final double  DEFAULT_EPSILON = 150d;
     public static final double  DEFAULT_W = 4851.28d;
     public static final double  DEFAULT_BIAS = -1986.00d;
 
@@ -91,7 +94,17 @@ public class HellingerDistanceMeasure implements DistanceMeasure {
         double mean_b = 0.5 * (timeB + firstTimeB);
         double var_sum = var_a + var_b;
         double eps_for_grad_sqrt = 1.0e-32;
-        double hellinger = Math.sqrt(1 - Math.sqrt((2 * Math.sqrt(var_a) * Math.sqrt(var_b)) / var_sum) * Math.exp(-0.25 * Math.pow(mean_a - mean_b, 2) / var_sum) + eps_for_grad_sqrt);
+        final double hellinger;
+        if (var_sum == 0) {
+            // Both variances are zero (possible when (Δt·w)+bias lands on 0 for
+            // both alarms — e.g. first-occurrence alarms with a zero bias). The
+            // general formula would compute 0/0 = NaN, and NaN comparisons make
+            // Commons Math DBSCAN silently stop clustering. Two point masses:
+            // Hellinger distance is 0 when they coincide, 1 otherwise.
+            hellinger = mean_a == mean_b ? 0d : 1d;
+        } else {
+            hellinger = Math.sqrt(1 - Math.sqrt((2 * Math.sqrt(var_a) * Math.sqrt(var_b)) / var_sum) * Math.exp(-0.25 * Math.pow(mean_a - mean_b, 2) / var_sum) + eps_for_grad_sqrt);
+        }
 
         return alpha * (beta * (Math.abs(timeA - timeB) / 1000d / 60d) + (1 - beta) * spatialDistance / DEFAULT_WEIGHT) * (1 + hellinger);
     }

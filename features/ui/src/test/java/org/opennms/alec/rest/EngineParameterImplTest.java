@@ -1,6 +1,7 @@
 package org.opennms.alec.rest;
 
 import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.junit.Assert.assertThat;
 
 import org.junit.Before;
@@ -65,7 +66,7 @@ public class EngineParameterImplTest {
         assertThat(DBScanEngine.DEFAULT_ALPHA, equalTo(engineParameter.getAlpha()));
         assertThat(DBScanEngine.DEFAULT_BETA, equalTo(engineParameter.getBeta()));
         // The DBScan default distance measure is "hellinger" — its default
-        // epsilon (75.0) flows through getEpsilon()'s fallback now. Prior
+        // epsilon (150.0) flows through getEpsilon()'s fallback now. Prior
         // to ALEC-296 the default was "alarminspaceandtimedistance", which
         // didn't match any switch case in getEpsilon() and so returned null
         // by coincidence; that older expectation was relying on a no-match
@@ -86,6 +87,27 @@ public class EngineParameterImplTest {
         assertThat(HellingerDistanceMeasure.DEFAULT_EPSILON, equalTo(engineParameter.getEpsilon()));
         assertThat("hellinger", equalTo(engineParameter.getDistanceMeasureName()));
         assertThat("dbscan", equalTo(engineParameter.getEngineName()));
+    }
+
+    @Test
+    public void hellingerWAndBiasStayNullWhenOmitted() throws JsonProcessingException {
+        // Deliberately NO default substitution for W/bias (unlike epsilon):
+        // EngineRestImpl applies them to the factory only when non-null, so a
+        // hellinger save that omits them must surface null — substituting the
+        // defaults here would make every omitting save silently reset an
+        // operator's tuned values.
+        String json = "{\"engineName\":\"dbscan\",\"distanceMeasureName\":\"hellinger\"}";
+        EngineParameter engineParameter = objectMapper.readValue(json, EngineParameter.class);
+
+        assertThat(engineParameter.getHellingerW(), nullValue());
+        assertThat(engineParameter.getHellingerBias(), nullValue());
+
+        // Explicitly supplied values still round-trip.
+        String withVars = "{\"engineName\":\"dbscan\",\"distanceMeasureName\":\"hellinger\","
+                + "\"hellingerW\":123.5,\"hellingerBias\":-42.0}";
+        EngineParameter explicit = objectMapper.readValue(withVars, EngineParameter.class);
+        assertThat(123.5d, equalTo(explicit.getHellingerW()));
+        assertThat(-42.0d, equalTo(explicit.getHellingerBias()));
     }
 
     @Test
