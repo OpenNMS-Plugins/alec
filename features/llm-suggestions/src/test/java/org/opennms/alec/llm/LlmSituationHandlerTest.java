@@ -139,6 +139,35 @@ public class LlmSituationHandlerTest {
     }
 
     @Test
+    public void refiresWhenPendingRecordIsStale() {
+        // A crash/restart between putPending and completion leaves a pending
+        // record no in-flight call will ever resolve. Once it is older than
+        // PENDING_STALE_MS it must stop blocking auto-evaluation.
+        writeConfig(true, "sk-ant-key");
+        store.putPending(stubKey(1L), 500L, LlmConfigReader.DEFAULT_MODEL);
+        mockNow = 500L + LlmSituationHandler.PENDING_STALE_MS + 1;
+        when(service.requestSuggestions(any(), eq("sk-ant-key"), any(), any(), any()))
+                .thenReturn(new CompletableFuture<>()); // new call in flight
+
+        handler.onSituation(stubSituation(1L));
+
+        verify(service).requestSuggestions(any(), eq("sk-ant-key"), any(), any(), any());
+        // A fresh pending record replaces the stale one.
+        SuggestionRecord r = store.get(stubKey(1L)).orElseThrow();
+        assertThat(r.getStatus(), equalTo(SuggestionRecord.STATUS_PENDING));
+        assertThat(r.getRequestedAt(), equalTo(mockNow));
+    }
+
+    @Test
+    public void pendingRecordJustUnderStaleThresholdStillBlocks() {
+        writeConfig(true, "sk-ant-key");
+        store.putPending(stubKey(1L), 500L, LlmConfigReader.DEFAULT_MODEL);
+        mockNow = 500L + LlmSituationHandler.PENDING_STALE_MS; // age == threshold: not yet stale
+        handler.onSituation(stubSituation(1L));
+        verify(service, never()).requestSuggestions(any(), any(), any(), any(), any());
+    }
+
+    @Test
     public void skipsWhenExistingRecordIsReady() {
         writeConfig(true, "sk-ant-key");
         store.putReady(stubKey(1L), 500L, 600L, LlmConfigReader.DEFAULT_MODEL,

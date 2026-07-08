@@ -67,6 +67,12 @@ public class LlmSituationHandler implements SituationHandler {
 
     private static final Logger LOG = LoggerFactory.getLogger(LlmSituationHandler.class);
 
+    /**
+     * Age past which a {@code pending} record no longer blocks a fresh
+     * auto-evaluation. See the staleness check in {@link #onSituation}.
+     */
+    static final long PENDING_STALE_MS = 10 * 60 * 1000L;
+
     private final LlmConfigReader configReader;
     private final LlmSuggestionService suggestionService;
     private final SuggestionStore store;
@@ -131,14 +137,31 @@ public class LlmSituationHandler implements SituationHandler {
 
         Optional<SuggestionRecord> existing = store.get(situationId);
         if (existing.isPresent()) {
-            String status = existing.get().getStatus();
-            if (SuggestionRecord.STATUS_PENDING.equals(status)
-                    || SuggestionRecord.STATUS_READY.equals(status)) {
-                LOG.debug("LLM integration: already {} for situation {}; not re-firing",
-                        status, situationId);
+            SuggestionRecord record = existing.get();
+            String status = record.getStatus();
+            if (SuggestionRecord.STATUS_READY.equals(status)) {
+                LOG.debug("LLM integration: already ready for situation {}; not re-firing", situationId);
                 return;
             }
-            // status == failed → fall through and retry once
+            if (SuggestionRecord.STATUS_PENDING.equals(status)) {
+                // A pending record normally means a call is in flight — but a
+                // crash/restart (or a swallowed store-write failure) between
+                // putPending and completion would otherwise leave the record
+                // pending for its whole pruner lifetime, permanently blocking
+                // auto-evaluation for this situation. Treat a pending record
+                // older than PENDING_STALE_MS as failed and re-fire; the real
+                // in-flight window is bounded by the HTTP timeouts (~35s), so
+                // ten minutes is comfortably past any live call.
+                long age = timeSource.now() - record.getRequestedAt();
+                if (age <= PENDING_STALE_MS) {
+                    LOG.debug("LLM integration: already pending for situation {}; not re-firing",
+                            situationId);
+                    return;
+                }
+                LOG.warn("LLM integration: pending record for situation {} is {} ms old "
+                        + "(stale — likely a restart mid-call); re-firing", situationId, age);
+            }
+            // status == failed (or stale pending) → fall through and retry
         }
 
         // INFO is intentional — one log line per LLM call gives a clear

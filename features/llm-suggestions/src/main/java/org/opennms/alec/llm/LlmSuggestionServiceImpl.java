@@ -51,6 +51,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
+import okhttp3.HttpUrl;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -227,15 +228,31 @@ public class LlmSuggestionServiceImpl implements LlmSuggestionService {
         } catch (IOException e) {
             return ValidationResult.fail("Failed to build validation request: " + e.getMessage());
         }
-        String url = chatCompletionsUrl(baseUrl);
+        String url;
+        try {
+            // Our own messages — they describe the URL, never the key.
+            url = chatCompletionsUrl(baseUrl);
+        } catch (IllegalArgumentException e) {
+            return ValidationResult.fail("Invalid endpoint URL: " + e.getMessage());
+        }
         // apiKey is a secret — never logged, and not echoed into the result.
-        Request request = new Request.Builder()
-                .url(url)
-                .header("Authorization", "Bearer " + apiKey)
-                .header("Content-Type", "application/json")
-                .header("X-Title", "OpenNMS ALEC")
-                .post(RequestBody.create(JSON_MEDIA_TYPE, body))
-                .build();
+        Request request;
+        try {
+            request = new Request.Builder()
+                    .url(url)
+                    .header("Authorization", "Bearer " + apiKey)
+                    .header("Content-Type", "application/json")
+                    .header("X-Title", "OpenNMS ALEC")
+                    .post(RequestBody.create(JSON_MEDIA_TYPE, body))
+                    .build();
+        } catch (IllegalArgumentException e) {
+            // OkHttp rejects header values with illegal characters (e.g. a key
+            // pasted with a stray newline). Its exception message embeds the
+            // full header value — i.e. the key — so it must never be echoed
+            // into the result or logged.
+            return ValidationResult.fail("The API key contains characters that cannot be sent "
+                    + "in an HTTP header — check for stray whitespace or line breaks and re-enter it.");
+        }
         try (Response response = httpClient.newCall(request).execute()) {
             ResponseBody respBody = response.body();
             String text = respBody == null ? "" : respBody.string();
@@ -273,10 +290,6 @@ public class LlmSuggestionServiceImpl implements LlmSuggestionService {
             }
             return ValidationResult.ok("Success — \"" + model + "\" is reachable at " + baseUrl
                     + ", the API key works, and the model supports the tool calling ALEC needs.");
-        } catch (IllegalArgumentException e) {
-            // OkHttp rejects header values with illegal characters (e.g. a key
-            // pasted with a stray newline) before sending.
-            return ValidationResult.fail("Invalid API key format: " + e.getMessage());
         } catch (IOException e) {
             return ValidationResult.fail("Could not reach " + url + ": " + e.getMessage());
         }
@@ -332,7 +345,13 @@ public class LlmSuggestionServiceImpl implements LlmSuggestionService {
         return textOrEmpty(choices.get(0), "finish_reason");
     }
 
-    /** Extract a provider's error.message if present, else a truncated body. */
+    /**
+     * Extract a provider's {@code error.message} if present. Deliberately does
+     * NOT fall back to echoing the raw response body: the endpoint is
+     * caller-influenced, so reflecting arbitrary response bytes back through the
+     * validation/suggestion results would turn this into a read primitive
+     * against whatever the server can reach.
+     */
     private static String providerError(String body, ObjectMapper om) {
         try {
             JsonNode root = om.readTree(body);
@@ -340,13 +359,14 @@ public class LlmSuggestionServiceImpl implements LlmSuggestionService {
             if (err != null) {
                 String msg = textOrEmpty(err, "message");
                 if (!msg.isEmpty()) {
-                    return msg;
+                    return truncate(msg, 300);
                 }
             }
         } catch (IOException ignore) {
-            // fall through to raw body
+            // not JSON — deliberately not echoed
         }
-        return body.isEmpty() ? "(empty response)" : truncate(body, 300);
+        return body.isEmpty() ? "(empty response)"
+                : "(endpoint returned no parseable error message)";
     }
 
     private Suggestions doRequest(Situation situation, String apiKey, String baseUrl, String model,
@@ -358,21 +378,33 @@ public class LlmSuggestionServiceImpl implements LlmSuggestionService {
             throw new LlmApiException("Failed to build request body", e);
         }
         // Header values are never logged at any level — apiKey is a real secret.
-        Request request = new Request.Builder()
-                .url(chatCompletionsUrl(baseUrl))
-                .header("Authorization", "Bearer " + apiKey)
-                .header("Content-Type", "application/json")
-                // Optional attribution header honoured by OpenRouter; ignored
-                // by providers that don't recognise it.
-                .header("X-Title", "OpenNMS ALEC")
-                .post(RequestBody.create(JSON_MEDIA_TYPE, body))
-                .build();
+        final Request request;
+        try {
+            request = new Request.Builder()
+                    .url(chatCompletionsUrl(baseUrl))
+                    .header("Authorization", "Bearer " + apiKey)
+                    .header("Content-Type", "application/json")
+                    // Optional attribution header honoured by OpenRouter; ignored
+                    // by providers that don't recognise it.
+                    .header("X-Title", "OpenNMS ALEC")
+                    .post(RequestBody.create(JSON_MEDIA_TYPE, body))
+                    .build();
+        } catch (IllegalArgumentException e) {
+            // OkHttp's IAE for an illegal header value embeds the full value —
+            // the API key — in its message. Do NOT attach it as a cause or echo
+            // its message: the failure reason is logged and served to the UI.
+            throw new LlmApiException("Endpoint URL or API key is malformed (check for stray "
+                    + "whitespace or line breaks in the key, and re-validate the endpoint)");
+        }
         try (Response response = httpClient.newCall(request).execute()) {
             ResponseBody respBody = response.body();
             String text = respBody == null ? "" : respBody.string();
             if (!response.isSuccessful()) {
+                // providerError never reflects the raw body — the failure reason
+                // is persisted and displayed in the UI.
                 throw new LlmApiException(
-                        "LLM API returned HTTP " + response.code() + ": " + truncate(text, 500));
+                        "LLM API returned HTTP " + response.code() + ": "
+                                + providerError(text, objectMapper));
             }
             return parseResponse(text, objectMapper);
         } catch (IOException e) {
@@ -383,9 +415,29 @@ public class LlmSuggestionServiceImpl implements LlmSuggestionService {
     /**
      * Join the configured base URL with the chat-completions path, tolerating a
      * trailing slash on the base URL.
+     *
+     * <p>The base URL is validated first: it must parse as http(s) and must not
+     * carry embedded credentials, a query string or a fragment. Without this, a
+     * crafted "base URL" could reshape the request path/query that the server's
+     * stored API key is sent to.
+     *
+     * @throws IllegalArgumentException with a key-free, user-presentable message
      */
     static String chatCompletionsUrl(String baseUrl) {
-        String trimmed = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
+        String trimmed = baseUrl.trim();
+        while (trimmed.endsWith("/")) {
+            trimmed = trimmed.substring(0, trimmed.length() - 1);
+        }
+        HttpUrl parsed = HttpUrl.parse(trimmed);
+        if (parsed == null) {
+            throw new IllegalArgumentException("must be a valid http(s) URL");
+        }
+        if (!parsed.username().isEmpty() || !parsed.password().isEmpty()) {
+            throw new IllegalArgumentException("must not contain embedded credentials");
+        }
+        if (parsed.encodedQuery() != null || parsed.encodedFragment() != null) {
+            throw new IllegalArgumentException("must not contain a query string or fragment");
+        }
         return trimmed + CHAT_COMPLETIONS_PATH;
     }
 
@@ -555,11 +607,17 @@ public class LlmSuggestionServiceImpl implements LlmSuggestionService {
             return Suggestions.TokenUsage.empty();
         }
         // OpenAI reports automatically-cached input tokens under
-        // prompt_tokens_details.cached_tokens. There is no separate
+        // prompt_tokens_details.cached_tokens — and that count is a SUBSET of
+        // prompt_tokens, not an extra bucket. Store the buckets disjointly
+        // (uncached input vs cache reads) so the usage rollup can sum them
+        // without double-counting: a fully-cached 1000-token prompt is 0 input
+        // + 1000 cache-read, total 1000 — not 2000. There is no separate
         // "cache creation" count in this format, so that field stays 0.
-        long cachedInput = u.path("prompt_tokens_details").path("cached_tokens").asLong(0L);
+        long prompt = u.path("prompt_tokens").asLong(0L);
+        long cachedInput = Math.min(prompt,
+                u.path("prompt_tokens_details").path("cached_tokens").asLong(0L));
         return new Suggestions.TokenUsage(
-                u.path("prompt_tokens").asLong(0L),
+                prompt - cachedInput,
                 u.path("completion_tokens").asLong(0L),
                 cachedInput,
                 0L);

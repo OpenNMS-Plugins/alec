@@ -53,14 +53,31 @@ public class LlmValidationRestImpl implements LlmValidationRest {
         ValidationRequest req = request == null ? new ValidationRequest() : request;
         Optional<LlmConfigReader.Config> stored = configReader.read();
 
-        // Each field: use what the form sent, else the persisted value, else the
-        // built-in default. The key especially: a blank key means "use the one
-        // already stored" so the UI can validate without re-sending the secret.
-        String apiKey = firstNonBlank(req.getApiKey(), stored.map(LlmConfigReader.Config::getApiKey).orElse(""));
-        String baseUrl = firstNonBlank(req.getBaseUrl(),
-                stored.map(LlmConfigReader.Config::getBaseUrl).orElse(LlmConfigReader.DEFAULT_BASE_URL));
+        // Endpoint/model: use what the form sent, else the persisted value.
+        String storedUrl = stored.map(LlmConfigReader.Config::getBaseUrl)
+                .orElse(LlmConfigReader.DEFAULT_BASE_URL);
+        String baseUrl = firstNonBlank(req.getBaseUrl(), storedUrl);
         String model = firstNonBlank(req.getModel(),
                 stored.map(LlmConfigReader.Config::getModel).orElse(LlmConfigReader.DEFAULT_MODEL));
+
+        // The key: a blank key in the request means "use the one already
+        // stored" so the UI can validate without re-sending the secret — but
+        // ONLY when the target endpoint is the one the key was saved with.
+        // Falling back to the stored key for a caller-supplied endpoint would
+        // let any authenticated REST caller exfiltrate the operator's key by
+        // pointing "validation" at a host they control.
+        String requestKey = req.getApiKey() == null ? "" : req.getApiKey().trim();
+        String apiKey;
+        if (!requestKey.isEmpty()) {
+            apiKey = requestKey;
+        } else if (sameEndpoint(baseUrl, storedUrl)) {
+            apiKey = stored.map(LlmConfigReader.Config::getApiKey).orElse("");
+        } else {
+            return Response.ok().entity(ValidationResult.fail(
+                    "The endpoint differs from the saved one — re-enter the API key to validate "
+                            + "a new endpoint. (The stored key is only ever sent to the endpoint "
+                            + "it was saved with.)")).build();
+        }
 
         // Never log the key; the result message is key-free by construction.
         LOG.debug("Validating LLM config: baseUrl={}, model={}, keyProvided={}",
@@ -68,6 +85,19 @@ public class LlmValidationRestImpl implements LlmValidationRest {
 
         ValidationResult result = suggestionService.validate(apiKey, baseUrl, model);
         return Response.ok().entity(result).build();
+    }
+
+    /** Endpoint equality for the stored-key rule: trim + ignore trailing slashes. */
+    static boolean sameEndpoint(String a, String b) {
+        return normalizeUrl(a).equals(normalizeUrl(b));
+    }
+
+    private static String normalizeUrl(String url) {
+        String s = url == null ? "" : url.trim();
+        while (s.endsWith("/")) {
+            s = s.substring(0, s.length() - 1);
+        }
+        return s;
     }
 
     private static String firstNonBlank(String a, String b) {
