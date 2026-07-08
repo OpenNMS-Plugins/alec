@@ -93,6 +93,6 @@ watch(props, () => {
 }
 .clicked {
 	border: 2px solid $dark-blue !important;
-	background-color: #e6e6e6 !important;
+	background-color: var(--feather-shade-3) !important;
 }
 </style>

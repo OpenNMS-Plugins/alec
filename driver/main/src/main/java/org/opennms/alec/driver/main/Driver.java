@@ -50,6 +50,7 @@ import org.opennms.alec.datasource.api.InventoryObject;
 import org.opennms.alec.datasource.api.Situation;
 import org.opennms.alec.datasource.api.SituationDatasource;
 import org.opennms.alec.datasource.api.SituationHandler;
+import org.opennms.alec.datasource.common.CompositeSituationHandler;
 import org.opennms.alec.engine.api.Engine;
 import org.opennms.alec.engine.api.EngineFactory;
 import org.opennms.alec.engine.api.EngineRegistry;
@@ -77,6 +78,13 @@ public class Driver implements EngineRegistry {
     private final SituationProcessor situationProcessor;
     private final SituationHandler confirmingSituationHandler;
     private SituationHandler deletingSituationHandler;
+    /**
+     * External SituationHandlers contributed by other bundles via an OSGi
+     * reference-list (see driver/main blueprint). Fanned out alongside the
+     * inline situationProcessor forwarder by {@link CompositeSituationHandler}
+     * in {@link #initAsync()}.
+     */
+    private final List<SituationHandler> externalSituationHandlers;
 
     private Thread initThread;
     private Engine engine;
@@ -94,6 +102,15 @@ public class Driver implements EngineRegistry {
                   AlarmFeedbackDatasource alarmFeedbackDatasource, InventoryDatasource inventoryDatasource,
                   SituationDatasource situationDatasource, EngineFactory engineFactory,
                   SituationProcessorFactory situationProcessorFactory) {
+        this(bundleContext, alarmDatasource, alarmFeedbackDatasource, inventoryDatasource,
+                situationDatasource, engineFactory, situationProcessorFactory, Collections.emptyList());
+    }
+
+    public Driver(BundleContext bundleContext, AlarmDatasource alarmDatasource,
+                  AlarmFeedbackDatasource alarmFeedbackDatasource, InventoryDatasource inventoryDatasource,
+                  SituationDatasource situationDatasource, EngineFactory engineFactory,
+                  SituationProcessorFactory situationProcessorFactory,
+                  List<SituationHandler> externalSituationHandlers) {
         this.bundleContext = Objects.requireNonNull(bundleContext);
         this.alarmDatasource = Objects.requireNonNull(alarmDatasource);
         this.alarmFeedbackDatasource = Objects.requireNonNull(alarmFeedbackDatasource);
@@ -103,6 +120,11 @@ public class Driver implements EngineRegistry {
         this.situationProcessor =
                 Objects.requireNonNull(situationProcessorFactory).getInstance();
         confirmingSituationHandler = SituationConfirmer.newInstance(situationProcessor);
+        // Held by reference (not copied) so an OSGi reference-list keeps growing/shrinking
+        // as services come and go; CompositeSituationHandler snapshots per callback.
+        this.externalSituationHandlers = externalSituationHandlers == null
+                ? Collections.emptyList()
+                : externalSituationHandlers;
 
         metrics = new MetricRegistry();
         jmxReporter = JmxReporter.forRegistry(metrics)
@@ -129,13 +151,25 @@ public class Driver implements EngineRegistry {
         // Register the handler that confirms situations that have come round trip back to this driver
         situationDatasource.registerHandler(confirmingSituationHandler);
         // Register the situation processor responsible for accepting and processing all situations generated via the
-        // engine
-        engine.registerSituationHandler(new SituationHandler() {
+        // engine. Wrap the core processor + any external listeners in a composite so multiple bundles can subscribe
+        // (the engine itself holds only a single-slot handler reference).
+        //
+        // We pass externalSituationHandlers DIRECTLY to the composite (not a snapshot) so external bundles whose
+        // SituationHandler services register after Driver init still get picked up — the OSGi reference-list is
+        // live, and the composite iterates it (with a per-callback defensive copy) at each callback.
+        SituationHandler coreProcessorForwarder = new SituationHandler() {
             @Override
             public void onSituation(Situation situation) {
                 situationProcessor.accept(situation);
             }
-        });
+        };
+        // Hold the OSGi reference-list live (not snapshotted) so external bundles whose
+        // SituationHandler services register after Driver init still get picked up — see
+        // CompositeSituationHandler for the per-callback snapshot semantics.
+        LOG.debug("Driver.initAsync: wiring CompositeSituationHandler with externalSituationHandlers.size={}",
+                externalSituationHandlers.size());
+        engine.registerSituationHandler(
+                new CompositeSituationHandler(coreProcessorForwarder, externalSituationHandlers));
 
         timer = new Timer();
         // The get methods on the datasources may block, so we do this on a separate thread

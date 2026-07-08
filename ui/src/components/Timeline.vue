@@ -93,12 +93,12 @@ const getOffset = (alarmStart: Date | undefined): number => {
 }
 .line {
 	height: 2px;
-	background-color: red;
+	background-color: var(--feather-error);
 }
 
 .line-gray {
 	height: 1px;
-	background-color: #cccccc;
+	background-color: var(--feather-shade-3);
 }
 
 .circle {

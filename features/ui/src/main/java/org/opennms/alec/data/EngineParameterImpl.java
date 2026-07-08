@@ -14,9 +14,12 @@ import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 public class EngineParameterImpl implements EngineParameter {
 
     public static final String DBSCAN = "dbscan";
+    public static final String HELLINGER = "hellinger";
     private final Double alpha;
     private final Double beta;
     private final Double epsilon;
+    private final Double hellingerW;
+    private final Double hellingerBias;
     private final String distanceMeasureName;
     private final String engineName;
     private final String remoteUri;
@@ -27,6 +30,8 @@ public class EngineParameterImpl implements EngineParameter {
         alpha = builder.alpha;
         beta = builder.beta;
         epsilon = builder.epsilon;
+        hellingerW = builder.hellingerW;
+        hellingerBias = builder.hellingerBias;
         distanceMeasureName = builder.distanceMeasureName;
         engineName = builder.engineName;
         remoteUri = builder.remoteUri;
@@ -43,6 +48,8 @@ public class EngineParameterImpl implements EngineParameter {
         builder.alpha = copy.getAlpha();
         builder.beta = copy.getBeta();
         builder.epsilon = copy.getEpsilon();
+        builder.hellingerW = copy.getHellingerW();
+        builder.hellingerBias = copy.getHellingerBias();
         builder.distanceMeasureName = copy.getDistanceMeasureName();
         builder.engineName = copy.getEngineName();
         builder.remoteUri = copy.getRemoteUri();
@@ -95,6 +102,23 @@ public class EngineParameterImpl implements EngineParameter {
     }
 
     @Override
+    public Double getHellingerW() {
+        // Deliberately NO default substitution (unlike alpha/beta/epsilon):
+        // EngineRestImpl applies these to the factory only when non-null, so a
+        // save that omits them must surface as null — substituting DEFAULT_W
+        // here would make every omitting save silently reset an operator's
+        // tuned value. The runtime default lives in the factory/blueprint; the
+        // UI supplies its own display default for a null.
+        return hellingerW;
+    }
+
+    @Override
+    public Double getHellingerBias() {
+        // See getHellingerW() — null means "not supplied", never substituted.
+        return hellingerBias;
+    }
+
+    @Override
     public String getDistanceMeasureName() {
         if (Optional.ofNullable(distanceMeasureName).isEmpty()) {
             if (DBSCAN.equals(engineName)) {
@@ -137,6 +161,8 @@ public class EngineParameterImpl implements EngineParameter {
         private Double alpha;
         private Double beta;
         private Double epsilon;
+        private Double hellingerW;
+        private Double hellingerBias;
         private String distanceMeasureName;
         private String engineName;
         private String remoteUri;
@@ -162,6 +188,16 @@ public class EngineParameterImpl implements EngineParameter {
 
         public Builder epsilon(Double val) {
             epsilon = val;
+            return this;
+        }
+
+        public Builder hellingerW(Double val) {
+            hellingerW = val;
+            return this;
+        }
+
+        public Builder hellingerBias(Double val) {
+            hellingerBias = val;
             return this;
         }
 
@@ -201,6 +237,8 @@ public class EngineParameterImpl implements EngineParameter {
                 .add("alpha=" + alpha)
                 .add("beta=" + beta)
                 .add("epsilon=" + epsilon)
+                .add("hellingerW=" + hellingerW)
+                .add("hellingerBias=" + hellingerBias)
                 .add("distanceMeasureName='" + distanceMeasureName + "'")
                 .add("engineName='" + engineName + "'")
                 .add("remoteUri='" + remoteUri + "'")

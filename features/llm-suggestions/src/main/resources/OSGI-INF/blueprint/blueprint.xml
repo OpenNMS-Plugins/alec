@@ -1,0 +1,119 @@
+<blueprint xmlns="http://www.osgi.org/xmlns/blueprint/v1.0.0">
+
+    <!-- Shared KV store published by OpenNMS / the integration API. Optional
+         because it can be absent during unit-test bring-up; downstream beans
+         that need it accept it directly and will fail loudly if it isn't there. -->
+    <reference id="keyValueStore"
+               interface="org.opennms.integration.api.v1.distributed.KeyValueStore"
+               availability="optional"/>
+
+    <bean id="llmObjectMapper" class="com.fasterxml.jackson.databind.ObjectMapper"/>
+
+    <!--
+        LlmSuggestionService — calls a configured OpenAI-compatible chat
+        endpoint (OpenRouter by default) to produce up to 3 probable root
+        causes + 3 possible resolutions for a given Situation.
+    -->
+    <bean id="llmSuggestionService"
+          class="org.opennms.alec.llm.LlmSuggestionServiceImpl"
+          destroy-method="shutdown"/>
+
+    <service ref="llmSuggestionService"
+             interface="org.opennms.alec.llm.LlmSuggestionService"/>
+
+    <!-- Reads the slice-1 config record {enabled, apiKey} from KV. -->
+    <bean id="llmConfigReader" class="org.opennms.alec.llm.LlmConfigReader">
+        <argument ref="keyValueStore"/>
+        <argument ref="llmObjectMapper"/>
+    </bean>
+
+    <!-- Sidecar storage for suggestion records, keyed by situation id. -->
+    <bean id="suggestionStore" class="org.opennms.alec.llm.SuggestionStore">
+        <argument ref="keyValueStore"/>
+        <argument ref="llmObjectMapper"/>
+    </bean>
+
+    <!-- Per-call token-usage log; aggregated by /alec/llm/usage. -->
+    <bean id="usageStore" class="org.opennms.alec.llm.UsageStore">
+        <argument ref="keyValueStore"/>
+        <argument ref="llmObjectMapper"/>
+    </bean>
+
+    <!--
+        Bridge between the engine's situation-emission and LLM. Registered as
+        a SituationHandler service with role=engine-listener so the composite
+        handler in driver/main (slice 2) picks it up automatically — no engine
+        or driver code changes required.
+    -->
+    <bean id="llmSituationHandler" class="org.opennms.alec.llm.LlmSituationHandler">
+        <argument ref="llmConfigReader"/>
+        <argument ref="llmSuggestionService"/>
+        <argument ref="suggestionStore"/>
+        <argument ref="usageStore"/>
+    </bean>
+
+    <service ref="llmSituationHandler"
+             interface="org.opennms.alec.datasource.api.SituationHandler">
+        <service-properties>
+            <entry key="role" value="engine-listener"/>
+        </service-properties>
+    </service>
+
+    <!-- Daily prune of suggestion records older than 90 days. -->
+    <bean id="suggestionPruner"
+          class="org.opennms.alec.llm.SuggestionPruner"
+          init-method="start"
+          destroy-method="stop">
+        <argument ref="suggestionStore"/>
+    </bean>
+
+    <!-- Daily prune of usage rows older than 90 days. -->
+    <bean id="usagePruner"
+          class="org.opennms.alec.llm.UsagePruner"
+          init-method="start"
+          destroy-method="stop">
+        <argument ref="usageStore"/>
+    </bean>
+
+    <!-- Situation datasource needed by the reanalyze endpoint to load a
+         situation by id and pass it back to the handler. -->
+    <reference id="situationDatasource"
+               interface="org.opennms.alec.datasource.api.SituationDatasource"/>
+
+    <!-- REST endpoints (same /alec/llm root as the slice-1 config endpoint
+         in features/ui; JAX-RS routes by sub-path). -->
+    <bean id="suggestionsRest" class="org.opennms.alec.llm.SuggestionsRestImpl">
+        <argument ref="suggestionStore"/>
+        <argument ref="situationDatasource"/>
+        <argument ref="llmSituationHandler"/>
+        <argument ref="llmConfigReader"/>
+    </bean>
+    <service ref="suggestionsRest" interface="org.opennms.alec.llm.SuggestionsRest">
+        <service-properties>
+            <entry key="application-path" value="/rest"/>
+        </service-properties>
+    </service>
+
+    <bean id="usageRest" class="org.opennms.alec.llm.UsageRestImpl">
+        <argument ref="usageStore"/>
+    </bean>
+    <service ref="usageRest" interface="org.opennms.alec.llm.UsageRest">
+        <service-properties>
+            <entry key="application-path" value="/rest"/>
+        </service-properties>
+    </service>
+
+    <!-- Validate the configured endpoint/model/key before saving (or after a
+         failed call). Reuses the real suggestion client so the probe exercises
+         the same function-calling path. -->
+    <bean id="llmValidationRest" class="org.opennms.alec.llm.LlmValidationRestImpl">
+        <argument ref="llmSuggestionService"/>
+        <argument ref="llmConfigReader"/>
+    </bean>
+    <service ref="llmValidationRest" interface="org.opennms.alec.llm.LlmValidationRest">
+        <service-properties>
+            <entry key="application-path" value="/rest"/>
+        </service-properties>
+    </service>
+
+</blueprint>

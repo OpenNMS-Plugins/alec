@@ -18,11 +18,12 @@ java -jar demo/target/alec-demo.jar run --scenario star-5
 
 With **default ALEC configuration**, the current behavior is:
 
-| Scenario   | Alarms Injected           | Situations Created | Meaning                                             |
-|------------|---------------------------|--------------------|-----------------------------------------------------|
-| `single`   | 3 alarms on Router-01     | **1**              | All 3 alarms grouped into one situation             |
-| `linear-3` | 3 alarms on each of 2 routers (6 total) | **2**   | Each node's alarms grouped separately               |
-| `star-5`   | 3 alarms on each of 5 routers (15 total) | **5**  | Each node's alarms grouped separately               |
+| Scenario           | Alarms Injected           | Situations Created | Meaning                                             |
+|--------------------|---------------------------|--------------------|-----------------------------------------------------|
+| `single`           | 3 alarms on Router-01     | **1**              | All 3 alarms grouped into one situation             |
+| `linear-3`         | 3 alarms on each of 2 routers (6 total) | **2**   | Each node's alarms grouped separately               |
+| `star-5`           | 3 alarms on each of 5 routers (15 total) | **5**  | Each node's alarms grouped separately               |
+| `realistic-outage` | 5 correlated alarms (optical / flap / BGP / saturation) across 2 routers | **2** | Realistic ops scenario for exercising the LLM suggestion path (ALEC-299) |
 
 ### Why one situation per node (not cross-node)?
 
@@ -83,11 +84,109 @@ java -jar demo/target/alec-demo.jar nuke
 
 ## Scenarios
 
-| Name       | Topology                                          | Alarms                                    |
-|------------|---------------------------------------------------|-------------------------------------------|
-| `linear-3` | 3 routers in a chain (Router-01 — Router-02 — Router-03) | 3 generic alarms on Router-01 and Router-02 each |
-| `star-5`   | Core-Router-01 + 4 edge routers in a star         | 3 generic alarms on each of the 5 routers |
-| `single`   | 1 router (Router-01)                              | 3 generic alarms on Router-01             |
+Pick a scenario with `--scenario NAME`; default is `linear-3`. Every scenario
+goes through the same lifecycle (`setup → inject → verify → cleanup`) — the
+table below summarizes what each one creates and what to expect.
+
+| Name               | Topology                                          | Alarms injected                            | Situations expected |
+|--------------------|---------------------------------------------------|--------------------------------------------|---------------------|
+| `single`           | 1 router (Router-01)                              | 3 generic alarms on Router-01              | 1                   |
+| `linear-3`         | 3 routers in a chain (Router-01 — Router-02 — Router-03) | 3 generic alarms each on Router-01 and Router-02 (6 total) | 2                   |
+| `star-5`           | Core-Router-01 + 4 edge routers in a star         | 3 generic alarms on each of the 5 routers (15 total) | 5                   |
+| `realistic-outage` | Edge-Router-East — Core-Router-01                 | Optical degrade → interface flap → BGP transition → link saturation → downstream flap (5 alarms total) | 2                   |
+
+### `single`
+
+Smallest valid scenario — one router, three identical generic alarms.
+Demonstrates that ALEC clusters multiple alarms on the same node into a
+single situation.
+
+```bash
+java -jar demo/target/alec-demo.jar run --scenario single
+```
+
+Expected: 1 situation containing all 3 alarms. Useful as a smoke test that
+ALEC is correlating at all.
+
+### `linear-3`
+
+Three routers wired as a chain. Alarms are injected on the first two only,
+to demonstrate per-node clustering without inflating the situation count.
+
+```bash
+java -jar demo/target/alec-demo.jar run --scenario linear-3
+```
+
+Expected: 2 situations (one per affected node). The third router stays
+quiet — confirms ALEC isn't blindly clustering across the whole topology.
+
+### `star-5`
+
+Stress shape: a hub-and-spoke topology with five nodes. Useful for showing
+DBSCAN's default-epsilon behavior at scale.
+
+```bash
+java -jar demo/target/alec-demo.jar run --scenario star-5
+```
+
+Expected: 5 situations (one per node). With default ALEC tuning, alarms on
+different nodes don't cluster together even though they're injected
+simultaneously — see [FINDINGS.md](./FINDINGS.md) for the math and the
+tuned-weight alternative used in `engine/itest`.
+
+### `realistic-outage` (ALEC-299)
+
+The scenario designed for the LLM Root Cause Analysis path. Five alarms
+across two nodes, all in a short window, telling a coherent ops story:
+optical receive-power degrades on an edge router's uplink → that interface
+starts flapping → the BGP service running over it drops → traffic shifts
+to the backup link and saturates → the downstream node sees its own
+interface flap as the topology re-converges.
+
+```bash
+java -jar demo/target/alec-demo.jar run --scenario realistic-outage
+```
+
+Expected: 2 situations. Open one in the OpenNMS UI → **AI Suggestions**
+tab. With the integration enabled (see the configuration page), the tab populates
+with up to three probable root causes and up to three possible
+resolutions within ~5–30 seconds. With the integration disabled or no key set,
+the tab shows the right empty-state message; the **Re-evaluate** button
+on the tab can force an analysis on demand once the key is configured.
+
+#### Zero-install expectations
+
+The scenario uses OpenNMS Horizon's **built-in** event UEIs
+(`threshold/lowThresholdExceeded`, `threshold/highThresholdExceeded`,
+`nodes/nodeLostService`, `nodes/interfaceDown`) so it works on any
+stock OpenNMS install — no `etc/events.d` step required.
+
+### Optional: custom event definitions for richer descriptions
+
+The demo also ships `src/main/resources/events/alec-demo.events.xml` with
+hand-written `<descr>` blocks that include domain-specific framing
+(e.g. "Possible causes: dirty connector, failing optic, bent or damaged
+fiber"). If you install it, the custom-UEI factories
+(`Event.opticalDegrade`, `Event.bgpBackwardTransition`,
+`Event.linkSaturation`, `Event.interfaceFlapping`) become useful for crafting
+your own scenarios:
+
+```bash
+cp demo/src/main/resources/events/alec-demo.events.xml \
+   $OPENNMS_HOME/etc/events.d/
+
+# Reference it from eventconf.xml (add this <event-file/> entry):
+#   <event-file>events.d/alec-demo.events.xml</event-file>
+
+$OPENNMS_HOME/bin/send-event.pl \
+    uei.opennms.org/internal/reloadDaemonConfig -p 'daemonName Eventd'
+```
+
+Note: in OpenNMS Horizon installs that load eventconf from the database
+(`<!-- Event conf files are loaded directly from DB -->` in eventconf.xml),
+the `<event-file>` entry must be added through the OpenNMS admin UI or via
+direct DB migration — copying the XML into `etc/events.d/` alone won't be
+picked up.
 
 ## Cleanup
 

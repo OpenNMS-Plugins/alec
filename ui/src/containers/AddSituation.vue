@@ -194,7 +194,7 @@ const filterList = (list: TAlarm[]) => {
 
 .form {
 	display: flex;
-	background-color: white;
+	background-color: var(--feather-surface);
 	border: 1px solid $border-grey;
 	padding: 20px;
 	margin-top: 20px;
@@ -240,7 +240,7 @@ const filterList = (list: TAlarm[]) => {
 
 .btn-add {
 	height: 36px !important;
-	background-color: #46ae46 !important;
+	background-color: var(--feather-success) !important;
 	color: white !important;
 }
 
@@ -258,7 +258,7 @@ const filterList = (list: TAlarm[]) => {
 }
 
 .errorList {
-	color: #d43d45;
+	color: var(--feather-error);
 }
 
 .layout-container {

@@ -44,9 +44,9 @@ const props = defineProps<{
 	border: 1px solid $border-grey;
 	position: relative;
 	min-height: 140px;
-	background-color: #ffffff;
+	background-color: var(--feather-surface);
 	&.selected {
-		border: 1px solid #273180;
+		border: 1px solid var(--feather-secondary);
 	}
 }
 .alarmInfo {

@@ -34,6 +34,9 @@ import org.opennms.alec.engine.cluster.SpatialDistanceCalculator;
 
 public class HellingerDistanceMeasureFactory implements DistanceMeasureFactory {
 
+    private double w = HellingerDistanceMeasure.DEFAULT_W;
+    private double bias = HellingerDistanceMeasure.DEFAULT_BIAS;
+
     @Override
     public String getName() {
         return "hellinger";
@@ -41,6 +44,23 @@ public class HellingerDistanceMeasureFactory implements DistanceMeasureFactory {
 
     @Override
     public DistanceMeasure createDistanceMeasure(Object spatialDistanceCalculator, double alpha, double beta) {
-        return new HellingerDistanceMeasure((SpatialDistanceCalculator) spatialDistanceCalculator, alpha, beta);
+        return new HellingerDistanceMeasure(
+                (SpatialDistanceCalculator) spatialDistanceCalculator, alpha, beta, w, bias);
+    }
+
+    public double getW() {
+        return w;
+    }
+
+    public void setW(double w) {
+        this.w = w;
+    }
+
+    public double getBias() {
+        return bias;
+    }
+
+    public void setBias(double bias) {
+        this.bias = bias;
     }
 }

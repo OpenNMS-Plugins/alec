@@ -27,7 +27,9 @@
  *******************************************************************************/
 package org.opennms.alec.rest;
 
+import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.junit.Assert.assertThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.anyString;
@@ -236,6 +238,42 @@ public class EngineRestImplTest {
         assertThat(dbScanFactory.getAlpha(), equalTo(42d));
         assertThat(dbScanFactory.getBeta(), equalTo(0.7d));
         assertThat(dbScanFactory.getEpsilon(), equalTo(250d));
+    }
+
+    // --- validateDbscanParameters ---
+
+    @Test
+    public void validateDbscanRejectsNaNInfiniteAndNonPositiveEpsilon() {
+        assertThat(EngineRestImpl.validateDbscanParameters(
+                getParameter().epsilon(Double.NaN).build()).getStatus(), equalTo(400));
+        assertThat(EngineRestImpl.validateDbscanParameters(
+                getParameter().alpha(Double.POSITIVE_INFINITY).build()).getStatus(), equalTo(400));
+        assertThat(EngineRestImpl.validateDbscanParameters(
+                getParameter().epsilon(0d).build()).getStatus(), equalTo(400));
+        assertThat(EngineRestImpl.validateDbscanParameters(
+                getParameter().epsilon(-5d).build()).getStatus(), equalTo(400));
+    }
+
+    @Test
+    public void validateDbscanRejectsZeroHellingerBias() {
+        // bias == 0 zeroes the variance for first-occurrence alarm pairs and
+        // degenerates the Hellinger term — reject up front instead of letting
+        // clustering silently misbehave.
+        Response r = EngineRestImpl.validateDbscanParameters(
+                getParameter().distanceMeasureName("hellinger")
+                        .hellingerW(100d).hellingerBias(0d).build());
+        assertThat(r.getStatus(), equalTo(400));
+        assertThat(String.valueOf(r.getEntity()), containsString("hellingerBias"));
+    }
+
+    @Test
+    public void validateDbscanAcceptsSaneParametersAndOmittedHellingerVars() {
+        // Typical full save.
+        assertThat(EngineRestImpl.validateDbscanParameters(
+                getParameter().distanceMeasureName("hellinger")
+                        .hellingerW(4851.28d).hellingerBias(-1986d).build()), nullValue());
+        // W/bias omitted entirely — factory keeps its current values.
+        assertThat(EngineRestImpl.validateDbscanParameters(getParameter().build()), nullValue());
     }
 
     private EngineParameterImpl.Builder getParameter() {

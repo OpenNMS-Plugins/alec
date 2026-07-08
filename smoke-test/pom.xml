@@ -137,6 +137,19 @@
                         <artifactId>maven-surefire-plugin</artifactId>
                         <configuration>
                             <skipTests>false</skipTests>
+                            <!--
+                                Force the Docker Remote API version used by Testcontainers'
+                                docker-java client. The CI machine image's Docker daemon now
+                                requires API >= 1.40, but docker-java (via Testcontainers
+                                1.17.2) defaults to 1.32 and fails container startup with
+                                "client version 1.32 is too old". docker-java reads the
+                                'api.version' system property; surefire forks the test JVM,
+                                so it must be passed via systemPropertyVariables (a CLI -D or
+                                env var would not reach the fork).
+                            -->
+                            <systemPropertyVariables>
+                                <api.version>1.41</api.version>
+                            </systemPropertyVariables>
                         </configuration>
                     </plugin>
                 </plugins>

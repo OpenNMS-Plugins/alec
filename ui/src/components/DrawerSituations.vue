@@ -87,7 +87,7 @@ const filterList = (list: TSituation[]) => {
 	width: 700px;
 }
 .title {
-	color: #494949e6;
+	color: var(--feather-secondary-text-on-surface);
 }
 .situation-list {
 	margin-top: 20px;

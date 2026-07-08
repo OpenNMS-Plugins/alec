@@ -112,7 +112,7 @@ const saveMemoText = async () => {
 	padding: 15px;
 	width: 49%;
 	margin-bottom: 20px;
-	background-color: #ffffff;
+	background-color: var(--feather-surface);
 
 	.label {
 		font-weight: 600;
@@ -161,13 +161,13 @@ const saveMemoText = async () => {
 }
 .icon {
 	&.save {
-		color: green;
+		color: var(--feather-success);
 	}
 	&.cancel {
-		color: red;
+		color: var(--feather-error);
 	}
 	&.edit {
-		color: #3988d7;
+		color: var(--feather-secondary);
 	}
 }
 </style>

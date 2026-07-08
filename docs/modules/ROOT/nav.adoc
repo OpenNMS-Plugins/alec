@@ -22,6 +22,7 @@
 * xref:reference:engines/introduction.adoc[Correlation Engines]
 ** xref:reference:engines/clustering.adoc[Clustering Engine]
 ** xref:reference:engines/deeplearning.adoc[Deep Learning Engine]
+* xref:reference:llm-root-cause-analysis.adoc[LLM Root Cause Analysis]
 * xref:reference:datasources/overview.adoc[Datasources]
 ** xref:reference:datasources/direct.adoc[Direct Datasource]
 ** xref:reference:datasources/kafka.adoc[Kafka Datasource]
