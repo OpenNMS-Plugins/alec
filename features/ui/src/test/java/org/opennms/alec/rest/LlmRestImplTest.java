@@ -113,4 +113,94 @@ public class LlmRestImplTest {
         assertThat(merged.getApiKey(), is(nullValue()));
         assertThat(merged.isEnabled(), is(false));
     }
+
+    @Test
+    public void mergePartialRequestPreservesEndpointModelAndPrompt() {
+        // A partial POST like {"enabled":true} must not silently wipe the
+        // stored endpoint/model/prompt/defaults.
+        LlmConfig existing = LlmConfigImpl.newBuilder()
+                .enabled(false)
+                .apiKey("sk-existing")
+                .baseUrl("https://api.example/v1")
+                .model("some/model")
+                .defaultBaseUrl("https://default.example/v1")
+                .defaultModel("default/model")
+                .systemPrompt("Tuned prompt.")
+                .build();
+        LlmConfig request = LlmConfigImpl.newBuilder() // nothing set but enabled
+                .enabled(true)
+                .build();
+        LlmConfig merged = LlmRestImpl.merge(existing, request);
+        assertThat(merged.getBaseUrl(), equalTo("https://api.example/v1"));
+        assertThat(merged.getModel(), equalTo("some/model"));
+        assertThat(merged.getDefaultBaseUrl(), equalTo("https://default.example/v1"));
+        assertThat(merged.getDefaultModel(), equalTo("default/model"));
+        assertThat(merged.getSystemPrompt(), equalTo("Tuned prompt."));
+        assertThat(merged.getApiKey(), equalTo("sk-existing"));
+        assertThat(merged.isEnabled(), is(true));
+    }
+
+    @Test
+    public void mergeExplicitEmptyStringStillClearsAField() {
+        // Explicitly sending "" is a deliberate clear — only ABSENT fields are
+        // preserved.
+        LlmConfig existing = LlmConfigImpl.newBuilder()
+                .apiKey("sk-existing")
+                .baseUrl("https://api.example/v1")
+                .model("some/model")
+                .build();
+        LlmConfig request = LlmConfigImpl.newBuilder()
+                .enabled(false)
+                .baseUrl("")
+                .build();
+        LlmConfig merged = LlmRestImpl.merge(existing, request);
+        assertThat(merged.getBaseUrl(), equalTo(""));
+        assertThat("omitted field still preserved", merged.getModel(), equalTo("some/model"));
+    }
+
+    @Test
+    public void mergeNormalizesBlankPromptToDefaultAndNullsToBlank() {
+        LlmConfig request = LlmConfigImpl.newBuilder()
+                .enabled(false)
+                .systemPrompt("   ")
+                .build();
+        LlmConfig merged = LlmRestImpl.merge(null, request);
+        assertThat(merged.getSystemPrompt(), equalTo(LlmConfigImpl.DEFAULT_SYSTEM_PROMPT));
+        // Never-set string fields come out blank, not null — persisted records
+        // always carry concrete values.
+        assertThat(merged.getBaseUrl(), equalTo(""));
+        assertThat(merged.getModel(), equalTo(""));
+        assertThat(merged.getDefaultBaseUrl(), equalTo(""));
+        assertThat(merged.getDefaultModel(), equalTo(""));
+    }
+
+    @Test
+    public void mergeTrimsApiKeyPasteArtifacts() {
+        // A key pasted with a trailing newline must never reach the KV store —
+        // OkHttp's rejection message for an illegal header char embeds the key.
+        LlmConfig request = LlmConfigImpl.newBuilder()
+                .enabled(false)
+                .apiKey("sk-new\n")
+                .build();
+        LlmConfig merged = LlmRestImpl.merge(null, request);
+        assertThat(merged.getApiKey(), equalTo("sk-new"));
+    }
+
+    @Test
+    public void mergeClearApiKeyPreservesStoredFieldsWhenRequestOmitsThem() {
+        LlmConfig existing = LlmConfigImpl.newBuilder()
+                .enabled(true)
+                .apiKey("sk-old")
+                .baseUrl("https://api.example/v1")
+                .model("some/model")
+                .build();
+        LlmConfig request = LlmConfigImpl.newBuilder()
+                .clearApiKey(true)
+                .build();
+        LlmConfig merged = LlmRestImpl.merge(existing, request);
+        assertThat(merged.getApiKey(), is(nullValue()));
+        assertThat(merged.isEnabled(), is(false));
+        assertThat(merged.getBaseUrl(), equalTo("https://api.example/v1"));
+        assertThat(merged.getModel(), equalTo("some/model"));
+    }
 }

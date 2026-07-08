@@ -213,11 +213,17 @@ public class LlmConfigImpl implements LlmConfig {
         // No shipped endpoint/model default: blank is valid and persisted as-is
         // (the operator must choose a provider + model). Only the system prompt
         // still falls back to a built-in default.
-        private String baseUrl = DEFAULT_BASE_URL;
-        private String model = DEFAULT_MODEL;
-        private String defaultBaseUrl = "";
-        private String defaultModel = "";
-        private String systemPrompt = DEFAULT_SYSTEM_PROMPT;
+        //
+        // String fields deliberately stay null until their setter is called, so
+        // a REST POST that OMITS a field is distinguishable from one that sends
+        // an explicit "". LlmRestImpl#merge treats null as "not provided —
+        // preserve the stored value" and normalizes nulls away before persisting,
+        // so persisted records still always carry concrete values.
+        private String baseUrl;
+        private String model;
+        private String defaultBaseUrl;
+        private String defaultModel;
+        private String systemPrompt;
         // 0 = unlimited (the shipped default — no budget cap until an operator sets one).
         private long dailyTokenLimit = 0;
         private long monthlyTokenLimit = 0;
@@ -239,30 +245,29 @@ public class LlmConfigImpl implements LlmConfig {
 
         public Builder baseUrl(String val) {
             // No shipped default: keep blank blank (persist exactly what the
-            // operator entered, or nothing on a fresh install).
-            baseUrl = (val == null) ? "" : val.trim();
+            // operator entered, or nothing on a fresh install). null stays null
+            // ("field not provided") so merge can preserve the stored value.
+            baseUrl = (val == null) ? null : val.trim();
             return this;
         }
 
         public Builder model(String val) {
-            model = (val == null) ? "" : val.trim();
+            model = (val == null) ? null : val.trim();
             return this;
         }
 
         public Builder defaultBaseUrl(String val) {
-            defaultBaseUrl = (val == null) ? "" : val.trim();
+            defaultBaseUrl = (val == null) ? null : val.trim();
             return this;
         }
 
         public Builder defaultModel(String val) {
-            defaultModel = (val == null) ? "" : val.trim();
+            defaultModel = (val == null) ? null : val.trim();
             return this;
         }
 
         public Builder systemPrompt(String val) {
-            // Blank means "use the default" so clearing the textarea in the UI
-            // doesn't persist an empty system message.
-            systemPrompt = (val == null || val.trim().isEmpty()) ? DEFAULT_SYSTEM_PROMPT : val.trim();
+            systemPrompt = (val == null) ? null : val.trim();
             return this;
         }
 
@@ -277,7 +282,10 @@ public class LlmConfigImpl implements LlmConfig {
         }
 
         public Builder apiKey(String val) {
-            apiKey = val;
+            // Trim defends against keys pasted with a trailing newline/space —
+            // an illegal header char whose OkHttp rejection message would embed
+            // the key itself.
+            apiKey = (val == null) ? null : val.trim();
             return this;
         }
 

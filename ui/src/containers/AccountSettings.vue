@@ -134,6 +134,12 @@ const resetClusterPromptToDefault = () => {
 
 // LLM integration (ALEC-299). API key is write-only from the UI; the
 // server returns only `apiKeyPresent` so a stored key is never echoed back.
+//
+// llmConfigLoaded guards the save: until the stored config has actually been
+// fetched into the form, saving unrelated (engine) settings must NOT post the
+// LLM section — the blank initial form values would overwrite the stored
+// endpoint/model/prompt.
+const llmConfigLoaded = ref(userStore.llmConfig !== null)
 const llmEnabled = ref(userStore.llmConfig?.enabled ?? false)
 // Auto-evaluate default true matches server-side (preserves existing automatic
 // behavior). When false, new situations get no LLM call until the user clicks
@@ -311,6 +317,7 @@ onMounted(async () => {
 	if (userStore.llmConfig === null) {
 		const result = await userStore.getLLMConfig()
 		if (result) {
+			llmConfigLoaded.value = true
 			llmEnabled.value = result.enabled
 			llmAutoEvaluate.value = result.autoEvaluate
 			llmBaseUrl.value = result.baseUrl || ''
@@ -446,12 +453,17 @@ const saveConfiguration = async () => {
 		hellinger.value,
 		overrides
 	)
-	const savedLLM = await userStore.setLLMConfig(buildLLMRequest())
+	// Never post the LLM section unless the stored config actually made it into
+	// the form — posting the blank initial values would wipe the stored
+	// endpoint/model/prompt when only engine settings were being saved.
+	const savedLLM = llmConfigLoaded.value
+		? await userStore.setLLMConfig(buildLLMRequest())
+		: true
 
 	// After a successful LLM save the typed key is now stored server-side;
 	// scrub the input + cleared flag so the next save is a no-op rather than
 	// re-sending the same secret over the wire.
-	if (savedLLM) {
+	if (llmConfigLoaded.value && savedLLM) {
 		llmApiKey.value = ''
 		llmApiKeyCleared.value = false
 		llmApiKeyPresent.value = userStore.llmConfig?.apiKeyPresent ?? false
@@ -479,7 +491,7 @@ const saveConfiguration = async () => {
 		notify('The settings were saved!', false)
 	} else if (savedEngine && !savedLLM) {
 		notify(
-			'Engine settings saved, but LLM configuration could not be saved (an API key is required to enable the integration).',
+			'Engine settings saved, but the LLM configuration was rejected — enabling the integration requires an endpoint URL, a model and an API key.',
 			true
 		)
 	} else {
@@ -821,9 +833,12 @@ const handleReEvaluate = async () => {
 					</li>
 				</ul>
 			</div>
+			<!-- Disable only when OFF: turning the integration off must always be
+			     possible, even after the endpoint/model/key that once allowed
+			     enabling it have been blanked or cleared. -->
 			<FeatherCheckbox
 				v-model="llmEnabled"
-				:disabled="llmCannotEnable"
+				:disabled="llmCannotEnable && !llmEnabled"
 				class="checkbox"
 				data-test="llm-enabled"
 			>

@@ -111,23 +111,18 @@ public class EngineParameterImpl implements EngineParameter {
 
     @Override
     public Double getHellingerW() {
-        if (Optional.ofNullable(hellingerW).isEmpty()) {
-            if (HELLINGER.equals(getDistanceMeasureName())) {
-                return HellingerDistanceMeasure.DEFAULT_W;
-            }
-            return null;
-        }
+        // Deliberately NO default substitution (unlike alpha/beta/epsilon):
+        // EngineRestImpl applies these to the factory only when non-null, so a
+        // save that omits them must surface as null — substituting DEFAULT_W
+        // here would make every omitting save silently reset an operator's
+        // tuned value. The runtime default lives in the factory/blueprint; the
+        // UI supplies its own display default for a null.
         return hellingerW;
     }
 
     @Override
     public Double getHellingerBias() {
-        if (Optional.ofNullable(hellingerBias).isEmpty()) {
-            if (HELLINGER.equals(getDistanceMeasureName())) {
-                return HellingerDistanceMeasure.DEFAULT_BIAS;
-            }
-            return null;
-        }
+        // See getHellingerW() — null means "not supplied", never substituted.
         return hellingerBias;
     }
 

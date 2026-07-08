@@ -34,6 +34,7 @@ import static org.junit.Assert.assertThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
 import javax.ws.rs.core.Response;
@@ -121,6 +122,63 @@ public class LlmValidationRestImplTest {
         rest.validate(req);
         verify(service).validate("sk-typed", LlmConfigReader.DEFAULT_BASE_URL,
                 LlmConfigReader.DEFAULT_MODEL);
+    }
+
+    @Test
+    public void storedKeyIsNeverSentToACallerSuppliedEndpoint() {
+        // The exfiltration case: an authenticated caller POSTs a baseUrl they
+        // control with a blank key. The stored key must NOT be filled in — that
+        // would hand the operator's secret to an arbitrary host.
+        kv.put(LlmConfigReader.CONFIG_KEY,
+                "{\"enabled\":true,\"apiKey\":\"sk-stored\","
+                        + "\"baseUrl\":\"https://api.anthropic.com/v1\",\"model\":\"claude-sonnet-4-6\"}",
+                LlmConfigReader.CONFIG_CONTEXT);
+
+        ValidationRequest req = new ValidationRequest();
+        req.setBaseUrl("https://attacker.example/v1"); // differs from stored; key blank
+
+        Response resp = rest.validate(req);
+        assertThat(resp.getStatus(), is(200));
+        ValidationResult body = (ValidationResult) resp.getEntity();
+        assertThat(body.isOk(), is(false));
+        // No outbound call of any kind may have been made.
+        verifyZeroInteractions(service);
+    }
+
+    @Test
+    public void storedKeyStillUsedWhenEndpointMatchesModuloTrailingSlash() {
+        kv.put(LlmConfigReader.CONFIG_KEY,
+                "{\"enabled\":true,\"apiKey\":\"sk-stored\","
+                        + "\"baseUrl\":\"https://api.anthropic.com/v1\",\"model\":\"claude-sonnet-4-6\"}",
+                LlmConfigReader.CONFIG_CONTEXT);
+        when(service.validate(eq("sk-stored"), eq("https://api.anthropic.com/v1/"), eq("claude-sonnet-4-6")))
+                .thenReturn(ValidationResult.ok("good"));
+
+        ValidationRequest req = new ValidationRequest();
+        req.setBaseUrl("https://api.anthropic.com/v1/"); // same endpoint, trailing slash
+
+        Response resp = rest.validate(req);
+        assertThat(resp.getStatus(), is(200));
+        verify(service).validate("sk-stored", "https://api.anthropic.com/v1/", "claude-sonnet-4-6");
+    }
+
+    @Test
+    public void callerSuppliedKeyMayTargetAnyEndpoint() {
+        // A caller who re-enters the key already knows it — validating it
+        // against a new endpoint is the legitimate "switch providers" flow.
+        kv.put(LlmConfigReader.CONFIG_KEY,
+                "{\"enabled\":true,\"apiKey\":\"sk-stored\","
+                        + "\"baseUrl\":\"https://api.anthropic.com/v1\",\"model\":\"claude-sonnet-4-6\"}",
+                LlmConfigReader.CONFIG_CONTEXT);
+        when(service.validate(eq("sk-typed"), eq("https://other.example/v1"), eq("claude-sonnet-4-6")))
+                .thenReturn(ValidationResult.ok("good"));
+
+        ValidationRequest req = new ValidationRequest();
+        req.setApiKey("sk-typed");
+        req.setBaseUrl("https://other.example/v1");
+
+        rest.validate(req);
+        verify(service).validate("sk-typed", "https://other.example/v1", "claude-sonnet-4-6");
     }
 
     @Test

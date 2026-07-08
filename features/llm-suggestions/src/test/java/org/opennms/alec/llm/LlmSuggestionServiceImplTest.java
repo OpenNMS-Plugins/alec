@@ -88,6 +88,27 @@ public class LlmSuggestionServiceImplTest {
                 equalTo("https://openrouter.ai/api/v1/chat/completions"));
     }
 
+    @Test
+    public void chatCompletionsUrlRejectsNonHttpAndDecoratedUrls() {
+        // The stored key is attached to whatever this method returns, so the
+        // base URL must not be able to smuggle credentials, query or fragment.
+        assertUrlRejected("not a url");
+        assertUrlRejected("ftp://example.com/v1");
+        assertUrlRejected("https://user:pass@example.com/v1");
+        assertUrlRejected("https://example.com/v1?next=https://attacker.example");
+        assertUrlRejected("https://example.com/v1#frag");
+    }
+
+    private static void assertUrlRejected(String baseUrl) {
+        try {
+            LlmSuggestionServiceImpl.chatCompletionsUrl(baseUrl);
+            fail("expected IllegalArgumentException for: " + baseUrl);
+        } catch (IllegalArgumentException expected) {
+            // message must be key-free and user-presentable; only the type
+            // matters here.
+        }
+    }
+
     // --- buildRequestBody ---
 
     @Test
@@ -220,11 +241,33 @@ public class LlmSuggestionServiceImplTest {
         Suggestions s = LlmSuggestionServiceImpl.parseResponse(json, om);
         assertThat(s.getRootCauses(), equalTo(Arrays.asList("link saturation", "misconfigured QoS")));
         assertThat(s.getResolutions().size(), equalTo(3));
-        assertThat(s.getUsage().getInputTokens(), equalTo(1234L));
+        // cached_tokens is a SUBSET of prompt_tokens in the OpenAI format; the
+        // buckets are stored disjointly so rollups can sum without
+        // double-counting: 1234 prompt with 1000 cached = 234 uncached input.
+        assertThat(s.getUsage().getInputTokens(), equalTo(234L));
         assertThat(s.getUsage().getOutputTokens(), equalTo(78L));
         assertThat(s.getUsage().getCacheReadInputTokens(), equalTo(1000L));
         // The OpenAI format has no separate cache-creation count.
         assertThat(s.getUsage().getCacheCreationInputTokens(), equalTo(0L));
+    }
+
+    @Test
+    public void parseResponseSplitsFullyCachedPromptWithoutDoubleCounting() throws IOException {
+        String json = "{"
+                + "\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":null,"
+                + "  \"tool_calls\":[{\"id\":\"call_1\",\"type\":\"function\",\"function\":{"
+                + "    \"name\":\"report_suggestions\",\"arguments\":\"{}\"}}]}}],"
+                + "\"usage\":{"
+                + "  \"prompt_tokens\":1000,"
+                + "  \"completion_tokens\":10,"
+                + "  \"prompt_tokens_details\":{\"cached_tokens\":1000}"
+                + "}"
+                + "}";
+        Suggestions.TokenUsage u = LlmSuggestionServiceImpl.parseResponse(json, om).getUsage();
+        // A fully-cached 1000-token prompt is 0 uncached input + 1000 cache-read
+        // — 1000 real tokens total, not 2000.
+        assertThat(u.getInputTokens(), equalTo(0L));
+        assertThat(u.getCacheReadInputTokens(), equalTo(1000L));
     }
 
     @Test

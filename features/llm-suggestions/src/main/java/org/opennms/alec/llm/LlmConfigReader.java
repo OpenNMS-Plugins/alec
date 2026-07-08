@@ -36,6 +36,7 @@ import org.opennms.integration.api.v1.distributed.KeyValueStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -109,7 +110,14 @@ public class LlmConfigReader {
             return Optional.of(new Config(enabled, autoEvaluate, apiKey, baseUrl, model, systemPrompt,
                     dailyTokenLimit, monthlyTokenLimit));
         } catch (IOException e) {
-            LOG.warn("Malformed LLM config at {}/{}: {}", CONFIG_CONTEXT, CONFIG_KEY, e.getMessage());
+            // Jackson parse-exception messages embed a snippet of the source
+            // document — which here is the persisted config blob containing the
+            // API key. getOriginalMessage() (for Jackson exceptions) excludes
+            // the location/source part; never log getMessage() on this path.
+            String safeReason = e instanceof JsonProcessingException
+                    ? ((JsonProcessingException) e).getOriginalMessage()
+                    : e.getClass().getSimpleName();
+            LOG.warn("Malformed LLM config at {}/{}: {}", CONFIG_CONTEXT, CONFIG_KEY, safeReason);
             return Optional.empty();
         }
     }
@@ -138,7 +146,10 @@ public class LlmConfigReader {
                       String systemPrompt, long dailyTokenLimit, long monthlyTokenLimit) {
             this.enabled = enabled;
             this.autoEvaluate = autoEvaluate;
-            this.apiKey = apiKey == null ? "" : apiKey;
+            // Trim defends against keys persisted with paste artifacts (trailing
+            // newline/space) — an illegal header char would otherwise surface as
+            // an OkHttp IAE whose message embeds the key.
+            this.apiKey = apiKey == null ? "" : apiKey.trim();
             this.baseUrl = blankToDefault(baseUrl, DEFAULT_BASE_URL);
             this.model = blankToDefault(model, DEFAULT_MODEL);
             this.systemPrompt = blankToDefault(systemPrompt,

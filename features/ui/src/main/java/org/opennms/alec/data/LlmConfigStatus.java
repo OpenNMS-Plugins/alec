@@ -90,18 +90,27 @@ public class LlmConfigStatus {
                     0, 0, false);
         }
         String key = config.getApiKey();
+        // Null-guard every String: records persisted before a field existed (or
+        // a request object that never passed through merge) can carry nulls now
+        // that the builder preserves "field not provided" as null.
+        String systemPrompt = config.getSystemPrompt();
         return new LlmConfigStatus(
                 config.isEnabled(),
                 config.isAutoEvaluate(),
-                config.getBaseUrl(),
-                config.getModel(),
-                config.getDefaultBaseUrl(),
-                config.getDefaultModel(),
-                config.getSystemPrompt(),
+                nz(config.getBaseUrl()),
+                nz(config.getModel()),
+                nz(config.getDefaultBaseUrl()),
+                nz(config.getDefaultModel()),
+                systemPrompt == null || systemPrompt.trim().isEmpty()
+                        ? LlmConfigImpl.DEFAULT_SYSTEM_PROMPT : systemPrompt,
                 LlmConfigImpl.DEFAULT_SYSTEM_PROMPT,
                 config.getDailyTokenLimit(),
                 config.getMonthlyTokenLimit(),
                 key != null && !key.isEmpty());
+    }
+
+    private static String nz(String s) {
+        return s == null ? "" : s;
     }
 
     public boolean isEnabled() {
