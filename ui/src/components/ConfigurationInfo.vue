@@ -2,6 +2,7 @@
 import { useUserStore } from '@/store/useUserStore'
 import CONST from '@/helpers/constants'
 import useRouter from '@/composables/useRouter'
+import { ROUTE } from '@/router/routeNames'
 import { computed } from 'vue'
 import DeepLearning from '@/assets/option1.svg'
 import Cluster from '@/assets/option2.svg'
@@ -9,7 +10,7 @@ const router = useRouter()
 const userStore = useUserStore()
 const showSettings = () => {
 	router.push({
-		name: 'settings'
+		name: ROUTE.settings
 	})
 }
 

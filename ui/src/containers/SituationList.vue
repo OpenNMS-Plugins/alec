@@ -13,6 +13,7 @@ import { reactive, ref, watch, markRaw } from 'vue'
 import { chunk } from 'lodash'
 import { TSituation } from '@/types/TSituation'
 import useRouter from '@/composables/useRouter'
+import { ROUTE } from '@/router/routeNames'
 import { FeatherSpinner } from '@featherds/progress'
 
 import NewSituationBtn from '@/elements/NewSituationBtn.vue'
@@ -80,7 +81,7 @@ const onGotoPage = (nextPage: number) => {
 
 const showDetail = (id: number) => {
 	router.push({
-		name: 'situationDetail',
+		name: ROUTE.situationDetail,
 		params: {
 			id
 		}
@@ -89,7 +90,7 @@ const showDetail = (id: number) => {
 
 const viewUnassignedAlarms = () => {
 	router.push({
-		name: 'viewUnassignedAlarms'
+		name: ROUTE.viewUnassignedAlarms
 	})
 }
 

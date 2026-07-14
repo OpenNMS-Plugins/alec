@@ -18,6 +18,7 @@ import { useAppStore } from '@/store/useAppStore'
 import { FeatherSpinner } from '@featherds/progress'
 import { useRoute } from 'vue-router'
 import useRouter from '@/composables/useRouter'
+import { ROUTE } from '@/router/routeNames'
 
 const router = useRouter()
 const route = useRoute()
@@ -61,14 +62,14 @@ onMounted(() => {
 
 const showSituationList = () => {
 	router.push({
-		name: 'situations'
+		name: ROUTE.situations
 	})
 }
 const showNextSituation = (step: number) => {
 	const index = filteredSituationsCurrentIndex.value
 	const id = situationStore.filteredSituations[index + step]
 	router.push({
-		name: 'situationDetail',
+		name: ROUTE.situationDetail,
 		params: {
 			id
 		}
