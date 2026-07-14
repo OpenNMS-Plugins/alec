@@ -102,6 +102,13 @@
                                 <feature>alec-features-graph-common</feature>
                                 <feature>alec-features-graph-shell</feature>
                                 <feature>alec-features-deeplearning</feature>
+                                <!-- Depends on a reference to a SituationDatasource impl
+                                     (used by /alec/llm/suggestions/{id}/reanalyze to
+                                     look up situations by id). Same reason
+                                     alec-driver-main / alec-processor-standalone are
+                                     commented out from this verify list.
+                                <feature>alec-features-llm-suggestions</feature>
+                                -->
                                 <feature>alec-integrations-opennms-sink</feature>
 
                                 <!-- Depends on blueprint common
@@ -255,6 +262,12 @@
         <dependency>
             <groupId>org.opennms.alec.features</groupId>
             <artifactId>org.opennms.alec.features.ui</artifactId>
+            <version>${project.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.opennms.alec.features</groupId>
+            <artifactId>org.opennms.alec.features.llm-suggestions</artifactId>
             <version>${project.version}</version>
             <scope>provided</scope>
         </dependency>

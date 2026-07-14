@@ -10,7 +10,7 @@ import MainContainer from '@/containers/MainContainer.vue'
 body {
 	padding: 0;
 	margin: 0;
-	background-color: #f4f7fc;
+	background-color: var(--feather-background);
 }
 
 .label-border {

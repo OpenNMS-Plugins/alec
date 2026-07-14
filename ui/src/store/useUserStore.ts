@@ -1,27 +1,44 @@
 import { defineStore } from 'pinia'
 import { getUserRole } from '@/services/UserService'
-import { getEngineInfo, saveEngineParameter } from '@/services/AlecService'
+import {
+	getEngineInfo,
+	saveEngineParameter,
+	getLLMConfig,
+	saveLLMConfig,
+	getLLMUsage
+} from '@/services/AlecService'
 import CONST from '@/helpers/constants'
 
-import { TEngine } from '@/types/TUser'
+import {
+	TEngine,
+	TLLMConfigRequest,
+	TLLMConfigStatus,
+	TLLMUsage
+} from '@/types/TUser'
 
 type TState = {
 	isAdmin: boolean
 	userId: string | null
 	engineInfo: TEngine | null
+	llmConfig: TLLMConfigStatus | null
+	llmUsage: TLLMUsage | null
 }
 
 const engineDefaultValues = {
-	alpha: 144.47117699,
-	beta: 0.55257784,
-	epsilon: 100
+	alpha: 145,
+	beta: 0.55,
+	epsilon: 150,
+	hellingerW: 4851.28,
+	hellingerBias: -1986.00
 }
 
 export const useUserStore = defineStore('userStore', {
 	state: (): TState => ({
 		isAdmin: false,
 		userId: null,
-		engineInfo: null
+		engineInfo: null,
+		llmConfig: null,
+		llmUsage: null
 	}),
 	actions: {
 		async getUserRole() {
@@ -41,7 +58,9 @@ export const useUserStore = defineStore('userStore', {
 		async setEngineInfo(
 			engine: string,
 			isHellinger: boolean,
-			overrides?: Partial<Pick<TEngine, 'alpha' | 'beta' | 'epsilon'>>
+			overrides?: Partial<
+				Pick<TEngine, 'alpha' | 'beta' | 'epsilon' | 'hellingerW' | 'hellingerBias'>
+			>
 		) {
 			const engineData: TEngine = {
 				...engineDefaultValues,
@@ -51,12 +70,38 @@ export const useUserStore = defineStore('userStore', {
 					: CONST.SPACE_DISTANCE_OPTION,
 				engineName: engine
 			}
+			if (!isHellinger) {
+				engineData.hellingerW = null
+				engineData.hellingerBias = null
+			}
 			const result = await saveEngineParameter(engineData)
 			if (result) {
 				this.engineInfo = engineData
 				return true
 			}
 			return false
+		},
+		async getLLMConfig() {
+			const result = await getLLMConfig()
+			if (result) {
+				this.llmConfig = result
+			}
+			return result
+		},
+		async setLLMConfig(config: TLLMConfigRequest) {
+			const result = await saveLLMConfig(config)
+			if (result) {
+				this.llmConfig = result
+				return true
+			}
+			return false
+		},
+		async getLLMUsage(days: number = 30) {
+			const result = await getLLMUsage(days)
+			if (result) {
+				this.llmUsage = result
+			}
+			return result
 		}
 	}
 })

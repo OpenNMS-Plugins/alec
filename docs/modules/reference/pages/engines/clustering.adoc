@@ -11,6 +11,39 @@ ALEC automatically creates and maintains this graph, which is based on informati
 The DBSCAN algorithm that forms the basis for the clustering engine measures the distance between alarms on the network inventory graph to determine whether they should be correlated into a cluster.
 The distance function calculates a weighted combination of distance in both time and space (on the shortest possible path between affected nodes) between alarms.
 
+[[correlation-variables]]
+== Correlation variables
+
+You can tune how aggressively the clustering engine groups alarms by adjusting its correlation variables from the configuration page:
+
+. Click *Plugins > ALEC* in the top menu bar.
+. Click the *gear* symbol in the top-right of the screen.
+. Adjust the values in the *Correlation variables* section, and click *Save Changes*.
+
+The configuration page exposes inline help (the *?* icon) and a *Reset* control that restores every variable to its default.
+
+[cols="1,3,1", options="header"]
+|===
+| Variable | Description | Default
+
+| Alpha (α)
+| Overall scaling of inter-alarm distance. Higher values make clustering more conservative (fewer, tighter clusters); lower values group alarms more readily.
+| 145
+
+| Beta (β)
+| Weight between time and topology, in the range `[0, 1]`. The time component is weighted by β and the topology component by `1 − β`. Higher β emphasizes alarms that are close in time; lower β emphasizes alarms that are close on the network graph.
+| 0.55
+
+| Epsilon (ε)
+| The DBSCAN neighborhood radius. Higher ε clusters more aggressively (larger situations); lower ε produces smaller, tighter clusters.
+| 150
+|===
+
+TIP: Change one variable at a time and observe the effect on the situations that ALEC produces.
+After changing the correlation variables, you can use *Re-Evaluate All Open Alarms* on the configuration page to re-process active alarms with the new values.
+
+NOTE: After you select a correlation engine, you can change the engine itself only via the Karaf shell, but the correlation variables above can be tuned from the configuration page at any time.
+
 == Hellinger distance
 
 The clustering engine can use https://en.wikipedia.org/wiki/Hellinger_distance[Hellinger distance] calculations to more accurately render the distance between alarms.
@@ -21,9 +54,24 @@ You can enable Hellinger distance calculations when you xref:quick-start:engine-
 
 . Click *Plugins > ALEC* in the top menu bar.
 . Click the *gear* symbol in the top-right of the screen.
-. Select *With Hellinger Distance*, and click *Save Changes*.
+. Select *Hellinger distance*, and click *Save Changes*.
 
 NOTE: You must use the clustering engine to enable Hellinger distance calculations.
+
+When Hellinger distance is enabled, two additional correlation variables become available in the *Correlation variables* section:
+
+[cols="1,3,1", options="header"]
+|===
+| Variable | Description | Default
+
+| Hellinger w
+| Variance scaling coefficient used by the Hellinger distance measure. Larger values flatten the distribution comparison, reducing the influence of the Hellinger term.
+| 4851.28
+
+| Hellinger bias
+| Additive offset applied inside the Hellinger distance. Tunes the baseline separation between alarms.
+| -1986.00
+|===
 
 == Performance
 

@@ -6,6 +6,6 @@
 .empty {
 	font-size: 16px;
 	padding: 30px;
-	color: grey;
+	color: var(--feather-secondary-text-on-surface);
 }
 </style>

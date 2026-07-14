@@ -8,6 +8,8 @@ import CONST from '@/helpers/constants'
 import { formatDate } from '@/helpers/utils'
 import { truncateText } from '@/helpers/utils'
 import { formatDistanceStrict } from 'date-fns'
+import { onMounted, ref } from 'vue'
+import { getLLMSuggestion } from '@/services/AlecService'
 
 const ACCEPTED = CONST.ACCEPTED
 const REJECTED = CONST.REJECTED
@@ -22,6 +24,20 @@ const emit = defineEmits(['situation-selected'])
 const handleSituationSelected = () => {
 	emit('situation-selected', props.situationInfo?.id)
 }
+
+// AI badge: one cheap GET per card on mount. Server returns 204 quickly when
+// no record exists (feature off / call hasn't run), so we don't pay much when
+// the integration is disabled. Slice 6 trade-off; a bulk endpoint would be a
+// future optimization once we know how many cards a typical list shows.
+const aiBadge = ref<'none' | 'pending' | 'ready' | 'failed'>('none')
+
+onMounted(async () => {
+	if (props.situationInfo?.id === undefined) return
+	const result = await getLLMSuggestion(props.situationInfo.id)
+	if (result && result.status) {
+		aiBadge.value = result.status as 'pending' | 'ready' | 'failed'
+	}
+})
 </script>
 
 <template>
@@ -39,6 +55,21 @@ const handleSituationSelected = () => {
 		<div class="content">
 			<div class="title-row">
 				<div class="title">Situation {{ props.situationInfo?.id }}</div>
+				<span
+					v-if="aiBadge !== 'none'"
+					class="ai-badge"
+					:class="aiBadge"
+					:title="
+						aiBadge === 'pending'
+							? 'AI analysis in progress'
+							: aiBadge === 'ready'
+							? 'AI suggestions available'
+							: 'Last AI request failed'
+					"
+					data-test="ai-badge"
+				>
+					AI{{ aiBadge === 'pending' ? '…' : '' }}
+				</span>
 				<div v-if="props.situationInfo.status == ACCEPTED" class="accepted">
 					<FeatherIcon
 						:icon="CheckCircle"
@@ -97,7 +128,7 @@ const handleSituationSelected = () => {
 	display: flex;
 	width: 100%;
 	flex-direction: row;
-	background-color: #fbfbfb;
+	background-color: var(--feather-elevation-background-0);
 	cursor: pointer;
 	border: 1px solid $border-grey;
 	height: 100%;
@@ -106,7 +137,7 @@ const handleSituationSelected = () => {
 	}
 
 	&.rejected {
-		background-color: #f3f3f3;
+		background-color: var(--feather-shade-3);
 		opacity: 0.4;
 	}
 }
@@ -135,11 +166,11 @@ const handleSituationSelected = () => {
 	font-size: 24px;
 }
 .accepted {
-	color: green;
+	color: var(--feather-success);
 }
 
 .rejected {
-	color: red;
+	color: var(--feather-error);
 }
 
 .count {
@@ -147,11 +178,37 @@ const handleSituationSelected = () => {
 	font-weight: 600;
 	padding-right: 8px;
 	padding-left: 3px;
-	color: #323647;
+	color: var(--feather-primary-text-on-surface);
 }
 
 .info-title {
 	font-size: 15px;
 	font-weight: 600;
+}
+
+.ai-badge {
+	display: inline-flex;
+	align-items: center;
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.5px;
+	padding: 2px 7px;
+	border-radius: 10px;
+	margin-right: auto;
+	margin-left: 8px;
+	cursor: help;
+
+	&.pending {
+		background: var(--feather-shade-3);
+		color: var(--feather-secondary-text-on-surface);
+	}
+	&.ready {
+		background: var(--feather-elevation-background-2);
+		color: var(--feather-secondary);
+	}
+	&.failed {
+		background: var(--feather-elevation-background-2);
+		color: var(--feather-error);
+	}
 }
 </style>

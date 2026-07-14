@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Event definitions for the ALEC demo's realistic-outage scenario
+    (ALEC-299 slice 7).
+
+    Install:
+      1. Copy this file to $OPENNMS_HOME/etc/events.d/
+      2. Edit $OPENNMS_HOME/etc/eventconf.xml and add the line
+         <event-file>events.d/alec-demo.events.xml</event-file>
+         under the <events ...> root (place it before the trailing tag).
+      3. Reload eventconf: send-event.pl uei.opennms.org/internal/reloadDaemonConfig -p 'daemonName Eventd'
+
+    Without this file installed, the demo's realistic-outage scenario will still
+    produce alarms, but their descriptions will fall back to the generic OpenNMS
+    "no event configuration matches" template — the LLM won't see the rich
+    per-alarm context (peer IP, interface name, optical power, etc.) that makes
+    its suggestions useful.
+
+    The %parm[...]% substitutions render the parameters that the demo's
+    Event.java factories attach to each injected event.
+-->
+<events xmlns="http://xmlns.opennms.org/xsd/eventconf">
+
+    <event>
+        <uei>uei.opennms.org/alec-demo/bgpBackwardTransition</uei>
+        <event-label>ALEC Demo: BGP backward transition</event-label>
+        <descr>&lt;p&gt;BGP session on node %nodelabel% to peer %parm[peerIp]% (AS%parm[peerAsn]%) transitioned from %parm[oldState]% to %parm[newState]%. Routing through this peer has stopped.&lt;/p&gt;</descr>
+        <logmsg dest="logndisplay">BGP session to %parm[peerIp]% (AS%parm[peerAsn]%) went down on %nodelabel%</logmsg>
+        <severity>Major</severity>
+        <alarm-data reduction-key="%uei%:%nodeid%:%parm[peerIp]%" alarm-type="1" auto-clean="false"/>
+    </event>
+
+    <event>
+        <uei>uei.opennms.org/alec-demo/linkSaturation</uei>
+        <event-label>ALEC Demo: Interface link saturation</event-label>
+        <descr>&lt;p&gt;Interface %parm[ifName]% on node %nodelabel% reached %parm[utilizationPct]%%% utilization (threshold %parm[threshold]%%%). Traffic on this link may be experiencing queueing delay or drops.&lt;/p&gt;</descr>
+        <logmsg dest="logndisplay">Interface %parm[ifName]% saturation at %parm[utilizationPct]%%% on %nodelabel%</logmsg>
+        <severity>Minor</severity>
+        <alarm-data reduction-key="%uei%:%nodeid%:%parm[ifName]%" alarm-type="1" auto-clean="false"/>
+    </event>
+
+    <event>
+        <uei>uei.opennms.org/alec-demo/cpuHigh</uei>
+        <event-label>ALEC Demo: Control-plane CPU saturation</event-label>
+        <descr>&lt;p&gt;Control-plane CPU on %nodelabel% reached %parm[utilizationPct]%%% (threshold %parm[threshold]%%%). Sustained CPU saturation can delay routing-protocol convergence and management traffic.&lt;/p&gt;</descr>
+        <logmsg dest="logndisplay">CPU at %parm[utilizationPct]%%% on %nodelabel%</logmsg>
+        <severity>Warning</severity>
+        <alarm-data reduction-key="%uei%:%nodeid%" alarm-type="1" auto-clean="false"/>
+    </event>
+
+    <event>
+        <uei>uei.opennms.org/alec-demo/opticalDegrade</uei>
+        <event-label>ALEC Demo: Optical receive power degradation</event-label>
+        <descr>&lt;p&gt;Optical receive power on %parm[ifName]% on node %nodelabel% degraded to %parm[rxPowerDbm]% dBm (low threshold %parm[lowThresholdDbm]% dBm). Possible causes: dirty connector, failing optic, bent or damaged fiber.&lt;/p&gt;</descr>
+        <logmsg dest="logndisplay">Rx power %parm[rxPowerDbm]% dBm on %parm[ifName]% (%nodelabel%)</logmsg>
+        <severity>Minor</severity>
+        <alarm-data reduction-key="%uei%:%nodeid%:%parm[ifName]%" alarm-type="1" auto-clean="false"/>
+    </event>
+
+    <event>
+        <uei>uei.opennms.org/alec-demo/interfaceFlapping</uei>
+        <event-label>ALEC Demo: Interface flapping</event-label>
+        <descr>&lt;p&gt;Interface %parm[ifName]% on node %nodelabel% flapped %parm[flapCount]% times in the last %parm[windowSeconds]% seconds. Frequent state changes destabilize routing and can mask the underlying physical cause.&lt;/p&gt;</descr>
+        <logmsg dest="logndisplay">%parm[ifName]% flapped %parm[flapCount]%x in %parm[windowSeconds]%s on %nodelabel%</logmsg>
+        <severity>Major</severity>
+        <alarm-data reduction-key="%uei%:%nodeid%:%parm[ifName]%" alarm-type="1" auto-clean="false"/>
+    </event>
+
+</events>

@@ -115,17 +115,17 @@ const handleAction = async (action: string) => {
 	vertical-align: sub;
 
 	&.ack {
-		color: green;
+		color: var(--feather-success);
 	}
 	&.unack {
-		color: red;
+		color: var(--feather-error);
 	}
 	&.escalate {
-		color: #cc0000;
+		color: var(--feather-error);
 		font-size: 20px;
 	}
 	&.clear {
-		color: blue;
+		color: var(--feather-secondary);
 	}
 }
 </style>

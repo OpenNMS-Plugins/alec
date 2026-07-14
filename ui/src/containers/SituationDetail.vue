@@ -6,6 +6,7 @@ import {
 } from '@featherds/tabs'
 import SituationDetailTab from '@/components/SituationDetailTab.vue'
 import SituationMetricsTab from '@/components/SituationMetricsTab.vue'
+import AISuggestionsTab from '@/components/AISuggestionsTab.vue'
 import { useSituationsStore } from '@/store/useSituationsStore'
 import { ref, watch, onMounted } from 'vue'
 import { FeatherIcon } from '@featherds/icon'
@@ -129,6 +130,7 @@ const clickedTab = (tab: number | undefined) => {
 					<template v-slot:tabs>
 						<FeatherTab>Details</FeatherTab>
 						<FeatherTab>Metrics</FeatherTab>
+						<FeatherTab data-test="ai-suggestions-tab">AI Suggestions</FeatherTab>
 					</template>
 					<FeatherTabPanel class="panel">
 						<SituationDetailTab :situation-info="situation" />
@@ -138,6 +140,18 @@ const clickedTab = (tab: number | undefined) => {
 							v-if="container && tabNumber == 1"
 							:situation="situation"
 							:width="container"
+						/>
+					</FeatherTabPanel>
+					<FeatherTabPanel class="panel">
+						<!-- Mount only when active so the polling loop in
+						     AISuggestionsTab doesn't run for users who never open it.
+						     :key forces a remount when the user navigates to another
+						     situation in place (next/prev) — without it the component
+						     keeps showing the previous situation's suggestions. -->
+						<AISuggestionsTab
+							v-if="tabNumber == 2"
+							:key="situation.id"
+							:situation-id="situation.id"
 						/>
 					</FeatherTabPanel>
 				</FeatherTabContainer>
@@ -185,16 +199,16 @@ const clickedTab = (tab: number | undefined) => {
 	padding: 12px;
 	cursor: pointer;
 	font-size: 22px;
-	border: 1px solid black;
-	background-color: #cacaca;
+	border: 1px solid var(--feather-border-on-surface);
+	background-color: var(--feather-shade-2);
 	width: fit-content;
 	margin-bottom: 20px;
 }
 
 .noSituation {
 	padding: 30px;
-	border: 1px solid #dfdfdf;
-	background-color: #ffffff;
+	border: 1px solid var(--feather-border-on-surface);
+	background-color: var(--feather-surface);
 	width: 600px;
 	text-align: center;
 	margin: 80px auto;
