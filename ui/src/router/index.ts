@@ -8,6 +8,7 @@ import ViewUnassignedAlarms from '@/containers/ViewUnassignedAlarms.vue'
 import AccountSettings from '@/containers/AccountSettings.vue'
 
 import { useUserStore } from '@/store/useUserStore'
+import { ROUTE } from '@/router/routeNames'
 
 const checkUser = async () => {
 	const userStore = useUserStore()
@@ -19,44 +20,44 @@ const checkUser = async () => {
 const routes = [
 	{
 		path: '/',
-		name: 'home',
+		name: ROUTE.home,
 		beforeEnter: async (to: any) => {
 			const r = (window as any).VRouter || router
 			const userStore = useUserStore()
 			await userStore.getUserRole()
-			r.push({ name: 'situations', params: to.params })
+			r.push({ name: ROUTE.situations, params: to.params })
 		},
 		component: {}
 	},
 	{
 		path: '/situations',
-		name: 'situations',
+		name: ROUTE.situations,
 		beforeEnter: () => checkUser(),
 		component: SituationList
 	},
 	{
 		path: '/situations/:id',
-		name: 'situationDetail',
+		name: ROUTE.situationDetail,
 		component: SituationDetail
 	},
 	{
 		path: '/situations/add',
-		name: 'addSituation',
+		name: ROUTE.addSituation,
 		component: AddSituation
 	},
 	{
 		path: '/error',
-		name: 'error',
+		name: ROUTE.error,
 		component: ErrorPage
 	},
 	{
 		path: '/situations/view-unassigned-alarms',
-		name: 'viewUnassignedAlarms',
+		name: ROUTE.viewUnassignedAlarms,
 		component: ViewUnassignedAlarms
 	},
 	{
 		path: '/settings',
-		name: 'settings',
+		name: ROUTE.settings,
 		beforeEnter: async () => {
 			const userStore = useUserStore()
 			await userStore.getEngineInfo()

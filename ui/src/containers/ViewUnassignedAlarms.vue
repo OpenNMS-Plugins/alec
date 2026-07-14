@@ -15,6 +15,7 @@ import NewSituationBtn from '@/elements/NewSituationBtn.vue'
 import { FeatherSnackbar } from '@featherds/snackbar'
 import { TAlarm } from '@/types/TSituation'
 import useRouter from '@/composables/useRouter'
+import { ROUTE } from '@/router/routeNames'
 import CommonFilters from '@/components/CommonFilters.vue'
 import NoResults from '@/elements/NoResults.vue'
 import { FeatherSpinner } from '@featherds/progress'
@@ -78,7 +79,7 @@ const handleMoveToSituation = async (situationId: number) => {
 
 const showSituationList = () => {
 	router.push({
-		name: 'situations'
+		name: ROUTE.situations
 	})
 }
 

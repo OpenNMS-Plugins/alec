@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import useRouter from '@/composables/useRouter'
+import { ROUTE } from '@/router/routeNames'
 import { FeatherButton } from '@featherds/button'
 
 const router = useRouter()
 
 const reload = () => {
-	router.push({ name: 'situations' })
+	router.push({ name: ROUTE.situations })
 }
 </script>
 
