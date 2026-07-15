@@ -6,8 +6,10 @@ ALEC can ask a large language model (LLM) to suggest probable root causes and re
 When a new situation is created, ALEC sends the situation's clustered alarms to an LLM and asks it to return up to three probable root causes and up to three possible resolutions.
 The suggestions appear on the *AI Suggestions* tab of the situation detail page.
 
-This feature complements — it does not replace — the xref:reference:engines/clustering.adoc[clustering engine].
-The engine still decides which alarms belong together; the LLM only explains the situation the engine produced.
+This feature complements — it does not replace — the correlation engine.
+The engine (xref:reference:engines/clustering.adoc[DBSCAN] or xref:reference:engines/llm-clustering.adoc[LLM clustering]) still decides which alarms belong together; Root Cause Analysis only explains the situation the engine produced.
+
+NOTE: Root Cause Analysis (which *explains* a situation) is distinct from the xref:reference:engines/llm-clustering.adoc[LLM clustering engine] (which *forms* the situation by correlating alarms). Both use the same *LLM Setup*, but they are enabled independently.
 
 NOTE: LLM Root Cause Analysis is an optional, plugin-wide feature. The endpoint, model, system prompt, and API key are stored on the OpenNMS server and apply to every user of the ALEC plugin. The feature is disabled by default.
 

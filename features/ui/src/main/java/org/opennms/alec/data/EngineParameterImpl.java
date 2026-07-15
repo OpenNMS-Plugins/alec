@@ -6,7 +6,6 @@ import java.util.StringJoiner;
 import org.opennms.alec.engine.dbscan.AlarmInSpaceTimeDistanceMeasure;
 import org.opennms.alec.engine.dbscan.DBScanEngine;
 import org.opennms.alec.engine.dbscan.HellingerDistanceMeasure;
-import org.opennms.alec.engine.deeplearning.DeepLearningEngineConf;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
@@ -99,9 +98,6 @@ public class EngineParameterImpl implements EngineParameter {
                 case "alarminspacetime":
                     return AlarmInSpaceTimeDistanceMeasure.DEFAULT_EPSILON;
                 default:
-                    if (engineName.equals("deeplearning")) {
-                        return DeepLearningEngineConf.DEFAULT_EPSILON;
-                    }
                     return null;
             }
         } else {
