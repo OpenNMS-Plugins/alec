@@ -7,7 +7,8 @@ import {
 	TLLMConfigStatus,
 	TLLMValidationResult,
 	TLLMSuggestion,
-	TLLMUsage
+	TLLMUsage,
+	TLLMBudget
 } from '@/types/TUser'
 import { sendAction } from '@/services/AlarmService'
 const base = '/alec'
@@ -16,6 +17,7 @@ const llmConfigEndpoint = '/alec/llm/configuration'
 const llmValidateEndpoint = '/alec/llm/validate'
 const llmSuggestionsEndpoint = '/alec/llm/suggestions'
 const llmUsageEndpoint = '/alec/llm/usage'
+const llmBudgetEndpoint = '/alec/llm/budget'
 const situationStatusEndpoint = '/alec/situation/statusList'
 const situationEndpoint = '/alec/situation'
 
@@ -130,6 +132,20 @@ export const getLLMUsage = async (
 		const resp = await rest.get(`${llmUsageEndpoint}?days=${days}`)
 		if (resp.status === 200) {
 			return resp.data as TLLMUsage
+		}
+		return false
+	} catch (err) {
+		return false
+	}
+}
+
+// Current shared LLM token-budget status. Used by the main page to warn the
+// user when the daily/monthly token cap has paused LLM requests.
+export const getLLMBudget = async (): Promise<TLLMBudget | false> => {
+	try {
+		const resp = await rest.get(llmBudgetEndpoint)
+		if (resp.status === 200) {
+			return resp.data as TLLMBudget
 		}
 		return false
 	} catch (err) {

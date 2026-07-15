@@ -37,9 +37,13 @@ public class UsageRestImpl implements UsageRest {
     static final int MIN_DAYS = 1;
 
     private final UsageStore store;
+    private final LlmConfigReader configReader;
+    private final TokenBudget tokenBudget;
 
-    public UsageRestImpl(UsageStore store) {
+    public UsageRestImpl(UsageStore store, LlmConfigReader configReader) {
         this.store = Objects.requireNonNull(store);
+        this.configReader = Objects.requireNonNull(configReader);
+        this.tokenBudget = new TokenBudget(store);
     }
 
     @Override
@@ -47,6 +51,15 @@ public class UsageRestImpl implements UsageRest {
         int clamped = clamp(days);
         UsageReport report = store.aggregate(clamped);
         return Response.ok().entity(report).build();
+    }
+
+    @Override
+    public Response getBudget() {
+        // Limits come from the persisted config (0/unlimited when nothing saved).
+        long dailyLimit = configReader.read().map(LlmConfigReader.Config::getDailyTokenLimit).orElse(0L);
+        long monthlyLimit = configReader.read().map(LlmConfigReader.Config::getMonthlyTokenLimit).orElse(0L);
+        BudgetStatus status = tokenBudget.evaluate(System.currentTimeMillis(), dailyLimit, monthlyLimit);
+        return Response.ok().entity(status).build();
     }
 
     /**

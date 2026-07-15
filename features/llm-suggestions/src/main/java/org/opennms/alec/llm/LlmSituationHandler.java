@@ -77,6 +77,7 @@ public class LlmSituationHandler implements SituationHandler {
     private final LlmSuggestionService suggestionService;
     private final SuggestionStore store;
     private final UsageStore usageStore;
+    private final TokenBudget tokenBudget;
     private final TimeSource timeSource;
 
     public LlmSituationHandler(LlmConfigReader configReader,
@@ -96,6 +97,7 @@ public class LlmSituationHandler implements SituationHandler {
         this.suggestionService = Objects.requireNonNull(suggestionService);
         this.store = Objects.requireNonNull(store);
         this.usageStore = Objects.requireNonNull(usageStore);
+        this.tokenBudget = new TokenBudget(usageStore);
         this.timeSource = Objects.requireNonNull(timeSource);
     }
 
@@ -194,6 +196,15 @@ public class LlmSituationHandler implements SituationHandler {
     private void analyzeAndStore(Situation situation, String situationId,
                                  LlmConfigReader.Config config) {
         final long requestedAt = timeSource.now();
+        // Shared token-budget gate: if the daily or monthly cap is reached, do
+        // NOT issue the request. The main page surfaces the same status via
+        // GET alec/llm/budget so the user knows why suggestions stopped.
+        BudgetStatus budget = tokenBudget.evaluate(requestedAt,
+                config.getDailyTokenLimit(), config.getMonthlyTokenLimit());
+        if (budget.isBlocked()) {
+            LOG.warn("LLM integration: {} Skipping situation {}.", budget.getReason(), situationId);
+            return;
+        }
         final String model = config.getModel();
         store.putPending(situationId, requestedAt, model);
 

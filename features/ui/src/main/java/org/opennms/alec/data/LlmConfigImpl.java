@@ -103,6 +103,9 @@ public class LlmConfigImpl implements LlmConfig {
     private final String defaultBaseUrl;
     private final String defaultModel;
     private final String systemPrompt;
+    // Shared "LLM Setup" token budgets (0 = unlimited).
+    private final long dailyTokenLimit;
+    private final long monthlyTokenLimit;
     private final String apiKey;
     private final boolean clearApiKey;
 
@@ -114,6 +117,8 @@ public class LlmConfigImpl implements LlmConfig {
         this.defaultBaseUrl = builder.defaultBaseUrl;
         this.defaultModel = builder.defaultModel;
         this.systemPrompt = builder.systemPrompt;
+        this.dailyTokenLimit = builder.dailyTokenLimit;
+        this.monthlyTokenLimit = builder.monthlyTokenLimit;
         this.apiKey = builder.apiKey;
         this.clearApiKey = builder.clearApiKey;
     }
@@ -131,6 +136,8 @@ public class LlmConfigImpl implements LlmConfig {
         builder.defaultBaseUrl = copy.getDefaultBaseUrl();
         builder.defaultModel = copy.getDefaultModel();
         builder.systemPrompt = copy.getSystemPrompt();
+        builder.dailyTokenLimit = copy.getDailyTokenLimit();
+        builder.monthlyTokenLimit = copy.getMonthlyTokenLimit();
         builder.apiKey = copy.getApiKey();
         builder.clearApiKey = copy.isClearApiKey();
         return builder;
@@ -172,6 +179,16 @@ public class LlmConfigImpl implements LlmConfig {
     }
 
     @Override
+    public long getDailyTokenLimit() {
+        return dailyTokenLimit;
+    }
+
+    @Override
+    public long getMonthlyTokenLimit() {
+        return monthlyTokenLimit;
+    }
+
+    @Override
     public String getApiKey() {
         return apiKey;
     }
@@ -207,6 +224,9 @@ public class LlmConfigImpl implements LlmConfig {
         private String defaultBaseUrl;
         private String defaultModel;
         private String systemPrompt;
+        // 0 = unlimited (the shipped default — no budget cap until an operator sets one).
+        private long dailyTokenLimit = 0;
+        private long monthlyTokenLimit = 0;
         private String apiKey;
         private boolean clearApiKey;
 
@@ -248,6 +268,16 @@ public class LlmConfigImpl implements LlmConfig {
 
         public Builder systemPrompt(String val) {
             systemPrompt = (val == null) ? null : val.trim();
+            return this;
+        }
+
+        public Builder dailyTokenLimit(long val) {
+            dailyTokenLimit = Math.max(0, val);
+            return this;
+        }
+
+        public Builder monthlyTokenLimit(long val) {
+            monthlyTokenLimit = Math.max(0, val);
             return this;
         }
 

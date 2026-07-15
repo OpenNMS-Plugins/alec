@@ -53,4 +53,13 @@ public interface UsageRest {
     @GET
     @Path("/usage")
     Response getUsage(@QueryParam("days") @DefaultValue("30") int days);
+
+    /**
+     * Current shared token-budget status (configured daily/monthly limits, usage
+     * so far this UTC day/month, and whether LLM requests are currently blocked).
+     * The main ALEC page polls this to warn the user when the budget is reached.
+     */
+    @GET
+    @Path("/budget")
+    Response getBudget();
 }

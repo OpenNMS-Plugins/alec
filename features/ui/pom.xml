@@ -71,6 +71,10 @@
             <artifactId>org.opennms.alec.engine.deeplearning</artifactId>
         </dependency>
         <dependency>
+            <groupId>org.opennms.alec.engine</groupId>
+            <artifactId>org.opennms.alec.engine.llm</artifactId>
+        </dependency>
+        <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
             <version>${jackson.version}</version>

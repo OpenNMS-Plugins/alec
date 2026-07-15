@@ -95,6 +95,7 @@
     <feature name="alec-engine" description="ALEC :: Engine" version="${project.version}">
         <feature version="${project.version}">alec-engine-dbscan</feature>
         <feature version="${project.version}">alec-engine-deeplearning</feature>
+        <feature version="${project.version}">alec-engine-llm</feature>
     </feature>
 
     <feature name="alec-engine-api" description="ALEC :: Engine :: API" version="${project.version}">
@@ -114,6 +115,17 @@
         <feature dependency="true">shell</feature>
         <feature version="${project.version}">alec-engine-cluster</feature>
         <bundle>mvn:org.opennms.alec.engine/org.opennms.alec.engine.dbscan/${project.version}</bundle>
+    </feature>
+
+    <feature name="alec-engine-llm" description="ALEC :: Engine :: LLM Clustering" version="${project.version}">
+        <feature dependency="true" version="${project.version}">alec-engine-cluster</feature>
+        <feature version="${opennms.api.version}" dependency="true">opennms-integration-api</feature>
+        <bundle dependency="true">mvn:org.apache.servicemix.bundles/org.apache.servicemix.bundles.okio/${okio.bundle.version}</bundle>
+        <bundle dependency="true">mvn:org.apache.servicemix.bundles/org.apache.servicemix.bundles.okhttp/${okhttp.bundle.version}</bundle>
+        <bundle dependency="true">mvn:com.fasterxml.jackson.core/jackson-core/${jackson.version}</bundle>
+        <bundle dependency="true">mvn:com.fasterxml.jackson.core/jackson-annotations/${jackson.version}</bundle>
+        <bundle dependency="true">mvn:com.fasterxml.jackson.core/jackson-databind/${jackson.version}</bundle>
+        <bundle>mvn:org.opennms.alec.engine/org.opennms.alec.engine.llm/${project.version}</bundle>
     </feature>
 
     <feature name="alec-engine-deeplearning" description="ALEC :: Engine :: Deep Learning" version="${project.version}">
@@ -257,6 +269,7 @@
         <feature>alec-driver-main</feature>
         <feature>alec-engine-dbscan</feature>
         <feature>alec-engine-deeplearning</feature>
+        <feature>alec-engine-llm</feature>
         <feature>alec-datasource-opennms-direct</feature>
         <feature>alec-processor-standalone</feature>
         <feature>alec-features-graph-shell</feature>

@@ -1,0 +1,16 @@
+<blueprint xmlns="http://www.osgi.org/xmlns/blueprint/v1.0.0">
+
+    <reference id="keyValueStore"
+               interface="org.opennms.integration.api.v1.distributed.KeyValueStore"
+               availability="optional"/>
+
+    <bean id="llmEngineObjectMapper" class="com.fasterxml.jackson.databind.ObjectMapper"/>
+
+    <service interface="org.opennms.alec.engine.api.EngineFactory" ranking="15">
+        <bean class="org.opennms.alec.engine.llm.LlmEngineFactory">
+            <argument ref="keyValueStore"/>
+            <argument ref="llmEngineObjectMapper"/>
+        </bean>
+    </service>
+
+</blueprint>

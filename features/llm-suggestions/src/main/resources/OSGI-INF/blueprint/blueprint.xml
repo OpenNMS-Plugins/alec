@@ -96,6 +96,7 @@
 
     <bean id="usageRest" class="org.opennms.alec.llm.UsageRestImpl">
         <argument ref="usageStore"/>
+        <argument ref="llmConfigReader"/>
     </bean>
     <service ref="usageRest" interface="org.opennms.alec.llm.UsageRest">
         <service-properties>
