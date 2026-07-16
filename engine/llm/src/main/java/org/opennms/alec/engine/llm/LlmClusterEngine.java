@@ -30,12 +30,19 @@ package org.opennms.alec.engine.llm;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -56,6 +63,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import edu.uci.ics.jung.graph.Graph;
+import edu.uci.ics.jung.graph.util.Pair;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -69,8 +77,18 @@ public class LlmClusterEngine extends AbstractClusterEngine {
 
     static final String CONFIG_KEY = "LLM_CONFIG";
     static final String CONFIG_CONTEXT = "ALEC_CONFIG";
+    // Shared LLM usage store — same context/record shape as the RCA UsageStore
+    // (features/llm-suggestions) so clustering draws from, and reports into, the
+    // same daily/monthly token budget. Written directly by KV (the engine bundle
+    // cannot depend on the suggestions bundle).
+    static final String USAGE_CONTEXT = "ALEC_LLM_USAGE";
+    static final String CLUSTER_USAGE_MARKER = "llm-clustering";
     static final String TOOL_NAME = "group_alarms";
     static final int MAX_TOKENS = 4096;
+    // Upper bound on alarms serialized into a single clustering request. Beyond
+    // this, the prompt risks exceeding the model's context window (a guaranteed
+    // rejection = no clustering); we cluster the most-recent MAX_ALARMS instead.
+    static final int MAX_ALARMS = 200;
     private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
 
     static final String DEFAULT_CLUSTER_PROMPT =
@@ -124,12 +142,31 @@ public class LlmClusterEngine extends AbstractClusterEngine {
 
         LlmConfig config = readLlmConfig();
         if (config == null) {
-            LOG.warn("LLM clustering engine active but LLM is not configured or not enabled; skipping this tick");
+            LOG.warn("LLM clustering engine active but LLM connection is not configured "
+                    + "(endpoint, model and API key are required); skipping this tick");
             return null;
         }
 
+        // Enforce the shared daily/monthly token budget before spending anything.
+        if (budgetExceeded(timestampInMillis, config.dailyTokenLimit, config.monthlyTokenLimit)) {
+            return null;
+        }
+
+        // Bound the request so a high-alarm site doesn't produce a prompt that
+        // overflows the model's context window (which would be rejected outright).
+        Map<String, AlarmInSpaceTime> selected = alarmsById;
+        if (alarmsById.size() > MAX_ALARMS) {
+            LOG.warn("LLM clustering: {} active alarms exceed the per-request cap of {}; "
+                    + "clustering the {} most recent this tick", alarmsById.size(), MAX_ALARMS, MAX_ALARMS);
+            selected = alarmsById.values().stream()
+                    .sorted(Comparator.comparingLong(AlarmInSpaceTime::getAlarmTime).reversed())
+                    .limit(MAX_ALARMS)
+                    .collect(Collectors.toMap(a -> a.getAlarm().getId(), a -> a,
+                            (x, y) -> x, LinkedHashMap::new));
+        }
+
         try {
-            String body = buildRequestBody(alarmsById.values(), config.model, objectMapper);
+            String body = buildRequestBody(selected.values(), g, config.model, objectMapper);
             String url = chatCompletionsUrl(config.baseUrl);
             Request request = new Request.Builder()
                     .url(url)
@@ -147,7 +184,9 @@ public class LlmClusterEngine extends AbstractClusterEngine {
                             truncate(text, 300));
                     return null;
                 }
-                return parseResponse(text, alarmsById, objectMapper);
+                // Record token usage against the shared budget before parsing.
+                recordUsage(text, config.model, timestampInMillis);
+                return parseResponse(text, selected, objectMapper);
             }
         } catch (IOException e) {
             LOG.warn("LLM clustering call failed: {}", e.getMessage());
@@ -178,8 +217,8 @@ public class LlmClusterEngine extends AbstractClusterEngine {
         return map;
     }
 
-    String buildRequestBody(Collection<AlarmInSpaceTime> alarms, String model,
-                            ObjectMapper om) throws IOException {
+    String buildRequestBody(Collection<AlarmInSpaceTime> alarms, Graph<CEVertex, CEEdge> g,
+                            String model, ObjectMapper om) throws IOException {
         ObjectNode root = om.createObjectNode();
         root.put("model", model);
         root.put("max_tokens", MAX_TOKENS);
@@ -190,7 +229,10 @@ public class LlmClusterEngine extends AbstractClusterEngine {
         sysMsg.put("content", clusterPrompt);
         ObjectNode userMsg = messages.addObject();
         userMsg.put("role", "user");
-        userMsg.put("content", renderAlarmsForPrompt(alarms));
+        // The topology-aware grouping the prompt asks for only works if the model
+        // actually sees the connectivity — send the device adjacency, not just
+        // the alarm attributes.
+        userMsg.put("content", renderAlarmsForPrompt(alarms) + renderTopology(alarms, g));
 
         ArrayNode tools = root.putArray("tools");
         ObjectNode tool = tools.addObject();
@@ -229,6 +271,9 @@ public class LlmClusterEngine extends AbstractClusterEngine {
         for (AlarmInSpaceTime ait : alarms) {
             Alarm a = ait.getAlarm();
             sb.append("- [id: ").append(safe(a.getId())).append("] ")
+              // device = the topology vertex the alarm is attached to; it keys
+              // into the connectivity section below.
+              .append("[device: ").append(safe(vertexId(ait))).append("] ")
               .append('[').append(a.getSeverity()).append("] ")
               .append(safe(a.getInventoryObjectType())).append('/')
               .append(safe(a.getInventoryObjectId()))
@@ -239,6 +284,57 @@ public class LlmClusterEngine extends AbstractClusterEngine {
             }
         }
         return sb.toString();
+    }
+
+    /**
+     * Render the device connectivity between the alarm-bearing vertices so the
+     * model can group by topological adjacency. Only edges touching a device
+     * that actually has an alarm in this request are included, keeping the
+     * section relevant and bounded.
+     */
+    private static String renderTopology(Collection<AlarmInSpaceTime> alarms, Graph<CEVertex, CEEdge> g) {
+        Set<String> alarmVertexIds = new HashSet<>();
+        for (AlarmInSpaceTime ait : alarms) {
+            String vid = vertexId(ait);
+            if (!vid.isEmpty()) {
+                alarmVertexIds.add(vid);
+            }
+        }
+        Set<String> links = new LinkedHashSet<>();
+        if (g != null) {
+            for (CEEdge edge : g.getEdges()) {
+                Pair<CEVertex> ends = g.getEndpoints(edge);
+                if (ends == null || ends.getFirst() == null || ends.getSecond() == null) {
+                    continue;
+                }
+                String a = ends.getFirst().getId();
+                String b = ends.getSecond().getId();
+                if (a == null || b == null || a.equals(b)) {
+                    continue;
+                }
+                if (!alarmVertexIds.contains(a) && !alarmVertexIds.contains(b)) {
+                    continue;
+                }
+                // Canonical order so A<->B and B<->A dedup to one line.
+                links.add(a.compareTo(b) <= 0 ? a + " <-> " + b : b + " <-> " + a);
+            }
+        }
+        if (links.isEmpty()) {
+            return "\nTopology (device connectivity): no direct links are known between the "
+                    + "alarm-bearing devices.\n";
+        }
+        StringBuilder sb = new StringBuilder(
+                "\nTopology (device connectivity) — each line is a direct link between two devices "
+                        + "(use it to group alarms on connected devices):\n");
+        for (String link : links) {
+            sb.append("- ").append(link).append('\n');
+        }
+        return sb.toString();
+    }
+
+    private static String vertexId(AlarmInSpaceTime ait) {
+        return ait.getVertex() == null || ait.getVertex().getId() == null
+                ? "" : ait.getVertex().getId();
     }
 
     static List<Cluster<AlarmInSpaceTime>> parseResponse(String json,
@@ -275,20 +371,33 @@ public class LlmClusterEngine extends AbstractClusterEngine {
         }
 
         List<Cluster<AlarmInSpaceTime>> result = new ArrayList<>();
+        // Every alarm belongs to at most one situation. Dedup IDs globally (an
+        // alarm the model repeats across groups is only placed once) and within
+        // a group (a repeated ID cannot inflate a singleton past the 2-alarm
+        // minimum). Only commit a group's IDs as "assigned" once the group is
+        // actually kept.
+        Set<String> assigned = new HashSet<>();
         for (JsonNode group : groups) {
             JsonNode ids = group.get("alarm_ids");
             if (ids == null || !ids.isArray()) continue;
-            Cluster<AlarmInSpaceTime> cluster = new Cluster<>();
+            LinkedHashSet<String> groupIds = new LinkedHashSet<>();
             for (JsonNode idNode : ids) {
                 if (!idNode.isTextual()) continue;
-                AlarmInSpaceTime ait = alarmsById.get(idNode.asText());
-                if (ait != null) {
-                    cluster.addPoint(ait);
+                String id = idNode.asText();
+                if (assigned.contains(id)) continue;      // already placed in a kept group
+                if (alarmsById.containsKey(id)) {
+                    groupIds.add(id);                     // LinkedHashSet dedups within-group
                 }
             }
-            if (!cluster.getPoints().isEmpty()) {
-                result.add(cluster);
+            // The prompt requires at least 2 alarms per group; drop singletons
+            // and empties so repeated-ID inflation cannot create bogus situations.
+            if (groupIds.size() < 2) continue;
+            Cluster<AlarmInSpaceTime> cluster = new Cluster<>();
+            for (String id : groupIds) {
+                cluster.addPoint(alarmsById.get(id));
+                assigned.add(id);
             }
+            result.add(cluster);
         }
         return result;
     }
@@ -300,11 +409,16 @@ public class LlmClusterEngine extends AbstractClusterEngine {
         }
         try {
             JsonNode node = objectMapper.readTree(raw.get());
-            boolean enabled = node.path("enabled").asBoolean(false);
+            // Clustering requires only the shared LLM connection (endpoint,
+            // model, key). It must NOT depend on the "enabled" flag — that flag
+            // toggles Root Cause Analysis, a separate feature. Selecting the LLM
+            // clustering engine is itself the signal to use the LLM for
+            // correlation; gating on the RCA flag would make the engine sit
+            // silently inactive under a fully valid configuration.
             String apiKey = node.path("apiKey").asText("").trim();
             String baseUrl = node.path("baseUrl").asText("").trim();
             String model = node.path("model").asText("").trim();
-            if (!enabled || apiKey.isEmpty() || baseUrl.isEmpty() || model.isEmpty()) {
+            if (apiKey.isEmpty() || baseUrl.isEmpty() || model.isEmpty()) {
                 return null;
             }
             long dailyLimit = Math.max(0, node.path("dailyTokenLimit").asLong(0));
@@ -314,6 +428,94 @@ public class LlmClusterEngine extends AbstractClusterEngine {
             LOG.warn("Malformed LLM config in KV store: {}", e.getMessage());
             return null;
         }
+    }
+
+    /**
+     * True when the shared daily or monthly token budget is already reached, so
+     * this tick must not issue a request. Mirrors the RCA {@code TokenBudget}
+     * semantics exactly: UTC-aligned day/month windows, {@code >=} comparison,
+     * sum of all four token buckets, and limits of 0 meaning unlimited.
+     */
+    boolean budgetExceeded(long now, long dailyLimit, long monthlyLimit) {
+        if (dailyLimit <= 0 && monthlyLimit <= 0) {
+            return false;
+        }
+        long dayStart = startOfUtcDay(now);
+        long monthStart = startOfUtcMonth(now);
+        long dailyUsed = 0;
+        long monthlyUsed = 0;
+        Map<String, String> all = kvStore.enumerateContext(USAGE_CONTEXT);
+        if (all != null) {
+            for (String raw : all.values()) {
+                long ts;
+                long tokens;
+                try {
+                    JsonNode r = objectMapper.readTree(raw);
+                    ts = r.path("ts").asLong(0);
+                    tokens = r.path("inputTokens").asLong(0) + r.path("outputTokens").asLong(0)
+                            + r.path("cacheReadInputTokens").asLong(0)
+                            + r.path("cacheCreationInputTokens").asLong(0);
+                } catch (IOException e) {
+                    continue;
+                }
+                if (dailyLimit > 0 && ts >= dayStart) {
+                    dailyUsed += tokens;
+                }
+                if (monthlyLimit > 0 && ts >= monthStart) {
+                    monthlyUsed += tokens;
+                }
+            }
+        }
+        if (dailyLimit > 0 && dailyUsed >= dailyLimit) {
+            LOG.warn("LLM clustering paused: daily token budget reached ({} of {})", dailyUsed, dailyLimit);
+            return true;
+        }
+        if (monthlyLimit > 0 && monthlyUsed >= monthlyLimit) {
+            LOG.warn("LLM clustering paused: monthly token budget reached ({} of {})", monthlyUsed, monthlyLimit);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Record this clustering call's token usage into the shared usage store, in
+     * the same record shape the RCA {@code UsageStore} writes, so it counts
+     * toward the shared budget and appears in the usage dashboard.
+     */
+    void recordUsage(String responseText, String model, long now) {
+        try {
+            JsonNode usage = objectMapper.readTree(responseText).get("usage");
+            if (usage == null) {
+                return;
+            }
+            long prompt = usage.path("prompt_tokens").asLong(0);
+            // cached_tokens is a subset of prompt_tokens (see the RCA usage
+            // handling); store the buckets disjointly to avoid double-counting.
+            long cached = Math.min(prompt,
+                    usage.path("prompt_tokens_details").path("cached_tokens").asLong(0));
+            ObjectNode rec = objectMapper.createObjectNode();
+            rec.put("ts", now);
+            rec.put("situationId", CLUSTER_USAGE_MARKER);
+            rec.put("model", model);
+            rec.put("success", true);
+            rec.put("inputTokens", prompt - cached);
+            rec.put("outputTokens", usage.path("completion_tokens").asLong(0));
+            rec.put("cacheReadInputTokens", cached);
+            rec.put("cacheCreationInputTokens", 0);
+            kvStore.put(UUID.randomUUID().toString(), objectMapper.writeValueAsString(rec), USAGE_CONTEXT);
+        } catch (Exception e) {
+            LOG.warn("Failed to record LLM clustering token usage: {}", e.getMessage());
+        }
+    }
+
+    static long startOfUtcDay(long now) {
+        return Instant.ofEpochMilli(now).atZone(ZoneOffset.UTC).toLocalDate()
+                .atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli();
+    }
+
+    static long startOfUtcMonth(long now) {
+        return Instant.ofEpochMilli(now).atZone(ZoneOffset.UTC).toLocalDate()
+                .withDayOfMonth(1).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli();
     }
 
     static String chatCompletionsUrl(String baseUrl) {
