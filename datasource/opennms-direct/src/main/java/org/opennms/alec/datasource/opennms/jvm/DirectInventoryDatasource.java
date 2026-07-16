@@ -282,10 +282,33 @@ public class DirectInventoryDatasource implements InventoryDatasource, AlarmLife
         }
     }
 
-    private void refreshEdgeTopology() {
+    void refreshEdgeTopology() {
         LOG.debug("Performing scheduled edge topology refresh from EdgeDao");
         try {
-            edgeDao.getEdges().forEach(this::processEdge);
+            Set<String> liveEdgeIds = new HashSet<>();
+            edgeDao.getEdges().forEach(e -> {
+                liveEdgeIds.add(e.getId());
+                processEdge(e);
+            });
+
+            // Reconcile deletions. The poll above only adds/updates edges still
+            // present; an edge whose delete callback was missed would otherwise
+            // linger forever — the exact missed-callback problem this refresh
+            // exists to repair. Remove any edge we still hold that the poll no
+            // longer returns.
+            List<String> staleEdgeIds;
+            inventoryLock.readLock().lock();
+            try {
+                staleEdgeIds = edgeIdToInventoryMapping.keySet().stream()
+                        .filter(id -> !liveEdgeIds.contains(id))
+                        .collect(Collectors.toList());
+            } finally {
+                inventoryLock.readLock().unlock();
+            }
+            if (!staleEdgeIds.isEmpty()) {
+                LOG.info("Edge topology refresh removing {} stale edge(s) absent from EdgeDao", staleEdgeIds.size());
+                staleEdgeIds.forEach(this::removeEdgeInventory);
+            }
         } catch (Exception e) {
             LOG.warn("Scheduled edge topology refresh failed: {}", e.getMessage());
         }
@@ -703,27 +726,37 @@ public class DirectInventoryDatasource implements InventoryDatasource, AlarmLife
         processEdge(topologyEdge);
     }
 
-    @SuppressWarnings("Duplicates")
     @Override
     public void onEdgeDeleted(TopologyEdge topologyEdge) {
         LOG.trace("Received delete for edge {}", topologyEdge);
+        removeEdgeInventory(topologyEdge.getId());
+    }
+
+    /**
+     * Remove the inventory derived from a single edge. Shared by the
+     * {@link #onEdgeDeleted} callback and the periodic refresh's deletion
+     * reconciliation (see {@link #refreshEdgeTopology}).
+     */
+    @SuppressWarnings("Duplicates")
+    private void removeEdgeInventory(String edgeId) {
         inventoryLock.writeLock().lock();
         try {
             // Check if this edge had any inventory associated
-            Set<InventoryObject> inventoryForEdge = edgeIdToInventoryMapping.get(topologyEdge.getId());
+            Set<InventoryObject> inventoryForEdge = edgeIdToInventoryMapping.get(edgeId);
 
             if (inventoryForEdge != null) {
                 // Since this edge has been deleted we can clear the inventory associated with it
-                edgeIdToInventoryMapping.remove(topologyEdge.getId());
+                edgeIdToInventoryMapping.remove(edgeId);
 
                 inventoryForEdge.forEach(inventory -> {
                     Set<String> edgeIdsForInventory = inventoryToEdgeIdMapping.get(inventory);
-                    edgeIdsForInventory.remove(topologyEdge.getId());
-
-                    if (edgeIdsForInventory.isEmpty()) {
-                        // This inventory is no longer derived via edges
-                        inventoryFromEdges.remove(inventory);
-                        inventoryToEdgeIdMapping.remove(inventory);
+                    if (edgeIdsForInventory != null) {
+                        edgeIdsForInventory.remove(edgeId);
+                        if (edgeIdsForInventory.isEmpty()) {
+                            // This inventory is no longer derived via edges
+                            inventoryFromEdges.remove(inventory);
+                            inventoryToEdgeIdMapping.remove(inventory);
+                        }
                     }
                     considerInventoryForRemoval(inventory);
                 });
