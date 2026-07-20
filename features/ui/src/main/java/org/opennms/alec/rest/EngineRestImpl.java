@@ -178,9 +178,22 @@ public class EngineRestImpl implements EngineRest {
         Optional<EngineFactory> llmFactoryOpt = engineFactories.stream()
                 .filter(f -> "llm".equals(f.getName()))
                 .findFirst();
+        // getClusterFrequencyMs() is a nullable Integer ("null when unset") and
+        // feeds a long setter (setClusterFrequencyMs) plus the engine's tick
+        // resolution — a null NPEs and a 0/negative would set a zero-interval
+        // tick. Clamp null/<=0 to the engine default. Clamping (not a 400) is
+        // deliberate: the constructor replays persisted config through this path
+        // at startup and swallows any error Response, so a bad persisted record
+        // must still yield a usable engine rather than silently leave the wrong
+        // one running.
+        Integer requestedFreq = engineParameter.getClusterFrequencyMs();
+        long clusterFrequencyMs = (requestedFreq == null || requestedFreq <= 0)
+                ? LlmEngineFactory.DEFAULT_CLUSTER_FREQUENCY_MS
+                : requestedFreq.longValue();
+
         if (llmFactoryOpt.isPresent()) {
             LlmEngineFactory factory = (LlmEngineFactory) llmFactoryOpt.get().getEngineFactory();
-            factory.setClusterFrequencyMs(engineParameter.getClusterFrequencyMs());
+            factory.setClusterFrequencyMs(clusterFrequencyMs);
             factory.setClusterPrompt(engineParameter.getClusterPrompt());
             driver.setEngineFactory(llmFactoryOpt.get().getEngineFactory());
             Response response = driverInit(driver);
@@ -194,7 +207,7 @@ public class EngineRestImpl implements EngineRest {
         try {
             return storeEngineParameter(EngineParameterImpl.newBuilder()
                     .engineName("llm")
-                    .clusterFrequencyMs(engineParameter.getClusterFrequencyMs())
+                    .clusterFrequencyMs((int) clusterFrequencyMs)
                     .clusterPrompt(engineParameter.getClusterPrompt())
                     .build());
         } catch (JsonProcessingException e) {

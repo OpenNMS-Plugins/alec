@@ -285,26 +285,35 @@ public class DirectInventoryDatasource implements InventoryDatasource, AlarmLife
     void refreshEdgeTopology() {
         LOG.debug("Performing scheduled edge topology refresh from EdgeDao");
         try {
+            // Snapshot the edges we already hold BEFORE polling. Reconciliation
+            // may only ever remove edges that were present in this snapshot —
+            // never an edge added concurrently. onEdgeAddedOrUpdated callbacks
+            // keep firing while we iterate the poll; an edge added after the DAO
+            // snapshot but before the stale scan would otherwise be in the
+            // mapping yet absent from the poll, and be wrongly deleted as
+            // "stale" (a brand-new UDL vanishing for up to a refresh interval —
+            // the exact symptom this refresh exists to prevent).
+            Set<String> knownBefore;
+            inventoryLock.readLock().lock();
+            try {
+                knownBefore = new HashSet<>(edgeIdToInventoryMapping.keySet());
+            } finally {
+                inventoryLock.readLock().unlock();
+            }
+
             Set<String> liveEdgeIds = new HashSet<>();
             edgeDao.getEdges().forEach(e -> {
                 liveEdgeIds.add(e.getId());
                 processEdge(e);
             });
 
-            // Reconcile deletions. The poll above only adds/updates edges still
-            // present; an edge whose delete callback was missed would otherwise
-            // linger forever — the exact missed-callback problem this refresh
-            // exists to repair. Remove any edge we still hold that the poll no
-            // longer returns.
-            List<String> staleEdgeIds;
-            inventoryLock.readLock().lock();
-            try {
-                staleEdgeIds = edgeIdToInventoryMapping.keySet().stream()
-                        .filter(id -> !liveEdgeIds.contains(id))
-                        .collect(Collectors.toList());
-            } finally {
-                inventoryLock.readLock().unlock();
-            }
+            // Reconcile missed deletions: an edge we held before the poll that
+            // the poll no longer returns had its delete callback missed. (Edges
+            // added during the poll are absent from knownBefore, so they are
+            // never eligible for removal.)
+            List<String> staleEdgeIds = knownBefore.stream()
+                    .filter(id -> !liveEdgeIds.contains(id))
+                    .collect(Collectors.toList());
             if (!staleEdgeIds.isEmpty()) {
                 LOG.info("Edge topology refresh removing {} stale edge(s) absent from EdgeDao", staleEdgeIds.size());
                 staleEdgeIds.forEach(this::removeEdgeInventory);

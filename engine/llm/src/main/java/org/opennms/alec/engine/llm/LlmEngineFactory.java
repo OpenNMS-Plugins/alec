@@ -37,7 +37,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public class LlmEngineFactory implements EngineFactory {
 
     // 1-hour default; overridden by EngineRestImpl when user saves config.
-    private static final long DEFAULT_CLUSTER_FREQUENCY_MS = 3_600_000L;
+    public static final long DEFAULT_CLUSTER_FREQUENCY_MS = 3_600_000L;
 
     private final KeyValueStore<String> kvStore;
     private final ObjectMapper objectMapper;

@@ -89,6 +89,12 @@ public class LlmClusterEngine extends AbstractClusterEngine {
     // this, the prompt risks exceeding the model's context window (a guaranteed
     // rejection = no clustering); we cluster the most-recent MAX_ALARMS instead.
     static final int MAX_ALARMS = 200;
+    // The budget check caches its day/month totals and only re-scans the usage
+    // store this often (or on a UTC period rollover). Without this, a full KV
+    // scan on every tick — at the 1-minute frequency the UI offers — would be
+    // prohibitively expensive. Clustering's own spend is folded into the cache
+    // immediately (recordUsage); other features' spend is picked up on rescan.
+    static final long BUDGET_RESCAN_INTERVAL_MS = 300_000L;
     private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
 
     static final String DEFAULT_CLUSTER_PROMPT =
@@ -110,6 +116,15 @@ public class LlmClusterEngine extends AbstractClusterEngine {
     private final String clusterPrompt;
     private final OkHttpClient httpClient;
 
+    // Cached token-budget totals. Only touched from the single engine tick
+    // thread (tick() -> budgetExceeded/recordUsage run sequentially), so no
+    // synchronization is needed. -1 window starts force a scan on first use.
+    private long cacheDayStart = -1;
+    private long cacheMonthStart = -1;
+    private long cachedDailyTokens = 0;
+    private long cachedMonthlyTokens = 0;
+    private long lastFullScanAt = Long.MIN_VALUE;
+
     LlmClusterEngine(MetricRegistry metrics, KeyValueStore<String> kvStore,
                      ObjectMapper objectMapper, String clusterPrompt) {
         super(metrics);
@@ -126,6 +141,14 @@ public class LlmClusterEngine extends AbstractClusterEngine {
 
     @Override
     public void tick(long timestampInMillis) {
+        // The token-budget check runs HERE, before super.tick() enters the
+        // graph-locked cluster() section, so the (cached) usage lookup never
+        // runs under the graph lock that alarm/inventory callbacks contend for.
+        LlmConfig config = readLlmConfig();
+        if (config != null
+                && budgetExceeded(timestampInMillis, config.dailyTokenLimit, config.monthlyTokenLimit)) {
+            return;
+        }
         // Force re-cluster on every scheduled tick regardless of whether alarms changed,
         // because the LLM may produce a better grouping as context evolves.
         touchAlarmState();
@@ -147,10 +170,8 @@ public class LlmClusterEngine extends AbstractClusterEngine {
             return null;
         }
 
-        // Enforce the shared daily/monthly token budget before spending anything.
-        if (budgetExceeded(timestampInMillis, config.dailyTokenLimit, config.monthlyTokenLimit)) {
-            return null;
-        }
+        // (The shared daily/monthly token budget was already checked in tick(),
+        // outside the graph lock.)
 
         // Bound the request so a high-alarm site doesn't produce a prompt that
         // overflows the model's context window (which would be rejected outright).
@@ -433,8 +454,11 @@ public class LlmClusterEngine extends AbstractClusterEngine {
     /**
      * True when the shared daily or monthly token budget is already reached, so
      * this tick must not issue a request. Mirrors the RCA {@code TokenBudget}
-     * semantics exactly: UTC-aligned day/month windows, {@code >=} comparison,
-     * sum of all four token buckets, and limits of 0 meaning unlimited.
+     * semantics (UTC-aligned day/month windows, {@code >=} comparison, sum of
+     * all four token buckets, 0 = unlimited), but reads from a cached running
+     * total that is only refreshed by a full usage scan on a UTC period rollover
+     * or every {@link #BUDGET_RESCAN_INTERVAL_MS} — the full scan must not run on
+     * every tick.
      */
     boolean budgetExceeded(long now, long dailyLimit, long monthlyLimit) {
         if (dailyLimit <= 0 && monthlyLimit <= 0) {
@@ -442,8 +466,25 @@ public class LlmClusterEngine extends AbstractClusterEngine {
         }
         long dayStart = startOfUtcDay(now);
         long monthStart = startOfUtcMonth(now);
-        long dailyUsed = 0;
-        long monthlyUsed = 0;
+        if (dayStart != cacheDayStart || monthStart != cacheMonthStart
+                || now - lastFullScanAt >= BUDGET_RESCAN_INTERVAL_MS) {
+            rescanUsage(dayStart, monthStart, now);
+        }
+        if (dailyLimit > 0 && cachedDailyTokens >= dailyLimit) {
+            LOG.warn("LLM clustering paused: daily token budget reached ({} of {})", cachedDailyTokens, dailyLimit);
+            return true;
+        }
+        if (monthlyLimit > 0 && cachedMonthlyTokens >= monthlyLimit) {
+            LOG.warn("LLM clustering paused: monthly token budget reached ({} of {})", cachedMonthlyTokens, monthlyLimit);
+            return true;
+        }
+        return false;
+    }
+
+    /** Full usage-store scan that repopulates the cached day/month totals. */
+    private void rescanUsage(long dayStart, long monthStart, long now) {
+        long daily = 0;
+        long monthly = 0;
         Map<String, String> all = kvStore.enumerateContext(USAGE_CONTEXT);
         if (all != null) {
             for (String raw : all.values()) {
@@ -458,23 +499,19 @@ public class LlmClusterEngine extends AbstractClusterEngine {
                 } catch (IOException e) {
                     continue;
                 }
-                if (dailyLimit > 0 && ts >= dayStart) {
-                    dailyUsed += tokens;
+                if (ts >= dayStart) {
+                    daily += tokens;
                 }
-                if (monthlyLimit > 0 && ts >= monthStart) {
-                    monthlyUsed += tokens;
+                if (ts >= monthStart) {
+                    monthly += tokens;
                 }
             }
         }
-        if (dailyLimit > 0 && dailyUsed >= dailyLimit) {
-            LOG.warn("LLM clustering paused: daily token budget reached ({} of {})", dailyUsed, dailyLimit);
-            return true;
-        }
-        if (monthlyLimit > 0 && monthlyUsed >= monthlyLimit) {
-            LOG.warn("LLM clustering paused: monthly token budget reached ({} of {})", monthlyUsed, monthlyLimit);
-            return true;
-        }
-        return false;
+        cacheDayStart = dayStart;
+        cacheMonthStart = monthStart;
+        cachedDailyTokens = daily;
+        cachedMonthlyTokens = monthly;
+        lastFullScanAt = now;
     }
 
     /**
@@ -498,11 +535,22 @@ public class LlmClusterEngine extends AbstractClusterEngine {
             rec.put("situationId", CLUSTER_USAGE_MARKER);
             rec.put("model", model);
             rec.put("success", true);
+            long output = usage.path("completion_tokens").asLong(0);
             rec.put("inputTokens", prompt - cached);
-            rec.put("outputTokens", usage.path("completion_tokens").asLong(0));
+            rec.put("outputTokens", output);
             rec.put("cacheReadInputTokens", cached);
             rec.put("cacheCreationInputTokens", 0);
             kvStore.put(UUID.randomUUID().toString(), objectMapper.writeValueAsString(rec), USAGE_CONTEXT);
+
+            // Fold our own spend into the cached budget totals immediately so it
+            // counts before the next full rescan (prompt + output = all buckets).
+            long total = prompt + output;
+            if (now >= cacheDayStart) {
+                cachedDailyTokens += total;
+            }
+            if (now >= cacheMonthStart) {
+                cachedMonthlyTokens += total;
+            }
         } catch (Exception e) {
             LOG.warn("Failed to record LLM clustering token usage: {}", e.getMessage());
         }

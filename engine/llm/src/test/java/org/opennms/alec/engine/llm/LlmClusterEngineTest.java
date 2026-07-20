@@ -370,6 +370,18 @@ public class LlmClusterEngineTest {
     }
 
     @Test
+    public void budgetCacheFoldsInOwnSpendWithinRescanInterval() throws IOException {
+        long now = 1_700_000_000_000L;
+        // First call does a full scan (no usage yet) — under the 1000 limit.
+        assertThat(engine.budgetExceeded(now, 1000L, 0L), equalTo(false));
+        // A 1000-token clustering call must fold into the cached total immediately.
+        engine.recordUsage("{\"usage\":{\"prompt_tokens\":1000,\"completion_tokens\":0}}", MODEL, now);
+        // Same tick time (within the rescan interval, no new scan): cached total
+        // now 1000 >= limit, so the budget is enforced from the cache.
+        assertThat(engine.budgetExceeded(now, 1000L, 0L), equalTo(true));
+    }
+
+    @Test
     public void recordUsageSplitsPromptAndCachedTokens() throws IOException {
         long now = 1_700_000_000_000L;
         String resp = "{\"usage\":{\"prompt_tokens\":1000,\"completion_tokens\":50,"
