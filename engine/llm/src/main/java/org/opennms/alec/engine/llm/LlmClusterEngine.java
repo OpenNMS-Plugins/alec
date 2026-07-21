@@ -98,6 +98,15 @@ public class LlmClusterEngine extends AbstractClusterEngine {
     // prohibitively expensive. Clustering's own spend is folded into the cache
     // immediately (recordUsage); other features' spend is picked up on rescan.
     static final long BUDGET_RESCAN_INTERVAL_MS = 300_000L;
+    // The LLM query cadence (how often a new grouping is REQUESTED) is decoupled
+    // from the reconcile cadence (how often onTick re-applies the latest grouping
+    // against current alarms, garbage-collects cleared alarms and processes
+    // feedback). The engine ticks at RECONCILE_INTERVAL_MS so a grouping the model
+    // returns becomes situations within ~one reconcile tick instead of lagging a
+    // full — possibly hour-long — query period. The expensive LLM request itself
+    // is throttled separately to the configured cluster frequency
+    // (clusterRequestIntervalMs). See setClusterRequestIntervalMs / the factory.
+    static final long RECONCILE_INTERVAL_MS = 30_000L;
     private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
 
     public static final String DEFAULT_CLUSTER_PROMPT =
@@ -131,6 +140,20 @@ public class LlmClusterEngine extends AbstractClusterEngine {
     private final AtomicBoolean requestInFlight = new AtomicBoolean(false);
     private volatile List<List<String>> latestGroups = List.of();
 
+    // How often a NEW clustering request is issued — the user-configured cluster
+    // frequency. Distinct from the (faster) reconcile tick resolution the engine
+    // actually runs at. Defaults to the reconcile interval until the factory sets
+    // the configured value.
+    private volatile long clusterRequestIntervalMs = RECONCILE_INTERVAL_MS;
+    // Wall-clock of the last dispatched request; 0 so the first tick issues one.
+    private volatile long lastRequestAtMs = 0L;
+    // The LLM config read at the start of the current tick (on the tick thread),
+    // reused by cluster() so the config KV store is not read twice per tick.
+    private volatile LlmConfig tickConfig;
+    // True when the shared token budget is spent. Computed off the graph lock in
+    // tick(); it suppresses only the outbound request, never super.tick().
+    private volatile boolean budgetBlocked = false;
+
     // Cached token-budget totals. Read on the tick thread (budgetExceeded) and
     // written on the HTTP thread (recordUsage) / tick thread (rescan), so all
     // access is guarded by budgetLock. -1 window starts force a scan on first use.
@@ -155,18 +178,48 @@ public class LlmClusterEngine extends AbstractClusterEngine {
                 .build();
     }
 
+    /**
+     * Set how often a new LLM clustering request is issued (the configured
+     * cluster frequency). This is deliberately independent of the reconcile tick
+     * resolution ({@link #RECONCILE_INTERVAL_MS}) the engine runs at, so a
+     * returned grouping is applied to situations promptly rather than lagging a
+     * full query period. Non-positive values fall back to the reconcile interval.
+     */
+    public void setClusterRequestIntervalMs(long ms) {
+        this.clusterRequestIntervalMs = ms > 0 ? ms : RECONCILE_INTERVAL_MS;
+    }
+
+    long getClusterRequestIntervalMs() {
+        return clusterRequestIntervalMs;
+    }
+
     @Override
     public void tick(long timestampInMillis) {
-        // The token-budget check runs HERE, before super.tick() enters the
-        // graph-locked cluster() section, so the (cached) usage lookup never
-        // runs under the graph lock that alarm/inventory callbacks contend for.
+        // Read the LLM config and evaluate the token budget HERE, on the tick
+        // thread but BEFORE super.tick() takes the graph lock, so neither the KV
+        // read nor the (cached) usage lookup runs under the graph lock that
+        // alarm/inventory callbacks contend for.
         LlmConfig config = readLlmConfig();
-        if (config != null
-                && budgetExceeded(timestampInMillis, config.dailyTokenLimit, config.monthlyTokenLimit)) {
-            return;
+        this.tickConfig = config;
+        boolean blocked = config != null
+                && budgetExceeded(timestampInMillis, config.dailyTokenLimit, config.monthlyTokenLimit);
+        if (blocked && !budgetBlocked) {
+            LOG.warn("LLM clustering paused: shared token budget reached; existing groupings "
+                    + "keep being re-resolved but no new LLM requests will be issued until it resets");
         }
-        // Force re-cluster on every scheduled tick regardless of whether alarms changed,
-        // because the LLM may produce a better grouping as context evolves.
+        this.budgetBlocked = blocked;
+        // IMPORTANT: the budget no longer short-circuits super.tick(). Alarm
+        // garbage collection, feedback processing and re-resolution of the
+        // existing grouping must keep running every reconcile tick even when the
+        // budget is spent — otherwise a monthly cap would freeze correlation
+        // state for the rest of the month. Only the outbound LLM request is
+        // gated (in maybeStartClusteringRequest, by both the budget and the
+        // configured query interval).
+        //
+        // Force re-cluster on every scheduled tick regardless of whether alarms
+        // changed, because the LLM may produce a better grouping as context
+        // evolves and the current grouping must be re-resolved against the
+        // alarms present now.
         touchAlarmState();
         super.tick(timestampInMillis);
     }
@@ -179,22 +232,28 @@ public class LlmClusterEngine extends AbstractClusterEngine {
             return null;
         }
 
-        LlmConfig config = readLlmConfig();
+        // Config was read on the tick thread in tick() (same thread, immediately
+        // before super.tick() called us), so reuse it rather than hitting the KV
+        // store a second time this tick.
+        LlmConfig config = tickConfig;
         if (config == null) {
             LOG.warn("LLM clustering engine active but LLM connection is not configured "
                     + "(endpoint, model and API key are required); skipping this tick");
             return null;
         }
 
-        // (The shared daily/monthly token budget was already checked in tick(),
-        // outside the graph lock.) Kick off the LLM call OFF this thread so the
-        // 30 s-worst-case HTTP round trip never blocks under the graph lock. The
-        // request body is serialized here (fast, no I/O) from the current graph;
-        // the background result is applied on a subsequent tick.
+        // Kick off the LLM call OFF this thread so the 30 s-worst-case HTTP round
+        // trip never blocks under the graph lock. It fires only when a request is
+        // actually due (budget not spent, and a full query interval has elapsed);
+        // on the reconcile ticks in between this is a cheap no-op. The request
+        // body is serialized here (fast, no I/O) from the current graph; the
+        // background result is applied on a subsequent tick.
         maybeStartClusteringRequest(timestampInMillis, alarmsById, g, config);
 
-        // Return the most recent grouping the LLM produced, resolved against the
-        // alarms present right now (unknown/removed IDs are dropped).
+        // Apply the most recent grouping the LLM produced, resolved against the
+        // alarms present right now (unknown/removed IDs are dropped). Because this
+        // runs every reconcile tick, a freshly-returned grouping becomes
+        // situations within ~one tick instead of waiting a full query period.
         return resolveClusters(latestGroups, alarmsById);
     }
 
@@ -206,6 +265,12 @@ public class LlmClusterEngine extends AbstractClusterEngine {
     private void maybeStartClusteringRequest(long timestampInMillis,
                                              Map<String, AlarmInSpaceTime> alarmsById,
                                              Graph<CEVertex, CEEdge> g, LlmConfig config) {
+        if (budgetBlocked) {
+            return; // token budget spent — keep re-resolving the existing grouping, issue no request
+        }
+        if (timestampInMillis - lastRequestAtMs < clusterRequestIntervalMs) {
+            return; // a request was issued within the configured frequency; not due yet
+        }
         if (!requestInFlight.compareAndSet(false, true)) {
             return; // previous request still running; don't pile up
         }
@@ -232,6 +297,10 @@ public class LlmClusterEngine extends AbstractClusterEngine {
             LOG.warn("LLM clustering: failed to build request: {}", e.getMessage());
             return;
         }
+        // Committed to dispatching — advance the interval clock now so the next
+        // request is not issued until a full query interval has elapsed, even
+        // though reconcile ticks continue in between.
+        lastRequestAtMs = timestampInMillis;
         final String apiKey = config.apiKey;
         final String model = config.model;
         httpExecutor.submit(() -> {
@@ -543,12 +612,13 @@ public class LlmClusterEngine extends AbstractClusterEngine {
                     || now - lastFullScanAt >= BUDGET_RESCAN_INTERVAL_MS) {
                 rescanUsage(dayStart, monthStart, now);
             }
+            // No logging here: this is now evaluated on every reconcile tick, so
+            // the "budget reached" WARN is emitted once on the false->true
+            // transition in tick() instead of on every call.
             if (dailyLimit > 0 && cachedDailyTokens >= dailyLimit) {
-                LOG.warn("LLM clustering paused: daily token budget reached ({} of {})", cachedDailyTokens, dailyLimit);
                 return true;
             }
             if (monthlyLimit > 0 && cachedMonthlyTokens >= monthlyLimit) {
-                LOG.warn("LLM clustering paused: monthly token budget reached ({} of {})", cachedMonthlyTokens, monthlyLimit);
                 return true;
             }
             return false;

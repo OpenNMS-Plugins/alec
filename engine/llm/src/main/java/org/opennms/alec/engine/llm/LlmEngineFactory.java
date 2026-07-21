@@ -63,7 +63,13 @@ public class LlmEngineFactory implements EngineFactory {
     @Override
     public LlmClusterEngine createEngine(MetricRegistry metrics) {
         LlmClusterEngine engine = new LlmClusterEngine(metrics, kvStore, objectMapper, clusterPrompt);
-        engine.setTickResolutionMs(clusterFrequencyMs);
+        // Decouple the (possibly hour-long) LLM query cadence from the reconcile
+        // cadence. The configured frequency throttles how often a NEW grouping is
+        // requested; the engine still ticks at the faster reconcile interval so a
+        // returned grouping is applied to situations — and GC/feedback processed —
+        // promptly instead of lagging a full query period.
+        engine.setClusterRequestIntervalMs(clusterFrequencyMs);
+        engine.setTickResolutionMs(Math.min(clusterFrequencyMs, LlmClusterEngine.RECONCILE_INTERVAL_MS));
         return engine;
     }
 
