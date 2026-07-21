@@ -238,6 +238,34 @@ public class LlmClusterEngineTest {
     }
 
     @Test
+    public void parseGroupsReturnsRawIdGroupsWithoutAlarmResolution() throws IOException {
+        // The split hoists the HTTP-fed parse (parseGroups) off the graph lock;
+        // it must yield the raw ID groups verbatim, independent of any alarm map.
+        String json = "{"
+                + "\"choices\":[{\"message\":{\"tool_calls\":[{\"function\":{\"name\":\"group_alarms\","
+                + "\"arguments\":\"{\\\"groups\\\":[{\\\"alarm_ids\\\":[\\\"a\\\",\\\"b\\\"]},"
+                + "{\\\"alarm_ids\\\":[\\\"c\\\"]}]}\"}}]}}]}";
+        List<List<String>> groups = LlmClusterEngine.parseGroups(json, om);
+        assertThat(groups.size(), equalTo(2));
+        assertThat(groups.get(0), equalTo(Arrays.asList("a", "b")));
+        assertThat(groups.get(1), equalTo(Collections.singletonList("c")));
+    }
+
+    @Test
+    public void resolveClustersMapsIdGroupsAgainstCurrentAlarms() {
+        // resolveClusters runs under the graph lock against the live alarm map,
+        // applying the >=2 rule; the singleton group from parseGroups is dropped.
+        AlarmInSpaceTime a1 = makeAlarm("a", 1L);
+        AlarmInSpaceTime a2 = makeAlarm("b", 2L);
+        Map<String, AlarmInSpaceTime> alarmsById = alarmsMap(a1, a2);
+        List<List<String>> idGroups = Arrays.asList(
+                Arrays.asList("a", "b"), Collections.singletonList("c"));
+        List<Cluster<AlarmInSpaceTime>> clusters = LlmClusterEngine.resolveClusters(idGroups, alarmsById);
+        assertThat(clusters.size(), equalTo(1));
+        assertThat(clusters.get(0).getPoints().size(), equalTo(2));
+    }
+
+    @Test
     public void parseResponseThrowsOnMissingToolCalls() {
         Map<String, AlarmInSpaceTime> alarmsById = new HashMap<>();
         String json = "{\"choices\":[{\"message\":{\"content\":\"plain text\"}}]}";

@@ -43,7 +43,10 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import org.apache.commons.math3.ml.clustering.Cluster;
@@ -97,7 +100,7 @@ public class LlmClusterEngine extends AbstractClusterEngine {
     static final long BUDGET_RESCAN_INTERVAL_MS = 300_000L;
     private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
 
-    static final String DEFAULT_CLUSTER_PROMPT =
+    public static final String DEFAULT_CLUSTER_PROMPT =
             "You are a senior network reliability engineer analyzing alarms for OpenNMS ALEC.\n"
             + "Your task is to group the provided alarms into correlated clusters where each cluster "
             + "represents alarms that share a common underlying cause.\n\n"
@@ -116,9 +119,22 @@ public class LlmClusterEngine extends AbstractClusterEngine {
     private final String clusterPrompt;
     private final OkHttpClient httpClient;
 
-    // Cached token-budget totals. Only touched from the single engine tick
-    // thread (tick() -> budgetExceeded/recordUsage run sequentially), so no
-    // synchronization is needed. -1 window starts force a scan on first use.
+    // The LLM call is made off the engine tick thread so it never blocks under
+    // the graph lock. Each tick fires at most one request (requestInFlight) and
+    // returns the most recent grouping resolved against the current alarms; the
+    // background result updates on completion for the next tick to apply.
+    private final ExecutorService httpExecutor = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "llm-cluster-http");
+        t.setDaemon(true);
+        return t;
+    });
+    private final AtomicBoolean requestInFlight = new AtomicBoolean(false);
+    private volatile List<List<String>> latestGroups = List.of();
+
+    // Cached token-budget totals. Read on the tick thread (budgetExceeded) and
+    // written on the HTTP thread (recordUsage) / tick thread (rescan), so all
+    // access is guarded by budgetLock. -1 window starts force a scan on first use.
+    private final Object budgetLock = new Object();
     private long cacheDayStart = -1;
     private long cacheMonthStart = -1;
     private long cachedDailyTokens = 0;
@@ -171,8 +187,28 @@ public class LlmClusterEngine extends AbstractClusterEngine {
         }
 
         // (The shared daily/monthly token budget was already checked in tick(),
-        // outside the graph lock.)
+        // outside the graph lock.) Kick off the LLM call OFF this thread so the
+        // 30 s-worst-case HTTP round trip never blocks under the graph lock. The
+        // request body is serialized here (fast, no I/O) from the current graph;
+        // the background result is applied on a subsequent tick.
+        maybeStartClusteringRequest(timestampInMillis, alarmsById, g, config);
 
+        // Return the most recent grouping the LLM produced, resolved against the
+        // alarms present right now (unknown/removed IDs are dropped).
+        return resolveClusters(latestGroups, alarmsById);
+    }
+
+    /**
+     * Serialize the current alarms + topology into a request body and, unless a
+     * request is already in flight, submit the HTTP call to the background
+     * executor. On success the parsed grouping replaces {@link #latestGroups}.
+     */
+    private void maybeStartClusteringRequest(long timestampInMillis,
+                                             Map<String, AlarmInSpaceTime> alarmsById,
+                                             Graph<CEVertex, CEEdge> g, LlmConfig config) {
+        if (!requestInFlight.compareAndSet(false, true)) {
+            return; // previous request still running; don't pile up
+        }
         // Bound the request so a high-alarm site doesn't produce a prompt that
         // overflows the model's context window (which would be rejected outright).
         Map<String, AlarmInSpaceTime> selected = alarmsById;
@@ -186,40 +222,58 @@ public class LlmClusterEngine extends AbstractClusterEngine {
                             (x, y) -> x, LinkedHashMap::new));
         }
 
+        final String body;
+        final String url;
         try {
-            String body = buildRequestBody(selected.values(), g, config.model, objectMapper);
-            String url = chatCompletionsUrl(config.baseUrl);
-            Request request = new Request.Builder()
-                    .url(url)
-                    .header("Authorization", "Bearer " + config.apiKey)
-                    .header("Content-Type", "application/json")
-                    .header("X-Title", "OpenNMS ALEC")
-                    .post(RequestBody.create(JSON, body))
-                    .build();
-
-            try (Response response = httpClient.newCall(request).execute()) {
-                ResponseBody respBody = response.body();
-                String text = respBody == null ? "" : respBody.string();
-                if (!response.isSuccessful()) {
-                    LOG.warn("LLM clustering API returned HTTP {}: {}", response.code(),
-                            truncate(text, 300));
-                    return null;
-                }
-                // Record token usage against the shared budget before parsing.
-                recordUsage(text, config.model, timestampInMillis);
-                return parseResponse(text, selected, objectMapper);
-            }
-        } catch (IOException e) {
-            LOG.warn("LLM clustering call failed: {}", e.getMessage());
-            return null;
+            body = buildRequestBody(selected.values(), g, config.model, objectMapper);
+            url = chatCompletionsUrl(config.baseUrl);
         } catch (Exception e) {
-            LOG.error("Unexpected error during LLM clustering", e);
-            return null;
+            requestInFlight.set(false);
+            LOG.warn("LLM clustering: failed to build request: {}", e.getMessage());
+            return;
         }
+        final String apiKey = config.apiKey;
+        final String model = config.model;
+        httpExecutor.submit(() -> {
+            try {
+                Request request = new Request.Builder()
+                        .url(url)
+                        .header("Authorization", "Bearer " + apiKey)
+                        .header("Content-Type", "application/json")
+                        .header("X-Title", "OpenNMS ALEC")
+                        .post(RequestBody.create(JSON, body))
+                        .build();
+                try (Response response = httpClient.newCall(request).execute()) {
+                    ResponseBody respBody = response.body();
+                    String text = respBody == null ? "" : respBody.string();
+                    if (!response.isSuccessful()) {
+                        LOG.warn("LLM clustering API returned HTTP {}: {}", response.code(),
+                                truncate(text, 300));
+                        return;
+                    }
+                    recordUsage(text, model, timestampInMillis);
+                    latestGroups = parseGroups(text, objectMapper);
+                }
+            } catch (IOException e) {
+                LOG.warn("LLM clustering call failed: {}", e.getMessage());
+            } catch (Exception e) {
+                LOG.error("Unexpected error during LLM clustering", e);
+            } finally {
+                requestInFlight.set(false);
+            }
+        });
+    }
+
+    // Retained for tests / callers that parse-and-resolve in one step.
+    static List<Cluster<AlarmInSpaceTime>> parseResponse(String json,
+                                                         Map<String, AlarmInSpaceTime> alarmsById,
+                                                         ObjectMapper om) throws IOException {
+        return resolveClusters(parseGroups(json, om), alarmsById);
     }
 
     @Override
     public void onDestroy() {
+        httpExecutor.shutdownNow();
         try {
             httpClient.dispatcher().executorService().shutdown();
             httpClient.connectionPool().evictAll();
@@ -358,9 +412,12 @@ public class LlmClusterEngine extends AbstractClusterEngine {
                 ? "" : ait.getVertex().getId();
     }
 
-    static List<Cluster<AlarmInSpaceTime>> parseResponse(String json,
-                                                          Map<String, AlarmInSpaceTime> alarmsById,
-                                                          ObjectMapper om) throws IOException {
+    /**
+     * Extract the raw alarm-id groups from a group_alarms tool-call response.
+     * Kept independent of the current alarm set so the (background) parse and
+     * the (tick-thread) resolution against live alarms are separate steps.
+     */
+    static List<List<String>> parseGroups(String json, ObjectMapper om) throws IOException {
         JsonNode root = om.readTree(json);
         JsonNode choices = root.get("choices");
         if (choices == null || !choices.isArray() || choices.isEmpty()) {
@@ -390,28 +447,41 @@ public class LlmClusterEngine extends AbstractClusterEngine {
         if (groups == null || !groups.isArray()) {
             return List.of();
         }
-
-        List<Cluster<AlarmInSpaceTime>> result = new ArrayList<>();
-        // Every alarm belongs to at most one situation. Dedup IDs globally (an
-        // alarm the model repeats across groups is only placed once) and within
-        // a group (a repeated ID cannot inflate a singleton past the 2-alarm
-        // minimum). Only commit a group's IDs as "assigned" once the group is
-        // actually kept.
-        Set<String> assigned = new HashSet<>();
+        List<List<String>> result = new ArrayList<>();
         for (JsonNode group : groups) {
             JsonNode ids = group.get("alarm_ids");
             if (ids == null || !ids.isArray()) continue;
-            LinkedHashSet<String> groupIds = new LinkedHashSet<>();
+            List<String> g = new ArrayList<>();
             for (JsonNode idNode : ids) {
-                if (!idNode.isTextual()) continue;
-                String id = idNode.asText();
+                if (idNode.isTextual()) {
+                    g.add(idNode.asText());
+                }
+            }
+            result.add(g);
+        }
+        return result;
+    }
+
+    /**
+     * Resolve raw alarm-id groups against the alarms present right now into
+     * clusters. Every alarm belongs to at most one situation: IDs are deduped
+     * globally (an alarm repeated across groups is placed once) and within a
+     * group, unknown/removed IDs are dropped, and groups that then have fewer
+     * than 2 alarms are discarded so repeated-ID inflation cannot create bogus
+     * situations.
+     */
+    static List<Cluster<AlarmInSpaceTime>> resolveClusters(List<List<String>> idGroups,
+                                                           Map<String, AlarmInSpaceTime> alarmsById) {
+        List<Cluster<AlarmInSpaceTime>> result = new ArrayList<>();
+        Set<String> assigned = new HashSet<>();
+        for (List<String> ids : idGroups) {
+            LinkedHashSet<String> groupIds = new LinkedHashSet<>();
+            for (String id : ids) {
                 if (assigned.contains(id)) continue;      // already placed in a kept group
                 if (alarmsById.containsKey(id)) {
                     groupIds.add(id);                     // LinkedHashSet dedups within-group
                 }
             }
-            // The prompt requires at least 2 alarms per group; drop singletons
-            // and empties so repeated-ID inflation cannot create bogus situations.
             if (groupIds.size() < 2) continue;
             Cluster<AlarmInSpaceTime> cluster = new Cluster<>();
             for (String id : groupIds) {
@@ -466,19 +536,23 @@ public class LlmClusterEngine extends AbstractClusterEngine {
         }
         long dayStart = startOfUtcDay(now);
         long monthStart = startOfUtcMonth(now);
-        if (dayStart != cacheDayStart || monthStart != cacheMonthStart
-                || now - lastFullScanAt >= BUDGET_RESCAN_INTERVAL_MS) {
-            rescanUsage(dayStart, monthStart, now);
+        // Guarded because recordUsage (which mutates the cache) runs on the HTTP
+        // thread while this runs on the tick thread.
+        synchronized (budgetLock) {
+            if (dayStart != cacheDayStart || monthStart != cacheMonthStart
+                    || now - lastFullScanAt >= BUDGET_RESCAN_INTERVAL_MS) {
+                rescanUsage(dayStart, monthStart, now);
+            }
+            if (dailyLimit > 0 && cachedDailyTokens >= dailyLimit) {
+                LOG.warn("LLM clustering paused: daily token budget reached ({} of {})", cachedDailyTokens, dailyLimit);
+                return true;
+            }
+            if (monthlyLimit > 0 && cachedMonthlyTokens >= monthlyLimit) {
+                LOG.warn("LLM clustering paused: monthly token budget reached ({} of {})", cachedMonthlyTokens, monthlyLimit);
+                return true;
+            }
+            return false;
         }
-        if (dailyLimit > 0 && cachedDailyTokens >= dailyLimit) {
-            LOG.warn("LLM clustering paused: daily token budget reached ({} of {})", cachedDailyTokens, dailyLimit);
-            return true;
-        }
-        if (monthlyLimit > 0 && cachedMonthlyTokens >= monthlyLimit) {
-            LOG.warn("LLM clustering paused: monthly token budget reached ({} of {})", cachedMonthlyTokens, monthlyLimit);
-            return true;
-        }
-        return false;
     }
 
     /** Full usage-store scan that repopulates the cached day/month totals. */
@@ -544,12 +618,15 @@ public class LlmClusterEngine extends AbstractClusterEngine {
 
             // Fold our own spend into the cached budget totals immediately so it
             // counts before the next full rescan (prompt + output = all buckets).
+            // Guarded: this runs on the HTTP thread, budgetExceeded on the tick thread.
             long total = prompt + output;
-            if (now >= cacheDayStart) {
-                cachedDailyTokens += total;
-            }
-            if (now >= cacheMonthStart) {
-                cachedMonthlyTokens += total;
+            synchronized (budgetLock) {
+                if (now >= cacheDayStart) {
+                    cachedDailyTokens += total;
+                }
+                if (now >= cacheMonthStart) {
+                    cachedMonthlyTokens += total;
+                }
             }
         } catch (Exception e) {
             LOG.warn("Failed to record LLM clustering token usage: {}", e.getMessage());
