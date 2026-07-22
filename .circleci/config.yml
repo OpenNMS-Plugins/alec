@@ -75,6 +75,10 @@ workflows:
               ignore:
                 - develop
                 - /^release-.*/
+                # Branches with -smoke in the name opt into the full smoke suite
+                # (below), so skip the lighter on-commit subset to avoid running
+                # both.
+                - /.*-smoke.*/
             tags:
               ignore: /^v.*/
       - smoke-test-full:
@@ -85,6 +89,10 @@ workflows:
               only:
                 - develop
                 - /^release-.*/
+                # Any branch with -smoke in its name runs the full smoke suite,
+                # so a feature branch can validate against all smoke tests
+                # before it is merged.
+                - /.*-smoke.*/
             tags:
               only: /^v.*/
 
