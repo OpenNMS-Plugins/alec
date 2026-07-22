@@ -18,9 +18,16 @@ executors:
   smoke-test-executor:
     machine:
       image: ubuntu-2204:current
+    # The distributed smoke tests stand up a full stack per test (OpenNMS +
+    # Sentinel x2 + Kafka + Zookeeper + Postgres + Grafana/Helm + Selenium) that
+    # far exceeds the default medium machine's 7.5GB, so the OOM killer aborts
+    # container startup (ContainerLaunchException). 'large' gives 4 vCPU / 15GB.
+    resource_class: large
     environment:
       JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
-      MAVEN_OPTS: -Xmx3200m
+      # The test JVM only orchestrates containers; keep its heap small so the
+      # RAM goes to the containers instead.
+      MAVEN_OPTS: -Xmx1500m
       TESTCONTAINERS_RYUK_DISABLED: true
       KEEP_TMP_OVERLAY: true
       TEST_RECORDING_DIR: /tmp/test-recordings
