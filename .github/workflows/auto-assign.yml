@@ -4,6 +4,11 @@ on:
     types: [review_requested, ready_for_review, opened, synchronize, reopened]
     branches:
       - develop
+# The default GITHUB_TOKEN is read-only, so assigning reviewers failed with
+# "Resource not accessible by integration". Grant the write scope it needs.
+permissions:
+  contents: read
+  pull-requests: write
 jobs:
   assign_reviewer:
     if: github.event.pull_request.draft == false
