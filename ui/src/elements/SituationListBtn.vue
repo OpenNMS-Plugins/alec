@@ -4,6 +4,7 @@ import { FeatherButton } from '@featherds/button'
 import { FeatherIcon } from '@featherds/icon'
 import { markRaw } from 'vue'
 import useRouter from '@/composables/useRouter'
+import { ROUTE } from '@/router/routeNames'
 
 const router = useRouter()
 
@@ -13,7 +14,7 @@ const Icons = markRaw({
 
 const showSituationList = () => {
 	router.push({
-		name: 'situations'
+		name: ROUTE.situations
 	})
 }
 </script>

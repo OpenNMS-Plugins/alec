@@ -118,6 +118,10 @@ public abstract class AbstractClusterEngine implements Engine, GraphProvider, Sp
 
     private boolean alarmsChangedSinceLastTick = false;
     private boolean feedbackChangedSinceLastTick = false;
+
+    protected void touchAlarmState() {
+        this.alarmsChangedSinceLastTick = true;
+    }
     private final FilterableGraphManager graphManager =
             FilterableGraphManager.withFilter(this::filterVertex);
     private final SolvableGraph<CEVertex> shortestPath =

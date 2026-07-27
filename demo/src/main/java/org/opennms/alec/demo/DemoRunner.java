@@ -127,9 +127,12 @@ public class DemoRunner {
             case "realistic-outage":
                 topology.buildLinearChain("Edge-Router-East", "Core-Router-01");
                 break;
+            case "llm-clustering":
+                topology.buildLlmClustering();
+                break;
             default:
                 throw new IllegalArgumentException("Unknown scenario: " + scenario +
-                        ". Available: linear-3, star-5, single, realistic-outage");
+                        ". Available: linear-3, star-5, single, realistic-outage, llm-clustering");
         }
 
         state.save(stateFile);
@@ -155,6 +158,9 @@ public class DemoRunner {
             case "realistic-outage":
                 injector.injectRealisticOutage();
                 break;
+            case "llm-clustering":
+                injector.injectLlmClustering();
+                break;
             default:
                 throw new IllegalArgumentException("Unknown scenario: " + state.getScenario());
         }
@@ -178,6 +184,8 @@ public class DemoRunner {
                 return 15;    // 3 alarms on each of 5 nodes (hub + 4 spokes)
             case "realistic-outage":
                 return 5;     // optical degrade + flap + bgp + saturation + downstream flap
+            case "llm-clustering":
+                return 8;     // 3 cluster-A + 3 cluster-B + 2 noise
             default:
                 throw new IllegalArgumentException("Unknown scenario: " + scenario);
         }
@@ -309,5 +317,9 @@ public class DemoRunner {
         System.out.println("                      (richest data for an LLM suggestion path; install");
         System.out.println("                      demo/src/main/resources/events/alec-demo.events.xml on");
         System.out.println("                      OpenNMS for fully-templated alarm descriptions)");
+        System.out.println("  llm-clustering      2 isolated router pairs + 1 isolated node; injects two");
+        System.out.println("                      distinct correlated outages (→ 2 situations) plus 2 noise");
+        System.out.println("                      alarms on the isolated node (→ uncorrelated). Designed");
+        System.out.println("                      for exercising the LLM-based clustering engine.");
     }
 }

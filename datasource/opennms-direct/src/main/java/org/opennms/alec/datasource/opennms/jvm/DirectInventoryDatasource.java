@@ -40,6 +40,8 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -80,10 +82,20 @@ public class DirectInventoryDatasource implements InventoryDatasource, AlarmLife
      */
     private static final Set<TopologyProtocol> TOPOLOGY_PROTOCOLS = Collections.singleton(TopologyProtocol.ALL);
 
+    // 5-minute default; set to 0 to disable. Configurable via Blueprint cm property.
+    static final long DEFAULT_TOPOLOGY_REFRESH_INTERVAL_MS = 300_000L;
+
     /**
      * The startup thread; handles initialization.
      */
     private Thread initThread;
+
+    /**
+     * Periodically re-queries the EdgeDao to pick up topology changes (e.g. new UDLs) that were missed
+     * because EnhancedLinkd did not fire a TopologyEdgeConsumer callback.
+     */
+    private ScheduledExecutorService topologyRefreshExecutor;
+    private final long topologyRefreshIntervalMs;
 
     /**
      * The registry of handlers interested in receiving callbacks for inventory.
@@ -184,19 +196,20 @@ public class DirectInventoryDatasource implements InventoryDatasource, AlarmLife
      */
     private final ReadWriteLock inventoryLock = new ReentrantReadWriteLock(true);
 
-    /**
-     * @param nodeDao  used to retrieve the current inventory
-     * @param alarmDao used to retrieve the current inventory
-     * @param edgeDao  used to retrieve the current inventory
-     * @param mapper   used to Map between API and ALEC types
-     */
     public DirectInventoryDatasource(NodeDao nodeDao, AlarmDao alarmDao, EdgeDao edgeDao, ApiMapper mapper,
                                      EventSubscriptionService eventSubscriptionService) {
+        this(nodeDao, alarmDao, edgeDao, mapper, eventSubscriptionService, DEFAULT_TOPOLOGY_REFRESH_INTERVAL_MS);
+    }
+
+    public DirectInventoryDatasource(NodeDao nodeDao, AlarmDao alarmDao, EdgeDao edgeDao, ApiMapper mapper,
+                                     EventSubscriptionService eventSubscriptionService,
+                                     long topologyRefreshIntervalMs) {
         this.nodeDao = Objects.requireNonNull(nodeDao);
         this.alarmDao = Objects.requireNonNull(alarmDao);
         this.edgeDao = Objects.requireNonNull(edgeDao);
         this.mapper = Objects.requireNonNull(mapper);
         this.eventSubscriptionService = Objects.requireNonNull(eventSubscriptionService);
+        this.topologyRefreshIntervalMs = topologyRefreshIntervalMs;
     }
 
     /**
@@ -256,6 +269,26 @@ public class DirectInventoryDatasource implements InventoryDatasource, AlarmLife
         edgeDao.getEdges().forEach(e -> processEdge(e, false));
 
         initLock.countDown();
+
+        if (topologyRefreshIntervalMs > 0) {
+            topologyRefreshExecutor = Executors.newSingleThreadScheduledExecutor(
+                    r -> new Thread(r, "ALEC Topology Refresh"));
+            topologyRefreshExecutor.scheduleAtFixedRate(
+                    this::refreshEdgeTopology,
+                    topologyRefreshIntervalMs,
+                    topologyRefreshIntervalMs,
+                    TimeUnit.MILLISECONDS);
+            LOG.info("Scheduled periodic edge topology refresh every {}ms", topologyRefreshIntervalMs);
+        }
+    }
+
+    private void refreshEdgeTopology() {
+        LOG.debug("Performing scheduled edge topology refresh from EdgeDao");
+        try {
+            edgeDao.getEdges().forEach(this::processEdge);
+        } catch (Exception e) {
+            LOG.warn("Scheduled edge topology refresh failed: {}", e.getMessage());
+        }
     }
 
     /**
@@ -263,6 +296,10 @@ public class DirectInventoryDatasource implements InventoryDatasource, AlarmLife
      */
     public void destroy() {
         eventSubscriptionService.removeEventListener(nodeEventListener);
+
+        if (topologyRefreshExecutor != null) {
+            topologyRefreshExecutor.shutdownNow();
+        }
 
         if (initThread != null && initThread.isAlive()) {
             initThread.interrupt();

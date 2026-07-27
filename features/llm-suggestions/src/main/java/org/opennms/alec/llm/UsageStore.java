@@ -135,6 +135,31 @@ public class UsageStore {
     }
 
     /**
+     * Total tokens (input + output + cache read + cache create) recorded at or
+     * after {@code sinceMillis}. Used to enforce the shared daily/monthly token
+     * budgets — callers pass the start of the current UTC day or month.
+     */
+    public long tokensUsedSince(long sinceMillis) {
+        Map<String, String> all = kvStore.enumerateContext(CONTEXT);
+        if (all == null) {
+            return 0;
+        }
+        long total = 0;
+        for (String raw : all.values()) {
+            try {
+                UsageRecord r = objectMapper.readValue(raw, UsageRecord.class);
+                if (r.getTs() >= sinceMillis) {
+                    total += r.getInputTokens() + r.getOutputTokens()
+                            + r.getCacheReadInputTokens() + r.getCacheCreationInputTokens();
+                }
+            } catch (IOException e) {
+                LOG.warn("Skipping unparseable usage record during budget sum: {}", e.getMessage());
+            }
+        }
+        return total;
+    }
+
+    /**
      * Delete rows whose {@code ts} is strictly older than {@code cutoffMillis}.
      * Returns the number deleted. Mirrors {@link SuggestionStore#pruneOlderThan(long)}.
      */

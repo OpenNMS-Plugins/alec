@@ -1,9 +1,0 @@
-<blueprint xmlns="http://www.osgi.org/xmlns/blueprint/v1.0.0"
->
-
-    <!-- Create and expose the engine factory -->
-    <service interface="org.opennms.alec.engine.api.EngineFactory">
-        <bean class="org.opennms.alec.engine.cluster.ClusterEngineFactory"/>
-    </service>
-
-</blueprint>

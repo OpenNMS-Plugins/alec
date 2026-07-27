@@ -32,9 +32,9 @@ ALEC uses https://www.drools.org/[Drools] rules to manage the state of all alarm
 
 == Correlation engines
 
-ALEC implements two correlation engines:
+ALEC implements the following correlation engines:
 
-* *Deep Learning:* an algorithm that leverages deep-learning techniques through a neural network to correlate and group alarms.
 * *Clustering:* leverages the https://en.wikipedia.org/wiki/DBSCAN[DBSCAN algorithm] to group alarms based on their distance from each other.
+* *LLM Clustering (experimental):* uses a large language model to group related alarms.
 
 To learn more, see the xref:reference:engines/introduction.adoc[Correlation Engines] section.

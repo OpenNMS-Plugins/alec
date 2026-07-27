@@ -38,7 +38,8 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
  * reported.
  */
 @JsonPropertyOrder({"enabled", "autoEvaluate", "baseUrl", "model", "defaultBaseUrl",
-        "defaultModel", "systemPrompt", "defaultSystemPrompt", "apiKeyPresent"})
+        "defaultModel", "systemPrompt", "defaultSystemPrompt", "dailyTokenLimit",
+        "monthlyTokenLimit", "apiKeyPresent"})
 public class LlmConfigStatus {
 
     private final boolean enabled;
@@ -56,11 +57,15 @@ public class LlmConfigStatus {
     // The built-in default, always sent so the UI's "Reset to default" button
     // has the canonical text without hard-coding it in the frontend.
     private final String defaultSystemPrompt;
+    // Shared "LLM Setup" token budgets (0 = unlimited).
+    private final long dailyTokenLimit;
+    private final long monthlyTokenLimit;
     private final boolean apiKeyPresent;
 
     public LlmConfigStatus(boolean enabled, boolean autoEvaluate, String baseUrl, String model,
                            String defaultBaseUrl, String defaultModel,
-                           String systemPrompt, String defaultSystemPrompt, boolean apiKeyPresent) {
+                           String systemPrompt, String defaultSystemPrompt,
+                           long dailyTokenLimit, long monthlyTokenLimit, boolean apiKeyPresent) {
         this.enabled = enabled;
         this.autoEvaluate = autoEvaluate;
         this.baseUrl = baseUrl;
@@ -69,6 +74,8 @@ public class LlmConfigStatus {
         this.defaultModel = defaultModel;
         this.systemPrompt = systemPrompt;
         this.defaultSystemPrompt = defaultSystemPrompt;
+        this.dailyTokenLimit = dailyTokenLimit;
+        this.monthlyTokenLimit = monthlyTokenLimit;
         this.apiKeyPresent = apiKeyPresent;
     }
 
@@ -79,7 +86,8 @@ public class LlmConfigStatus {
             // suggestions without an extra click. Endpoint/model (and their
             // recorded defaults) are blank — ALEC ships no built-in default.
             return new LlmConfigStatus(false, true, "", "", "", "",
-                    LlmConfigImpl.DEFAULT_SYSTEM_PROMPT, LlmConfigImpl.DEFAULT_SYSTEM_PROMPT, false);
+                    LlmConfigImpl.DEFAULT_SYSTEM_PROMPT, LlmConfigImpl.DEFAULT_SYSTEM_PROMPT,
+                    0, 0, false);
         }
         String key = config.getApiKey();
         // Null-guard every String: records persisted before a field existed (or
@@ -96,6 +104,8 @@ public class LlmConfigStatus {
                 systemPrompt == null || systemPrompt.trim().isEmpty()
                         ? LlmConfigImpl.DEFAULT_SYSTEM_PROMPT : systemPrompt,
                 LlmConfigImpl.DEFAULT_SYSTEM_PROMPT,
+                config.getDailyTokenLimit(),
+                config.getMonthlyTokenLimit(),
                 key != null && !key.isEmpty());
     }
 
@@ -133,6 +143,14 @@ public class LlmConfigStatus {
 
     public String getDefaultSystemPrompt() {
         return defaultSystemPrompt;
+    }
+
+    public long getDailyTokenLimit() {
+        return dailyTokenLimit;
+    }
+
+    public long getMonthlyTokenLimit() {
+        return monthlyTokenLimit;
     }
 
     public boolean isApiKeyPresent() {

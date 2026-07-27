@@ -1,9 +1,9 @@
 
 = Correlation Engines
-:description: Learn how the correlation engines (clustering and deep learning) in OpenNMS's Architecture for Learning Enabled Correlation (ALEC) work.
+:description: Learn how the correlation engines (DBSCAN clustering and LLM clustering) in OpenNMS's Architecture for Learning Enabled Correlation (ALEC) work.
 
 Correlation engines are the underlying processes that drive ALEC.
-Two engines are implemented by default: xref:engines/clustering.adoc[clustering] and xref:engines/deeplearning.adoc[deep learning].
+The xref:engines/clustering.adoc[clustering] engine (DBSCAN) is implemented by default; an experimental xref:engines/llm-clustering.adoc[LLM clustering] engine is also available.
 Both use the network topology graph that is built and maintained during pre-processing, based on information provided by your datasource (see xref:datasources/overview.adoc[ALEC Datasources]).
 
 == Pre-processing

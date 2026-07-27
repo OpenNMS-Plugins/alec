@@ -191,6 +191,37 @@ public class RouterTopologyBuilder {
         createSnmpInterfaces(name, nodeId, DEFAULT_INTERFACES);
     }
 
+    /**
+     * Two isolated pairs (island A: llm-a1 ↔ llm-a2, island B: llm-b1 ↔ llm-b2)
+     * plus one completely isolated router (llm-c1). Designed for the LLM clustering
+     * scenario where alarms on island A should form one situation, alarms on island B
+     * a second situation, and alarms on llm-c1 remain uncorrelated noise.
+     */
+    public void buildLlmClustering() {
+        LOG.info("Building LLM clustering topology: 2 isolated pairs + 1 isolated node");
+        initRequisition();
+
+        String a1 = "llm-a1", a2 = "llm-a2", b1 = "llm-b1", b2 = "llm-b2", c1 = "llm-c1";
+
+        // Phase 1: provision all 5 nodes
+        int idA1 = provisionRouter(a1);
+        int idA2 = provisionRouter(a2);
+        int idB1 = provisionRouter(b1);
+        int idB2 = provisionRouter(b2);
+        int idC1 = provisionRouter(c1);
+
+        // Phase 2: SNMP interfaces (after all imports)
+        createSnmpInterfaces(a1, idA1, DEFAULT_INTERFACES);
+        createSnmpInterfaces(a2, idA2, DEFAULT_INTERFACES);
+        createSnmpInterfaces(b1, idB1, DEFAULT_INTERFACES);
+        createSnmpInterfaces(b2, idB2, DEFAULT_INTERFACES);
+        createSnmpInterfaces(c1, idC1, DEFAULT_INTERFACES);
+
+        // Phase 3: links — only within each island; c1 has no links
+        createLink(idA1, idA2, a1 + "-if0", a2 + "-if0");
+        createLink(idB1, idB2, b1 + "-if0", b2 + "-if0");
+    }
+
     private String nextIp() {
         int third = ipCounter / 254;
         int fourth = (ipCounter % 254) + 1;

@@ -5,6 +5,7 @@ import Cancel from '@featherds/icon/navigation/Cancel'
 
 import { FeatherButton } from '@featherds/button'
 import useRouter from '@/composables/useRouter'
+import { ROUTE } from '@/router/routeNames'
 
 import ChipListByProperty from '@/components/ChipListByProperty.vue'
 import CommonFilters from '@/components/CommonFilters.vue'
@@ -49,7 +50,7 @@ watch(
 
 const showSituationList = () => {
 	router.push({
-		name: 'situations'
+		name: ROUTE.situations
 	})
 }
 
@@ -92,7 +93,7 @@ const createSituation = async () => {
 			errorSave.value = true
 		} else {
 			router.push({
-				name: 'situations'
+				name: ROUTE.situations
 			})
 		}
 	}
