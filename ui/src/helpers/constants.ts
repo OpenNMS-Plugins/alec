@@ -2,7 +2,6 @@ export default {
 	URL_DOCUMENTATION:
 		'https://docs.opennms.com/alec/3.0.4-SNAPSHOT/reference/engines/introduction.html',
 	ENGINE_DBSCAN: 'dbscan',
-	ENGINE_DEEP_LEARNING: 'cluster',
 	ENGINE_LLM: 'llm',
 	HELLINGER_OPTION: 'hellinger',
 	SPACE_DISTANCE_OPTION: 'alarminspaceandtimedistance',

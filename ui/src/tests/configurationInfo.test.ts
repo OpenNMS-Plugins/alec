@@ -51,16 +51,16 @@ test('Configuration button shows CLUSTERING when DBSCAN is the active engine', a
 	expect(wrapper.text()).toContain('CLUSTERING')
 })
 
-test('Configuration button shows DEEP LEARNING for a deeplearning engine', async () => {
+test('Configuration button shows LLM for the LLM clustering engine', async () => {
 	const { wrapper } = mountWithEngineInfo({
-		engineName: 'deeplearning',
+		engineName: 'llm',
 		distanceMeasureName: '',
 		alpha: 0,
 		beta: 0,
 		epsilon: 0
 	})
 	await wrapper.vm.$nextTick()
-	expect(wrapper.text()).toContain('DEEP LEARNING')
+	expect(wrapper.text()).toContain('LLM')
 	expect(wrapper.find('[data-test="configuration-not-set"]').exists()).toBe(
 		false
 	)

@@ -4,7 +4,6 @@ import CONST from '@/helpers/constants'
 import useRouter from '@/composables/useRouter'
 import { ROUTE } from '@/router/routeNames'
 import { computed } from 'vue'
-import DeepLearning from '@/assets/option1.svg'
 import Cluster from '@/assets/option2.svg'
 const router = useRouter()
 const userStore = useUserStore()
@@ -28,16 +27,12 @@ const isClustering = computed(
 
 <template>
 	<div class="info-engine" @click="showSettings" data-test="configuration-info">
-		<img
-			v-if="isConfigured"
-			:src="isClustering ? Cluster : DeepLearning"
-			class="icon-type"
-		/>
+		<img v-if="isConfigured" :src="Cluster" class="icon-type" />
 		<div class="engine">
 			<template v-if="isConfigured">
 				ENGINE
 				<div v-if="isClustering" class="type">CLUSTERING</div>
-				<div v-else class="type">DEEP LEARNING</div>
+				<div v-else class="type">LLM</div>
 			</template>
 			<template v-else>
 				ENGINE
