@@ -146,8 +146,14 @@ public class ALECSentinelContainer extends GenericContainer implements TestLifec
     private void waitForALECToTerminate() {
         LOG.info("Waiting for {} to terminate...", getIndexedAlias());
 
+        // Driver.destroy() can block for up to a full minute joining its init
+        // thread (initThread.join(1 MINUTE)) before it cancels the non-daemon
+        // tick timer, so the JVM may not exit until ~1 minute after
+        // `system:shutdown -f`. A 1-minute wait here raced that shutdown and
+        // failed intermittently (notably for the DBSCAN engine, whose init is
+        // slightly slower). Allow enough margin to outlast the driver shutdown.
         await()
-                .atMost(1, TimeUnit.MINUTES)
+                .atMost(3, TimeUnit.MINUTES)
                 .pollInterval(5, TimeUnit.SECONDS)
                 .until(() -> {
                     try {
