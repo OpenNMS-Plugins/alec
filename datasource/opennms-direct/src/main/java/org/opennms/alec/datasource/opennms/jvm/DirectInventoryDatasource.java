@@ -295,7 +295,17 @@ public class DirectInventoryDatasource implements InventoryDatasource, AlarmLife
      * On destroy we have to unsubscribe our listener.
      */
     public void destroy() {
-        eventSubscriptionService.removeEventListener(nodeEventListener);
+        // eventSubscriptionService is a blueprint reference proxy: if the
+        // backing service is already unregistered (typical during a framework
+        // shutdown, where our provider stops before us), a direct call blocks
+        // for Aries' full 5-minute service-damping timeout and stalls the
+        // entire bundle-stop cascade — the JVM appears hung on shutdown
+        // (thread-dump verified). Make the unsubscribe best-effort and
+        // bounded: instant when the service is up, abandoned after 5s when it
+        // is gone (the provider is being torn down with its listener list
+        // anyway).
+        bestEffortServiceCall("unsubscribe-node-events",
+                () -> eventSubscriptionService.removeEventListener(nodeEventListener));
 
         if (topologyRefreshExecutor != null) {
             topologyRefreshExecutor.shutdownNow();
@@ -311,6 +321,34 @@ public class DirectInventoryDatasource implements InventoryDatasource, AlarmLife
             } catch (InterruptedException e) {
                 LOG.error("Interrupted while waiting for initialization thread to stop.");
             }
+        }
+    }
+
+    /**
+     * Run a best-effort cleanup call against a blueprint service-reference
+     * proxy on a bounded daemon thread. If the backing service is gone the
+     * proxy would otherwise block for Aries' 5-minute damping timeout and
+     * stall the framework's bundle-stop cascade; the daemon thread cannot keep
+     * the JVM alive, so shutdown proceeds after the bound.
+     */
+    private static void bestEffortServiceCall(String description, Runnable serviceCall) {
+        Thread t = new Thread(() -> {
+            try {
+                serviceCall.run();
+            } catch (Exception e) {
+                LOG.debug("Best-effort shutdown call '{}' failed: {}", description, e.getMessage());
+            }
+        }, "alec-destroy-" + description);
+        t.setDaemon(true);
+        t.start();
+        try {
+            t.join(TimeUnit.SECONDS.toMillis(5));
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        if (t.isAlive()) {
+            LOG.warn("Best-effort shutdown call '{}' did not complete within 5 seconds "
+                    + "(backing service likely already unregistered); abandoning it", description);
         }
     }
 
