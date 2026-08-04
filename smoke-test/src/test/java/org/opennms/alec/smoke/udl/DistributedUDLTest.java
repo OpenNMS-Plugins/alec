@@ -39,9 +39,11 @@ public class DistributedUDLTest extends UDLTestBase {
 
     @Override
     protected void adjustContainersForTest() {
-        // Define a single non-redundant ALEC
+        // Define a single non-redundant ALEC. ALEC-305 removed the standalone
+        // ClusterEngineFactory, so deploy DBSCAN (which pulls in the same
+        // cluster base infra and registers a real EngineFactory).
         try {
-            alecSentinelContainer = new ALECSentinelContainer(false, () -> "cluster");
+            alecSentinelContainer = new ALECSentinelContainer(false, () -> "dbscan");
             addContainers(Collections.singletonList(alecSentinelContainer));
         } catch (Exception e) {
             throw new RuntimeException(e);
