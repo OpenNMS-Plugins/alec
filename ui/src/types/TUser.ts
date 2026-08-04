@@ -41,6 +41,10 @@ export type TLLMConfigStatus = {
 	// hard-coding the (long) prompt text in the frontend.
 	systemPrompt: string
 	defaultSystemPrompt: string
+	// The engine's built-in default clustering prompt, served so the UI's
+	// "Reset to default" for the LLM engine uses the same text the engine
+	// enforces (no hard-coded copy that could drift).
+	defaultClusterPrompt?: string
 	// Shared "LLM Setup" token budgets (0 = unlimited).
 	dailyTokenLimit: number
 	monthlyTokenLimit: number
