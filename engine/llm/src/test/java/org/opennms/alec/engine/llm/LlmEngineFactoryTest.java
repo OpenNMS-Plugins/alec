@@ -73,10 +73,24 @@ public class LlmEngineFactoryTest {
     }
 
     @Test
-    public void setClusterFrequencyMsIsReflectedInCreatedEngine() {
-        factory.setClusterFrequencyMs(60_000L);
+    public void clusterFrequencyDrivesRequestIntervalNotReconcileTick() {
+        // The configured frequency throttles the LLM query interval, but the
+        // engine reconciles at the (faster, capped) reconcile cadence so results
+        // apply promptly — the two are decoupled.
+        factory.setClusterFrequencyMs(ONE_HOUR_MS);
         LlmClusterEngine engine = factory.createEngine(new MetricRegistry());
-        assertThat(engine.getTickResolutionMs(), equalTo(60_000L));
+        assertThat(engine.getClusterRequestIntervalMs(), equalTo(ONE_HOUR_MS));
+        assertThat(engine.getTickResolutionMs(), equalTo(LlmClusterEngine.RECONCILE_INTERVAL_MS));
+    }
+
+    @Test
+    public void reconcileTickNeverExceedsConfiguredFrequency() {
+        // If the user picks a frequency below the reconcile interval, the engine
+        // ticks at that faster frequency rather than the (larger) default.
+        factory.setClusterFrequencyMs(10_000L);
+        LlmClusterEngine engine = factory.createEngine(new MetricRegistry());
+        assertThat(engine.getClusterRequestIntervalMs(), equalTo(10_000L));
+        assertThat(engine.getTickResolutionMs(), equalTo(10_000L));
     }
 
     @Test

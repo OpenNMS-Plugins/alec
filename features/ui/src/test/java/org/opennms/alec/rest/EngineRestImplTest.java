@@ -68,10 +68,12 @@ import org.opennms.alec.engine.dbscan.AlarmInSpaceAndTimeDistanceMeasureFactory;
 import org.opennms.alec.engine.dbscan.AlarmInSpaceTimeDistanceMeasure;
 import org.opennms.alec.engine.dbscan.DBScanEngine;
 import org.opennms.alec.engine.dbscan.DBScanEngineFactory;
+import org.opennms.alec.engine.llm.LlmEngineFactory;
 import org.opennms.integration.api.v1.distributed.KeyValueStore;
 import org.osgi.framework.ServiceReference;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -155,6 +157,42 @@ public class EngineRestImplTest {
         verifyNoMoreInteractions(kvStore, engineServiceReference);
 
         assertThat(argumentCaptor.getValue(), equalTo(getParameterAsString(getParameter().build())));
+    }
+
+    @Test
+    public void testSetLlmEngineClampsNullClusterFrequencyToDefault() throws JsonProcessingException {
+        EngineRestImpl underTest = new EngineRestImpl(kvStore, engineRegistry, engineFactories);
+        ArgumentCaptor<String> argumentCaptor = ArgumentCaptor.forClass(String.class);
+        when(kvStore.putAsync(anyString(), anyString(), anyString())).thenReturn(future);
+        when(future.join()).thenReturn(1L);
+
+        // No clusterFrequencyMs supplied (null) — must NOT NPE (it feeds a long
+        // setter) and must persist the engine default rather than a zero tick.
+        try (Response result = underTest.setEngineConfiguration(
+                EngineParameterImpl.newBuilder().engineName("llm").build())) {
+            assertThat(result.getStatus(), equalTo(Response.Status.OK.getStatusCode()));
+        }
+        verify(kvStore, times(1)).putAsync(eq(KeyEnum.ENGINE.toString()), argumentCaptor.capture(), eq(ALECRestUtils.ALEC_CONFIG));
+        JsonNode stored = objectMapper.readTree(argumentCaptor.getValue());
+        assertThat(stored.get("clusterFrequencyMs").asLong(),
+                equalTo(LlmEngineFactory.DEFAULT_CLUSTER_FREQUENCY_MS));
+    }
+
+    @Test
+    public void testSetLlmEngineClampsNonPositiveClusterFrequencyToDefault() throws JsonProcessingException {
+        EngineRestImpl underTest = new EngineRestImpl(kvStore, engineRegistry, engineFactories);
+        ArgumentCaptor<String> argumentCaptor = ArgumentCaptor.forClass(String.class);
+        when(kvStore.putAsync(anyString(), anyString(), anyString())).thenReturn(future);
+        when(future.join()).thenReturn(1L);
+
+        try (Response result = underTest.setEngineConfiguration(
+                EngineParameterImpl.newBuilder().engineName("llm").clusterFrequencyMs(0).build())) {
+            assertThat(result.getStatus(), equalTo(Response.Status.OK.getStatusCode()));
+        }
+        verify(kvStore, times(1)).putAsync(eq(KeyEnum.ENGINE.toString()), argumentCaptor.capture(), eq(ALECRestUtils.ALEC_CONFIG));
+        JsonNode stored = objectMapper.readTree(argumentCaptor.getValue());
+        assertThat(stored.get("clusterFrequencyMs").asLong(),
+                equalTo(LlmEngineFactory.DEFAULT_CLUSTER_FREQUENCY_MS));
     }
 
     @Test

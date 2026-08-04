@@ -28,6 +28,8 @@
 
 package org.opennms.alec.data;
 
+import org.opennms.alec.engine.llm.LlmClusterEngine;
+
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 /**
@@ -38,8 +40,8 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
  * reported.
  */
 @JsonPropertyOrder({"enabled", "autoEvaluate", "baseUrl", "model", "defaultBaseUrl",
-        "defaultModel", "systemPrompt", "defaultSystemPrompt", "dailyTokenLimit",
-        "monthlyTokenLimit", "apiKeyPresent"})
+        "defaultModel", "systemPrompt", "defaultSystemPrompt", "defaultClusterPrompt",
+        "dailyTokenLimit", "monthlyTokenLimit", "apiKeyPresent"})
 public class LlmConfigStatus {
 
     private final boolean enabled;
@@ -143,6 +145,16 @@ public class LlmConfigStatus {
 
     public String getDefaultSystemPrompt() {
         return defaultSystemPrompt;
+    }
+
+    /**
+     * The engine's canonical default clustering prompt, served so the UI's
+     * "Reset to default" (and its pre-fill) uses the same text the engine
+     * enforces — the two cannot drift. Not stored per-config; it is always the
+     * built-in constant from {@link LlmClusterEngine}.
+     */
+    public String getDefaultClusterPrompt() {
+        return LlmClusterEngine.DEFAULT_CLUSTER_PROMPT;
     }
 
     public long getDailyTokenLimit() {

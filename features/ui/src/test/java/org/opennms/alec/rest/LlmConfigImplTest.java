@@ -40,6 +40,7 @@ import org.junit.runners.JUnit4;
 import org.opennms.alec.data.LlmConfig;
 import org.opennms.alec.data.LlmConfigImpl;
 import org.opennms.alec.data.LlmConfigStatus;
+import org.opennms.alec.engine.llm.LlmClusterEngine;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -156,6 +157,17 @@ public class LlmConfigImplTest {
         LlmConfigStatus fromNull = LlmConfigStatus.from(null);
         assertThat(fromNull.getSystemPrompt(), equalTo(LlmConfigImpl.DEFAULT_SYSTEM_PROMPT));
         assertThat(fromNull.getDefaultSystemPrompt(), equalTo(LlmConfigImpl.DEFAULT_SYSTEM_PROMPT));
+    }
+
+    @Test
+    public void statusServesEngineDefaultClusterPrompt() {
+        // The default clustering prompt is served straight from the engine's
+        // canonical constant so the UI never hard-codes (and drifts from) it.
+        assertThat(LlmConfigStatus.from(null).getDefaultClusterPrompt(),
+                equalTo(LlmClusterEngine.DEFAULT_CLUSTER_PROMPT));
+        LlmConfig c = LlmConfigImpl.newBuilder().apiKey("k").build();
+        assertThat(LlmConfigStatus.from(c).getDefaultClusterPrompt(),
+                equalTo(LlmClusterEngine.DEFAULT_CLUSTER_PROMPT));
     }
 
     @Test
