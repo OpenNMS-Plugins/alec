@@ -7,7 +7,6 @@ import { FeatherButton } from '@featherds/button'
 import useRouter from '@/composables/useRouter'
 import { ROUTE } from '@/router/routeNames'
 
-import ChipListByProperty from '@/components/ChipListByProperty.vue'
 import CommonFilters from '@/components/CommonFilters.vue'
 
 import { TNewSituation, TAlarm } from '@/types/TSituation'

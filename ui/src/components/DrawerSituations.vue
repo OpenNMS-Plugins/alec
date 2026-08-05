@@ -2,7 +2,7 @@
 import { FeatherDrawer } from '@featherds/drawer'
 import { useSituationsStore } from '@/store/useSituationsStore'
 import SituationCard from '@/components/SituationCard.vue'
-import { ref, watch, markRaw } from 'vue'
+import { ref, watch } from 'vue'
 import CommonFilters from '@/components/CommonFilters.vue'
 import { TSituation } from '@/types/TSituation'
 import NoResults from '@/elements/NoResults.vue'

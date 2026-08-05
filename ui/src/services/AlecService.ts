@@ -126,7 +126,7 @@ export const reanalyzeLLMSuggestion = async (
 }
 
 export const getLLMUsage = async (
-	days: number = 30
+	days = 30
 ): Promise<TLLMUsage | false> => {
 	try {
 		const resp = await rest.get(`${llmUsageEndpoint}?days=${days}`)

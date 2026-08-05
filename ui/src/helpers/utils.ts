@@ -30,7 +30,7 @@ const decodeHtmlEntities = (text: string): string =>
 		.replace(/&gt;/g, '>')
 		.replace(/&amp;/g, '&')
 		.replace(/&quot;/g, '"')
-		.replace(/&#39;/g, "'")
+		.replace(/&#39;/g, '\'')
 
 // Sanitize an HTML string before handing it to v-html. Situation and alarm
 // descriptions originate from OpenNMS (and ultimately from event/alarm data that

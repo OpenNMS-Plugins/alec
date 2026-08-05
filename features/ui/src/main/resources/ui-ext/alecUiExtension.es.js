@@ -1021,7 +1021,7 @@ function vE() {
   }, Wd;
 }
 var zd, Ev;
-function e1() {
+function e0() {
   if (Ev) return zd;
   Ev = 1;
   var e = vt();
@@ -1099,7 +1099,7 @@ function e1() {
   }, zd;
 }
 var Gd, Sv;
-function t1() {
+function t0() {
   return Sv || (Sv = 1, Gd = {
     version: "0.32.0"
   }), Gd;
@@ -1108,7 +1108,7 @@ var Yd, kv;
 function gE() {
   if (kv) return Yd;
   kv = 1;
-  var e = t1().version, a = Oo(), r = {};
+  var e = t0().version, a = Oo(), r = {};
   ["object", "boolean", "number", "function", "string", "symbol"].forEach(function(u, c) {
     r[u] = function(v) {
       return typeof v === u || "a" + (c < 1 ? "n " : " ") + u;
@@ -1157,7 +1157,7 @@ var jd, Tv;
 function wE() {
   if (Tv) return jd;
   Tv = 1;
-  var e = vt(), a = j_(), r = nE(), i = vE(), s = e1(), u = J_(), c = gE(), f = c.validators;
+  var e = vt(), a = j_(), r = nE(), i = vE(), s = e0(), u = J_(), c = gE(), f = c.validators;
   function v(p) {
     this.defaults = p, this.interceptors = {
       request: new r(),
@@ -1314,7 +1314,7 @@ var Ov;
 function $E() {
   if (Ov) return Yl.exports;
   Ov = 1;
-  var e = vt(), a = z_(), r = wE(), i = e1(), s = ph(), u = X_();
+  var e = vt(), a = z_(), r = wE(), i = e0(), s = ph(), u = X_();
   function c(v) {
     var p = new r(v), g = a(r.prototype.request, p);
     return e.extend(g, r.prototype, p), e.extend(g, p), g.create = function(y) {
@@ -1322,7 +1322,7 @@ function $E() {
     }, g;
   }
   var f = c(s);
-  return f.Axios = r, f.CanceledError = Du(), f.CancelToken = _E(), f.isCancel = Q_(), f.VERSION = t1().version, f.toFormData = Pu(), f.AxiosError = Oo(), f.Cancel = f.CanceledError, f.all = function(p) {
+  return f.Axios = r, f.CanceledError = Du(), f.CancelToken = _E(), f.isCancel = Q_(), f.VERSION = t0().version, f.toFormData = Pu(), f.AxiosError = Oo(), f.Cancel = f.CanceledError, f.all = function(p) {
     return Promise.all(p);
   }, f.spread = bE(), f.isAxiosError = yE(), f.formToJSON = function(v) {
     return u(e.isHTMLForm(v) ? new FormData(v) : v);
@@ -1333,10 +1333,10 @@ function xE() {
   return Rv || (Rv = 1, Jd = $E()), Jd;
 }
 var VE = xE();
-const n1 = /* @__PURE__ */ QC(VE), ra = n1.create({
+const n0 = /* @__PURE__ */ QC(VE), ra = n0.create({
   baseURL: "/opennms/api/v2",
   withCredentials: !0
-}), kt = n1.create({
+}), kt = n0.create({
   baseURL: "/opennms/rest",
   withCredentials: !0
 }), CE = "/whoami", EE = async () => {
@@ -5063,7 +5063,7 @@ const TE = "/alarms?_s=", Mu = {
   } catch {
     return !1;
   }
-}, r1 = async (e, a) => {
+}, r0 = async (e, a) => {
   try {
     return (await kt.put(
       `/alarms/${e}?${a}=true`,
@@ -5100,7 +5100,7 @@ const TE = "/alarms?_s=", Mu = {
   } catch {
     return !1;
   }
-}, a1 = async (e) => {
+}, a0 = async (e) => {
   try {
     const a = await ra(`/alarms/${e}`);
     return a.status === 200 ? a.data : null;
@@ -5146,29 +5146,29 @@ const TE = "/alarms?_s=", Mu = {
   } catch {
     return !1;
   }
-}, Fu = "/alec", o1 = "/alec/engine/configuration", i1 = "/alec/llm/configuration", ME = "/alec/llm/validate", s1 = "/alec/llm/suggestions", FE = "/alec/llm/usage", UE = "/alec/llm/budget", l1 = "/alec/situation", qE = async () => {
+}, Fu = "/alec", o0 = "/alec/engine/configuration", i0 = "/alec/llm/configuration", ME = "/alec/llm/validate", s0 = "/alec/llm/suggestions", FE = "/alec/llm/usage", UE = "/alec/llm/budget", l0 = "/alec/situation", qE = async () => {
   try {
-    const e = await kt.get(`${o1}`);
+    const e = await kt.get(`${o0}`);
     return e.status === 200 ? e.data : !1;
   } catch {
     return !1;
   }
 }, HE = async (e) => {
   try {
-    return (await kt.post(o1, e)).status === 200;
+    return (await kt.post(o0, e)).status === 200;
   } catch {
     return !1;
   }
 }, WE = async () => {
   try {
-    const e = await kt.get(i1);
+    const e = await kt.get(i0);
     return e.status === 200 ? e.data : !1;
   } catch {
     return !1;
   }
 }, zE = async (e) => {
   try {
-    const a = await kt.post(i1, e);
+    const a = await kt.post(i0, e);
     return a.status === 200 ? a.data : !1;
   } catch {
     return !1;
@@ -5180,9 +5180,9 @@ const TE = "/alarms?_s=", Mu = {
   } catch {
     return { ok: !1, message: "Could not reach the server to validate." };
   }
-}, u1 = async (e) => {
+}, u0 = async (e) => {
   try {
-    const a = await kt.get(`${s1}/${e}`);
+    const a = await kt.get(`${s0}/${e}`);
     return a.status === 200 ? a.data : a.status === 204 ? null : !1;
   } catch {
     return !1;
@@ -5190,7 +5190,7 @@ const TE = "/alarms?_s=", Mu = {
 }, YE = async (e) => {
   try {
     const a = await kt.post(
-      `${s1}/${e}/reanalyze`
+      `${s0}/${e}/reanalyze`
     );
     return a.status === 202 || a.status === 200 ? a.data : !1;
   } catch {
@@ -5210,14 +5210,14 @@ const TE = "/alarms?_s=", Mu = {
   } catch {
     return !1;
   }
-}, c1 = async (e, a) => {
+}, c0 = async (e, a) => {
   try {
     const r = await kt.post(`${Fu}/situation/${a}/${e}`, {
       headers: {
         "Access-Control-Allow-Origin": "*"
       }
     });
-    return a == St.REJECTED.toLowerCase() && r.status === 200 && await r1(e, "clear"), r.status === 200;
+    return a == St.REJECTED.toLowerCase() && r.status === 200 && await r0(e, "clear"), r.status === 200;
   } catch {
     return !1;
   }
@@ -5232,7 +5232,7 @@ const TE = "/alarms?_s=", Mu = {
   } catch {
     return !1;
   }
-}, d1 = async (e, a) => {
+}, d0 = async (e, a) => {
   try {
     return (await kt.put(`${Fu}/situation/alarm/`, {
       situationId: e,
@@ -5243,13 +5243,13 @@ const TE = "/alarms?_s=", Mu = {
   }
 }, ZE = async (e) => {
   try {
-    return (await kt.post(l1, e)).status === 200;
+    return (await kt.post(l0, e)).status === 200;
   } catch {
     return !1;
   }
 }, XE = async () => {
   try {
-    return (await kt.post(`${l1}/close-all`)).status === 200;
+    return (await kt.post(`${l0}/close-all`)).status === 200;
   } catch {
     return !1;
   }
@@ -5391,7 +5391,7 @@ const TE = "/alarms?_s=", Mu = {
     async getSituation(e) {
       var a, r;
       if (e) {
-        const i = await a1(e);
+        const i = await a0(e);
         if (i) {
           const s = (a = i.relatedAlarms) == null ? void 0 : a.map((f) => f.id), c = await OE(s);
           i.status = (r = i.parameters.filter(
@@ -5490,7 +5490,7 @@ const WS = {}, zS = {
 function jS(e, a) {
   return FS(), US("svg", zS, YS);
 }
-var f1 = /* @__PURE__ */ HS(WS, [["render", jS]]);
+var f0 = /* @__PURE__ */ HS(WS, [["render", jS]]);
 function Ir(e) {
   if (e === null || e === !0 || e === !1)
     return NaN;
@@ -5543,7 +5543,7 @@ function JS(e, a) {
   var r = $t(e), i = $t(a), s = r.getTime() - i.getTime();
   return s < 0 ? -1 : s > 0 ? 1 : s;
 }
-function h1(e, a) {
+function h0(e, a) {
   je(2, arguments);
   var r = zv(e), i = zv(a);
   return r.getTime() === i.getTime();
@@ -5575,7 +5575,7 @@ function Eu(e) {
   var a = 1, r = $t(e), i = r.getUTCDay(), s = (i < a ? 7 : 0) + i - a;
   return r.setUTCDate(r.getUTCDate() - s), r.setUTCHours(0, 0, 0, 0), r;
 }
-function p1(e) {
+function p0(e) {
   je(1, arguments);
   var a = $t(e), r = a.getUTCFullYear(), i = /* @__PURE__ */ new Date(0);
   i.setUTCFullYear(r + 1, 0, 4), i.setUTCHours(0, 0, 0, 0);
@@ -5586,7 +5586,7 @@ function p1(e) {
 }
 function ak(e) {
   je(1, arguments);
-  var a = p1(e), r = /* @__PURE__ */ new Date(0);
+  var a = p0(e), r = /* @__PURE__ */ new Date(0);
   r.setUTCFullYear(a, 0, 4), r.setUTCHours(0, 0, 0, 0);
   var i = Eu(r);
   return i;
@@ -5606,7 +5606,7 @@ function Su(e, a) {
   var y = $t(e), $ = y.getUTCDay(), V = ($ < _ ? 7 : 0) + $ - _;
   return y.setUTCDate(y.getUTCDate() - V), y.setUTCHours(0, 0, 0, 0), y;
 }
-function m1(e, a) {
+function m0(e, a) {
   var r, i, s, u, c, f, v, p;
   je(1, arguments);
   var g = $t(e), _ = g.getUTCFullYear(), y = Li(), $ = Ir((r = (i = (s = (u = a == null ? void 0 : a.firstWeekContainsDate) !== null && u !== void 0 ? u : a == null || (c = a.locale) === null || c === void 0 || (f = c.options) === null || f === void 0 ? void 0 : f.firstWeekContainsDate) !== null && s !== void 0 ? s : y.firstWeekContainsDate) !== null && i !== void 0 ? i : (v = y.locale) === null || v === void 0 || (p = v.options) === null || p === void 0 ? void 0 : p.firstWeekContainsDate) !== null && r !== void 0 ? r : 1);
@@ -5622,7 +5622,7 @@ function m1(e, a) {
 function sk(e, a) {
   var r, i, s, u, c, f, v, p;
   je(1, arguments);
-  var g = Li(), _ = Ir((r = (i = (s = (u = a == null ? void 0 : a.firstWeekContainsDate) !== null && u !== void 0 ? u : a == null || (c = a.locale) === null || c === void 0 || (f = c.options) === null || f === void 0 ? void 0 : f.firstWeekContainsDate) !== null && s !== void 0 ? s : g.firstWeekContainsDate) !== null && i !== void 0 ? i : (v = g.locale) === null || v === void 0 || (p = v.options) === null || p === void 0 ? void 0 : p.firstWeekContainsDate) !== null && r !== void 0 ? r : 1), y = m1(e, a), $ = /* @__PURE__ */ new Date(0);
+  var g = Li(), _ = Ir((r = (i = (s = (u = a == null ? void 0 : a.firstWeekContainsDate) !== null && u !== void 0 ? u : a == null || (c = a.locale) === null || c === void 0 || (f = c.options) === null || f === void 0 ? void 0 : f.firstWeekContainsDate) !== null && s !== void 0 ? s : g.firstWeekContainsDate) !== null && i !== void 0 ? i : (v = g.locale) === null || v === void 0 || (p = v.options) === null || p === void 0 ? void 0 : p.firstWeekContainsDate) !== null && r !== void 0 ? r : 1), y = m0(e, a), $ = /* @__PURE__ */ new Date(0);
   $.setUTCFullYear(y, 0, _), $.setUTCHours(0, 0, 0, 0);
   var V = Su($, a);
   return V;
@@ -5734,7 +5734,7 @@ var Ea = {
   },
   // Local week-numbering year
   Y: function(e, a, r, i) {
-    var s = m1(e, i), u = s > 0 ? s : 1 - s;
+    var s = m0(e, i), u = s > 0 ? s : 1 - s;
     if (a === "YY") {
       var c = u % 100;
       return qe(c, 2);
@@ -5745,7 +5745,7 @@ var Ea = {
   },
   // ISO week-numbering year
   R: function(e, a) {
-    var r = p1(e);
+    var r = p0(e);
     return qe(r, a.length);
   },
   // Extended year. This is a single number designating the year of this calendar system.
@@ -6339,7 +6339,7 @@ var jv = function(e, a) {
         width: "full"
       });
   }
-}, v1 = function(e, a) {
+}, v0 = function(e, a) {
   switch (e) {
     case "p":
       return a.time({
@@ -6387,9 +6387,9 @@ var jv = function(e, a) {
       });
       break;
   }
-  return u.replace("{{date}}", jv(i, a)).replace("{{time}}", v1(s, a));
+  return u.replace("{{date}}", jv(i, a)).replace("{{time}}", v0(s, a));
 }, fk = {
-  p: v1,
+  p: v0,
   P: dk
 }, hk = ["D", "DD"], pk = ["YY", "YYYY"];
 function mk(e) {
@@ -6776,7 +6776,7 @@ var Bk = /^(\d+)(th|st|nd|rd)?/i, Pk = /\d+/i, Dk = {
     parsePatterns: Yk,
     defaultParseWidth: "any"
   })
-}, g1 = {
+}, g0 = {
   code: "en-US",
   formatDistance: wk,
   formatLong: $k,
@@ -6791,7 +6791,7 @@ var Bk = /^(\d+)(th|st|nd|rd)?/i, Pk = /\d+/i, Dk = {
 function eT(e, a, r) {
   var i, s, u, c, f, v, p, g, _, y, $, V, k, B;
   je(2, arguments);
-  var S = String(a), T = Li(), R = (i = (s = void 0) !== null && s !== void 0 ? s : T.locale) !== null && i !== void 0 ? i : g1, D = Ir((u = (c = (f = (v = void 0) !== null && v !== void 0 ? v : void 0) !== null && f !== void 0 ? f : T.firstWeekContainsDate) !== null && c !== void 0 ? c : (p = T.locale) === null || p === void 0 || (g = p.options) === null || g === void 0 ? void 0 : g.firstWeekContainsDate) !== null && u !== void 0 ? u : 1);
+  var S = String(a), T = Li(), R = (i = (s = void 0) !== null && s !== void 0 ? s : T.locale) !== null && i !== void 0 ? i : g0, D = Ir((u = (c = (f = (v = void 0) !== null && v !== void 0 ? v : void 0) !== null && f !== void 0 ? f : T.firstWeekContainsDate) !== null && c !== void 0 ? c : (p = T.locale) === null || p === void 0 || (g = p.options) === null || g === void 0 ? void 0 : g.firstWeekContainsDate) !== null && u !== void 0 ? u : 1);
   if (!(D >= 1 && D <= 7))
     throw new RangeError("firstWeekContainsDate must be between 1 and 7 inclusively");
   var q = Ir((_ = (y = ($ = (V = void 0) !== null && V !== void 0 ? V : void 0) !== null && $ !== void 0 ? $ : T.weekStartsOn) !== null && y !== void 0 ? y : (k = T.locale) === null || k === void 0 || (B = k.options) === null || B === void 0 ? void 0 : B.weekStartsOn) !== null && _ !== void 0 ? _ : 0);
@@ -6835,7 +6835,7 @@ function tT(e) {
   var a = e.match(Xk);
   return a ? a[1].replace(Jk, "'") : e;
 }
-function w1(e, a) {
+function w0(e, a) {
   if (e == null)
     throw new TypeError("assign requires that input parameter not be null or undefined");
   for (var r in a)
@@ -6843,19 +6843,19 @@ function w1(e, a) {
   return e;
 }
 function nT(e) {
-  return w1({}, e);
+  return w0({}, e);
 }
 var Zv = 1e3 * 60, ku = 1440, Xv = ku * 30, Jv = ku * 365;
 function Uu(e, a, r) {
   var i, s, u;
   je(2, arguments);
-  var c = Li(), f = (i = (s = r == null ? void 0 : r.locale) !== null && s !== void 0 ? s : c.locale) !== null && i !== void 0 ? i : g1;
+  var c = Li(), f = (i = (s = r == null ? void 0 : r.locale) !== null && s !== void 0 ? s : c.locale) !== null && i !== void 0 ? i : g0;
   if (!f.formatDistance)
     throw new RangeError("locale must contain localize.formatDistance property");
   var v = JS(e, a);
   if (isNaN(v))
     throw new RangeError("Invalid time value");
-  var p = w1(nT(r), {
+  var p = w0(nT(r), {
     addSuffix: !!(r != null && r.addSuffix),
     comparison: v
   }), g, _;
@@ -6900,7 +6900,7 @@ function aT(e, a) {
   return je(1, arguments), rT(e, Date.now(), a);
 }
 function oT(e) {
-  return je(1, arguments), h1(e, Date.now());
+  return je(1, arguments), h0(e, Date.now());
 }
 function iT(e, a) {
   je(2, arguments);
@@ -6908,7 +6908,7 @@ function iT(e, a) {
   return KS(e, -r);
 }
 function sT(e) {
-  return je(1, arguments), h1(e, iT(Date.now(), 1));
+  return je(1, arguments), h0(e, iT(Date.now(), 1));
 }
 /*! @license DOMPurify 3.4.11 | (c) Cure53 and other contributors | Released under the Apache license 2.0 and Mozilla Public License 2.0 | github.com/cure53/DOMPurify/blob/3.4.11/LICENSE */
 function Qv(e, a) {
@@ -6951,8 +6951,8 @@ function fT(e, a) {
     return r === "Object" && e.constructor && (r = e.constructor.name), r === "Map" || r === "Set" ? Array.from(e) : r === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(r) ? Qv(e, a) : void 0;
   }
 }
-const _1 = Object.entries, eg = Object.setPrototypeOf, hT = Object.isFrozen, pT = Object.getPrototypeOf, mT = Object.getOwnPropertyDescriptor;
-let Bt = Object.freeze, Pt = Object.seal, wi = Object.create, b1 = typeof Reflect < "u" && Reflect, Jf = b1.apply, Qf = b1.construct;
+const _0 = Object.entries, eg = Object.setPrototypeOf, hT = Object.isFrozen, pT = Object.getPrototypeOf, mT = Object.getOwnPropertyDescriptor;
+let Bt = Object.freeze, Pt = Object.seal, wi = Object.create, b0 = typeof Reflect < "u" && Reflect, Jf = b0.apply, Qf = b0.construct;
 Bt || (Bt = function(a) {
   return a;
 });
@@ -7007,7 +7007,7 @@ function $T(e) {
 }
 function rn(e) {
   const a = wi(null);
-  for (const i of _1(e)) {
+  for (const i of _0(e)) {
     var r = dT(i, 2);
     const s = r[0], u = r[1];
     Et(e, s) && (Ba(u) ? a[s] = $T(u) : u && typeof u == "object" && u.constructor === Object ? a[s] = rn(u) : a[s] = u);
@@ -7124,9 +7124,9 @@ const ig = Bt(["a", "abbr", "acronym", "address", "area", "article", "aside", "a
 }, Sa = function(a, r, i, s) {
   return Et(a, r) && Ba(a[r]) ? Le(s.base ? rn(s.base) : {}, a[r], s.transform) : i;
 };
-function y1() {
+function y0() {
   let e = arguments.length > 0 && arguments[0] !== void 0 ? arguments[0] : MT();
-  const a = (G) => y1(G);
+  const a = (G) => y0(G);
   if (a.version = "3.4.11", a.removed = [], !e || !e.document || e.document.nodeType !== xr.document || !e.Element)
     return a.isSupported = !1, a;
   let r = e.document;
@@ -7161,7 +7161,7 @@ function y1() {
     return Y || (j = FT(_, s), Y = !0), j;
   }, be = r, Je = be.implementation, zt = be.createNodeIterator, Qe = be.createDocumentFragment, xt = be.getElementsByTagName, za = i.importNode;
   let I = fg();
-  a.isSupported = typeof _1 == "function" && typeof S == "function" && Je && Je.createHTMLDocument !== void 0;
+  a.isSupported = typeof _0 == "function" && typeof S == "function" && Je && Je.createHTMLDocument !== void 0;
   const te = ST, ue = kT, Ke = TT, Fe = IT, Pe = AT, gt = LT, on = OT, sn = NT;
   let nr = cg, Ge = null;
   const Or = Le({}, [...ig, ...nf, ...rf, ...af, ...sg]);
@@ -7736,7 +7736,7 @@ function y1() {
     I = fg();
   }, a;
 }
-var UT = y1();
+var UT = y0();
 const Ar = (e) => {
   let a = "";
   if (e)
@@ -7746,8 +7746,8 @@ const Ar = (e) => {
       console.log("error date", e);
     }
   return a;
-}, $1 = (e) => e.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'"), x1 = (e) => UT.sanitize(e), V1 = (e, a) => {
-  const r = $1(e).replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim(), i = r.length > a ? "..." : "";
+}, $0 = (e) => e.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'"), x0 = (e) => UT.sanitize(e), V0 = (e, a) => {
+  const r = $0(e).replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim(), i = r.length > a ? "..." : "";
   return r.substring(0, a) + i;
 }, qT = (e, a) => {
   let r = a;
@@ -7793,7 +7793,7 @@ const Ar = (e) => {
     return lI(async () => {
       var p;
       if (((p = r.situationInfo) == null ? void 0 : p.id) === void 0) return;
-      const v = await u1(r.situationInfo.id);
+      const v = await u0(r.situationInfo.id);
       v && v.status && (f.value = v.status);
     }), (v, p) => {
       var g, _, y;
@@ -7824,7 +7824,7 @@ const Ar = (e) => {
             ])) : ms("", !0),
             r.situationInfo.status == Ln(s) ? (ka(), Ta("div", QT, [
               hg(Ln(ae), {
-                icon: Ln(f1),
+                icon: Ln(f0),
                 "aria-hidden": "true",
                 class: "icon rejected"
               }, null, 8, ["icon"])
@@ -7841,7 +7841,7 @@ const Ar = (e) => {
             nI,
             eh(fo(Ln(Ar)(r.situationInfo.firstEventTime)), 1)
           ])),
-          kr("div", rI, fo(Ln(V1)(r.situationInfo.description, r.small ? 100 : 230)), 1),
+          kr("div", rI, fo(Ln(V0)(r.situationInfo.description, r.small ? 100 : 230)), 1),
           aI,
           r.situationInfo.relatedAlarms ? (ka(), Ta("div", oI, [
             iI,
@@ -7857,7 +7857,7 @@ const Ar = (e) => {
       ], 2);
     };
   }
-}), C1 = /* @__PURE__ */ Re(cI, [["__scopeId", "data-v-aab1b2b8"]]), dI = window.Vue.openBlock, fI = window.Vue.createElementBlock, hI = window.Vue.createElementVNode;
+}), C0 = /* @__PURE__ */ Re(cI, [["__scopeId", "data-v-aab1b2b8"]]), dI = window.Vue.openBlock, fI = window.Vue.createElementBlock, hI = window.Vue.createElementVNode;
 var pI = (e, a) => {
   const r = e.__vccOpts || e;
   for (const [i, s] of a)
@@ -7874,7 +7874,7 @@ function _I(e, a) {
   return dI(), fI("svg", vI, wI);
 }
 var bI = /* @__PURE__ */ pI(mI, [["render", _I]]);
-const yI = window.Vue.openBlock, $I = window.Vue.createElementBlock, E1 = window.Vue.createElementVNode;
+const yI = window.Vue.openBlock, $I = window.Vue.createElementBlock, E0 = window.Vue.createElementVNode;
 var xI = (e, a) => {
   const r = e.__vccOpts || e;
   for (const [i, s] of a)
@@ -7884,7 +7884,7 @@ var xI = (e, a) => {
 const VI = {}, CI = {
   xmlns: "http://www.w3.org/2000/svg",
   viewBox: "0 0 24 24"
-}, EI = /* @__PURE__ */ E1("path", { d: "M6.29,6.71a1,1,0,0,0,0,1.4L10.18,12,6.29,15.89A1,1,0,0,0,7.7,17.3L13,12,7.7,6.71A1,1,0,0,0,6.29,6.71Z" }, null, -1), SI = /* @__PURE__ */ E1("path", { d: "M17,6a1,1,0,0,0-1,1V17a1,1,0,0,0,2,0V7A1,1,0,0,0,17,6Z" }, null, -1), kI = [
+}, EI = /* @__PURE__ */ E0("path", { d: "M6.29,6.71a1,1,0,0,0,0,1.4L10.18,12,6.29,15.89A1,1,0,0,0,7.7,17.3L13,12,7.7,6.71A1,1,0,0,0,6.29,6.71Z" }, null, -1), SI = /* @__PURE__ */ E0("path", { d: "M17,6a1,1,0,0,0-1,1V17a1,1,0,0,0,2,0V7A1,1,0,0,0,17,6Z" }, null, -1), kI = [
   EI,
   SI
 ];
@@ -7925,7 +7925,7 @@ const zI = {}, GI = {
 function KI(e, a) {
   return UI(), qI("svg", GI, jI);
 }
-var S1 = /* @__PURE__ */ WI(zI, [["render", KI]]);
+var S0 = /* @__PURE__ */ WI(zI, [["render", KI]]);
 const ZI = window.Vue.defineComponent, Ia = window.Vue.unref, Kl = window.Vue.normalizeClass, Zl = window.Vue.createVNode, XI = window.Vue.openBlock, JI = window.Vue.createElementBlock;
 window.Vue.pushScopeId;
 window.Vue.popScopeId;
@@ -7954,7 +7954,7 @@ const QI = { class: "paginator" }, eA = /* @__PURE__ */ ZI({
         onClick: u[1] || (u[1] = (c) => i(r.currentPage - 1))
       }, null, 8, ["icon", "class"]),
       Zl(Ia(ae), {
-        icon: Ia(S1),
+        icon: Ia(S0),
         "aria-hidden": "true",
         class: Kl(["icon nav", { disable: r.currentPage == r.totalPages - 1 }]),
         onClick: u[2] || (u[2] = (c) => i(r.currentPage + 1))
@@ -8122,14 +8122,14 @@ const SA = {}, kA = {
 function OA(e, a) {
   return VA(), CA("svg", kA, LA);
 }
-var RA = /* @__PURE__ */ EA(SA, [["render", OA]]), NA = Object.defineProperty, BA = Object.defineProperties, PA = Object.getOwnPropertyDescriptors, wg = Object.getOwnPropertySymbols, DA = Object.prototype.hasOwnProperty, MA = Object.prototype.propertyIsEnumerable, _g = (e, a, r) => a in e ? NA(e, a, { enumerable: !0, configurable: !0, writable: !0, value: r }) : e[a] = r, k1 = (e, a) => {
+var RA = /* @__PURE__ */ EA(SA, [["render", OA]]), NA = Object.defineProperty, BA = Object.defineProperties, PA = Object.getOwnPropertyDescriptors, wg = Object.getOwnPropertySymbols, DA = Object.prototype.hasOwnProperty, MA = Object.prototype.propertyIsEnumerable, _g = (e, a, r) => a in e ? NA(e, a, { enumerable: !0, configurable: !0, writable: !0, value: r }) : e[a] = r, k0 = (e, a) => {
   for (var r in a || (a = {}))
     DA.call(a, r) && _g(e, r, a[r]);
   if (wg)
     for (var r of wg(a))
       MA.call(a, r) && _g(e, r, a[r]);
   return e;
-}, T1 = (e, a) => BA(e, PA(a));
+}, T0 = (e, a) => BA(e, PA(a));
 const Ri = window.Vue.defineComponent, zs = window.Vue.resolveComponent, Tr = window.Vue.openBlock, bi = window.Vue.createElementBlock, FA = window.Vue.createVNode, Tu = window.Vue.createBlock, UA = window.Vue.withModifiers, Ai = window.Vue.inject, Gs = window.Vue.computed, qA = window.Vue.normalizeClass, oi = window.Vue.createElementVNode, Iu = window.Vue.toDisplayString, bu = window.Vue.renderSlot, Ds = window.Vue.createCommentVNode, HA = window.Vue.withDirectives, WA = window.Vue.vShow, th = window.Vue.ref, bg = window.Vue.toRef, yg = window.Vue.nextTick, nh = window.Vue.watch;
 window.Vue.createTextVNode;
 window.Vue.Fragment;
@@ -8247,7 +8247,7 @@ const r3 = {
   },
   setup() {
     const e = Ai("wrapperOptions", {}), a = Ai("validationErrorMessage", !1), r = Gs(() => e.error ? e.error : a && a.value ? a.value : !1);
-    return T1(k1({}, e), { error: r });
+    return T0(k0({}, e), { error: r });
   },
   computed: {
     computedClearText() {
@@ -8327,7 +8327,7 @@ var Hu = /* @__PURE__ */ Xs(o3, [["render", c3], ["__scopeId", "data-v-4db296db"
 const d3 = Ri({
   setup() {
     const e = Ai("subTextOptions", {}), a = Ai("validationErrorMessage", !1), r = Gs(() => e.error ? e.error : a && a.value ? a.value : "");
-    return T1(k1({}, e), { error: r });
+    return T0(k0({}, e), { error: r });
   }
 }), f3 = { class: "feather-input-sub-text" }, h3 = {
   key: 0,
@@ -8475,7 +8475,7 @@ const Bi = (e, a, r, i, s) => {
   }
 }, zu = (e) => {
   gh("wrapperOptions", e);
-}, Xl = window.Vue.ref, w3 = window.Vue.watch, _3 = window.Vue.watchEffect, xg = window.Vue.computed, lf = window.Vue.provide, I1 = (e, a, r, i, s) => {
+}, Xl = window.Vue.ref, w3 = window.Vue.watch, _3 = window.Vue.watchEffect, xg = window.Vue.computed, lf = window.Vue.provide, I0 = (e, a, r, i, s) => {
   const u = Xl([]), c = Xl(), f = Xl(), v = Xl();
   _3(() => {
     if (!u.value.length)
@@ -8532,8 +8532,8 @@ var b3 = Object.defineProperty, y3 = Object.defineProperties, $3 = Object.getOwn
     for (var r of Vg(a))
       V3.call(a, r) && Cg(e, r, a[r]);
   return e;
-}, A1 = (e, a) => y3(e, $3(a));
-const qa = window.Vue.defineComponent, Ms = window.Vue.inject, Au = window.Vue.computed, Fs = window.Vue.ref, tr = window.Vue.resolveComponent, Bn = window.Vue.openBlock, Js = window.Vue.createElementBlock, L1 = window.Vue.normalizeClass, Lr = window.Vue.renderSlot, Da = window.Vue.createBlock, Ys = window.Vue.createCommentVNode, Lu = window.Vue.createElementVNode, C3 = window.Vue.withModifiers, Gu = window.Vue.createVNode, O1 = window.Vue.toRef, rh = window.Vue.mergeProps, na = window.Vue.withCtx, E3 = window.Vue.h, S3 = window.Vue.provide;
+}, A0 = (e, a) => y3(e, $3(a));
+const qa = window.Vue.defineComponent, Ms = window.Vue.inject, Au = window.Vue.computed, Fs = window.Vue.ref, tr = window.Vue.resolveComponent, Bn = window.Vue.openBlock, Js = window.Vue.createElementBlock, L0 = window.Vue.normalizeClass, Lr = window.Vue.renderSlot, Da = window.Vue.createBlock, Ys = window.Vue.createCommentVNode, Lu = window.Vue.createElementVNode, C3 = window.Vue.withModifiers, Gu = window.Vue.createVNode, O0 = window.Vue.toRef, rh = window.Vue.mergeProps, na = window.Vue.withCtx, E3 = window.Vue.h, S3 = window.Vue.provide;
 var Ha = (e, a) => {
   const r = e.__vccOpts || e;
   for (const [i, s] of a)
@@ -8575,7 +8575,7 @@ const k3 = {
 function A3(e, a, r, i, s, u) {
   const c = tr("FeatherRipple");
   return Bn(), Js("div", {
-    class: L1(["chip", {
+    class: L0(["chip", {
       condensed: e.isCondensed,
       disabled: e.disabled,
       focused: e.focused
@@ -8696,10 +8696,10 @@ const Eg = {
     }
   },
   setup(e, a) {
-    const r = qu(O1(e, "labels"), Eg), i = Au(() => Oe("chip-text")), s = () => {
+    const r = qu(O0(e, "labels"), Eg), i = Au(() => Oe("chip-text")), s = () => {
       e.disabled || a.emit("click");
     }, u = Vi({}, a.attrs);
-    return e.disabled && delete u.onClick, A1(Vi({}, r), {
+    return e.disabled && delete u.onClick, A0(Vi({}, r), {
       chipTextId: i,
       handleClick: s,
       attrs: u
@@ -8880,7 +8880,7 @@ function Q3(e, a, r, i, s, u) {
   return Bn(), Da(v, {
     disabled: e.disabled,
     condensed: e.condensed,
-    class: L1(["focus hover", { selected: e.checked }]),
+    class: L0(["focus hover", { selected: e.checked }]),
     role: "radio",
     ref: "input",
     "aria-checked": e.checked ? "true" : "false",
@@ -8963,12 +8963,12 @@ const tL = {
     S3("chipListFormat", r);
     const i = r === "single";
     if (r === "radio") {
-      const c = O1(e, "modelValue");
-      return A1(Vi({
+      const c = O0(e, "modelValue");
+      return A0(Vi({
         attrs: {
           role: "radiogroup"
         }
-      }, I1(c, a.emit, e.label, {}, Fs(""))), {
+      }, I0(c, a.emit, e.label, {}, Fs(""))), {
         single: i
       });
     }
@@ -9004,10 +9004,10 @@ const sL = window.Vue.defineComponent, lL = window.Vue.normalizeClass, uL = wind
       class: lL(["circle", [`${a.severity.toLowerCase()}-bg dark`]])
     }, null, 2)) : dL("", !0);
   }
-}), hL = /* @__PURE__ */ Re(fL, [["__scopeId", "data-v-e08880d6"]]), pL = window.Vue.defineComponent, vs = window.Vue.unref, R1 = window.Vue.createTextVNode, uf = window.Vue.normalizeClass, cf = window.Vue.withCtx, mL = window.Vue.createVNode, vL = window.Vue.renderList, gL = window.Vue.Fragment, Jl = window.Vue.openBlock, wL = window.Vue.createElementBlock, df = window.Vue.createBlock, kg = window.Vue.createCommentVNode, _L = window.Vue.toDisplayString;
+}), hL = /* @__PURE__ */ Re(fL, [["__scopeId", "data-v-e08880d6"]]), pL = window.Vue.defineComponent, vs = window.Vue.unref, R0 = window.Vue.createTextVNode, uf = window.Vue.normalizeClass, cf = window.Vue.withCtx, mL = window.Vue.createVNode, vL = window.Vue.renderList, gL = window.Vue.Fragment, Jl = window.Vue.openBlock, wL = window.Vue.createElementBlock, df = window.Vue.createBlock, kg = window.Vue.createCommentVNode, _L = window.Vue.toDisplayString;
 window.Vue.pushScopeId;
 window.Vue.popScopeId;
-const bL = /* @__PURE__ */ R1(" ALL "), Tg = window.Vue.ref, yL = window.Vue.watch, $L = window.Vue.computed, xL = window.Vue.reactive, VL = /* @__PURE__ */ pL({
+const bL = /* @__PURE__ */ R0(" ALL "), Tg = window.Vue.ref, yL = window.Vue.watch, $L = window.Vue.computed, xL = window.Vue.reactive, VL = /* @__PURE__ */ pL({
   __name: "ChipListByProperty",
   props: {
     alarms: null,
@@ -9057,7 +9057,7 @@ const bL = /* @__PURE__ */ R1(" ALL "), Tg = window.Vue.ref, yL = window.Vue.wat
               key: 0,
               severity: _
             }, null, 8, ["severity"])) : kg("", !0),
-            R1(_L(_), 1)
+            R0(_L(_), 1)
           ]),
           _: 2
         }, 1032, ["class", "onClick"]))), 128))
@@ -9106,7 +9106,7 @@ const bL = /* @__PURE__ */ R1(" ALL "), Tg = window.Vue.ref, yL = window.Vue.wat
       c(), u();
     });
   }), r;
-}, BL = window.Vue.watch, PL = window.Vue.onBeforeUnmount, DL = window.Vue.ref, N1 = (e, a) => {
+}, BL = window.Vue.watch, PL = window.Vue.onBeforeUnmount, DL = window.Vue.ref, N0 = (e, a) => {
   const r = DL(!1);
   let i = !1;
   const s = (v) => {
@@ -9195,7 +9195,7 @@ const YL = {
       });
     }, B = NL(r, (q) => {
       a.emit("outside-click", q);
-    }), S = IL(V), T = N1(f, V);
+    }), S = IL(V), T = N0(f, V);
     UL([s, i], ([q, F]) => {
       q && F && V(), B.value = q, S.value = q, T.value = q;
     });
@@ -9247,7 +9247,7 @@ function JL(e, a, r, i, s, u) {
     ], 14, XL)) : zL("", !0)
   ], 8, ZL);
 }
-var B1 = /* @__PURE__ */ GL(KL, [["render", JL], ["__scopeId", "data-v-f75af406"]]), QL = {
+var B0 = /* @__PURE__ */ GL(KL, [["render", JL], ["__scopeId", "data-v-f75af406"]]), QL = {
   mounted(e, a) {
     e.addEventListener("keydown", a.dir.contentKeyPressed);
   },
@@ -9375,7 +9375,7 @@ const PO = {
       this.disabled || this.$emit("click", e);
     }
   }
-}), P1 = (e) => (RO("data-v-07e020f5"), e = e(), NO(), e), FO = /* @__PURE__ */ P1(() => /* @__PURE__ */ ah("div", { class: "track" }, null, -1)), UO = /* @__PURE__ */ P1(() => /* @__PURE__ */ ah("div", { class: "switcher" }, [
+}), P0 = (e) => (RO("data-v-07e020f5"), e = e(), NO(), e), FO = /* @__PURE__ */ P0(() => /* @__PURE__ */ ah("div", { class: "track" }, null, -1)), UO = /* @__PURE__ */ P0(() => /* @__PURE__ */ ah("div", { class: "switcher" }, [
   /* @__PURE__ */ ah("div", { class: "switch-circle" })
 ], -1)), qO = [
   FO,
@@ -9403,7 +9403,7 @@ window.Vue.pushScopeId;
 window.Vue.popScopeId;
 window.Vue.createElementVNode;
 window.Vue.createVNode;
-var D1 = (e, a) => {
+var D0 = (e, a) => {
   const r = e.__vccOpts || e;
   for (const [i, s] of a)
     r[i] = s;
@@ -9463,7 +9463,7 @@ const QO = {
     return ho("li", {}, [u]);
   }
 });
-var el = /* @__PURE__ */ D1(eR, [["__scopeId", "data-v-7c46b2b3"]]);
+var el = /* @__PURE__ */ D0(eR, [["__scopeId", "data-v-7c46b2b3"]]);
 _h({
   components: {
     FeatherListItem: el
@@ -9475,7 +9475,7 @@ function rR(e, a) {
     JO(e.$slots, "default", {}, void 0, !0)
   ]);
 }
-var bh = /* @__PURE__ */ D1(tR, [["render", rR], ["__scopeId", "data-v-941a1d50"]]);
+var bh = /* @__PURE__ */ D0(tR, [["render", rR], ["__scopeId", "data-v-941a1d50"]]);
 const aR = {
   "update:modelValue": (e) => !0,
   click: (e) => !0,
@@ -9526,7 +9526,7 @@ var iR = Object.defineProperty, sR = Object.defineProperties, lR = Object.getOwn
       cR.call(a, r) && Fg(e, r, a[r]);
   return e;
 }, dR = (e, a) => sR(e, lR(a));
-const Fi = window.Vue.defineComponent, Be = window.Vue.openBlock, bt = window.Vue.createElementBlock, _n = window.Vue.createElementVNode, pr = window.Vue.toDisplayString, er = window.Vue.createCommentVNode, pt = window.Vue.resolveComponent, Qn = window.Vue.createBlock, Ht = window.Vue.withCtx, Ci = window.Vue.Fragment, Us = window.Vue.renderList, bn = window.Vue.createVNode, yh = window.Vue.withModifiers, To = window.Vue.normalizeClass, oh = window.Vue.renderSlot, M1 = window.Vue.createTextVNode, fR = window.Vue.pushScopeId, hR = window.Vue.popScopeId, F1 = window.Vue.reactive, U1 = window.Vue.nextTick, ff = window.Vue.markRaw, hf = window.Vue.toRef, Ug = window.Vue.computed, pR = window.Vue.toRefs, ii = window.Vue.ref, pf = window.Vue.mergeProps, qg = window.Vue.toHandlers, Ql = window.Vue.withDirectives, eu = window.Vue.vShow;
+const Fi = window.Vue.defineComponent, Be = window.Vue.openBlock, bt = window.Vue.createElementBlock, _n = window.Vue.createElementVNode, pr = window.Vue.toDisplayString, er = window.Vue.createCommentVNode, pt = window.Vue.resolveComponent, Qn = window.Vue.createBlock, Ht = window.Vue.withCtx, Ci = window.Vue.Fragment, Us = window.Vue.renderList, bn = window.Vue.createVNode, yh = window.Vue.withModifiers, To = window.Vue.normalizeClass, oh = window.Vue.renderSlot, M0 = window.Vue.createTextVNode, fR = window.Vue.pushScopeId, hR = window.Vue.popScopeId, F0 = window.Vue.reactive, U0 = window.Vue.nextTick, ff = window.Vue.markRaw, hf = window.Vue.toRef, Ug = window.Vue.computed, pR = window.Vue.toRefs, ii = window.Vue.ref, pf = window.Vue.mergeProps, qg = window.Vue.toHandlers, Ql = window.Vue.withDirectives, eu = window.Vue.vShow;
 var Zu = {
   highlight: {
     type: String,
@@ -9589,7 +9589,7 @@ function wR(e, a, r, i, s, u) {
     e.end ? (Be(), bt("span", gR, pr(e.end), 1)) : er("", !0)
   ]);
 }
-var q1 = /* @__PURE__ */ Ro(mR, [["render", wR], ["__scopeId", "data-v-8abe2492"]]);
+var q0 = /* @__PURE__ */ Ro(mR, [["render", wR], ["__scopeId", "data-v-8abe2492"]]);
 const _R = Fi({
   emits: ["select", "deselect"],
   props: Pn(Pn({
@@ -9648,7 +9648,7 @@ const _R = Fi({
   components: {
     FeatherList: bh,
     FeatherListItem: el,
-    Highlighter: q1
+    Highlighter: q0
   }
 }), bR = {
   key: 0,
@@ -9768,7 +9768,7 @@ const xR = Fi({
     }
   },
   components: {
-    Highlighter: q1
+    Highlighter: q0
   }
 }), VR = {
   class: "feather-autocomplete-results-grid",
@@ -9901,7 +9901,7 @@ function BR(e, a, r, i, s, u) {
       })) : er("", !0),
       bn(v, null, {
         default: Ht(() => [
-          M1(pr(e.text), 1)
+          M0(pr(e.text), 1)
         ]),
         _: 1
       }),
@@ -9947,7 +9947,7 @@ function HR(e, a) {
   return Be(), bt("div", FR, qR);
 }
 var WR = /* @__PURE__ */ Ro(DR, [["render", HR], ["__scopeId", "data-v-aa720e06"]]), Xu = /* @__PURE__ */ ((e) => (e.multi = "multi", e.single = "single", e))(Xu || {});
-const H1 = {
+const H0 = {
   noResults: "No results found",
   minChar: "Enter ${min} characters to search",
   clear: "Clear value",
@@ -9995,7 +9995,7 @@ const H1 = {
   },
   labels: {
     type: Object,
-    default: () => H1
+    default: () => H0
   },
   gridConfig: {
     type: Array
@@ -10074,10 +10074,10 @@ const H1 = {
     }
   };
 }, jR = () => {
-  const e = F1({
+  const e = F0({
     row: -1
   }), a = (u) => {
-    U1(() => {
+    U0(() => {
       e.row = u;
     });
   }, r = (u, c) => {
@@ -10107,11 +10107,11 @@ const H1 = {
     e.row = 0;
   } };
 }, KR = (e) => {
-  const a = F1({
+  const a = F0({
     row: -1,
     col: -1
   }), r = (c, f) => {
-    U1(() => {
+    U0(() => {
       a.col = f, a.row = c;
     });
   }, i = (c, f) => {
@@ -10423,7 +10423,7 @@ const H1 = {
     }
   },
   setup(e, a) {
-    const r = qu(hf(e, "labels"), H1);
+    const r = qu(hf(e, "labels"), H0);
     Mi(e), zu(e);
     let i;
     e.gridConfig ? i = KR(e.gridConfig) : i = jR();
@@ -10471,7 +10471,7 @@ const H1 = {
     Chip: PR,
     MenuMessage: RR,
     FeatherIcon: ae,
-    FeatherMenu: B1,
+    FeatherMenu: B0,
     Spinner: WR
   }
 }), XR = {
@@ -10612,7 +10612,7 @@ function nN(e, a, r, i, s, u) {
             bn(c, { icon: e.minCharIcon }, null, 8, ["icon"]),
             _n("span", tN, [
               oh(e.$slots, "min-char", {}, () => [
-                M1(pr(e.computedMinCharText), 1)
+                M0(pr(e.computedMinCharText), 1)
               ], !0)
             ])
           ]),
@@ -10634,9 +10634,9 @@ var rN = /* @__PURE__ */ Ro(ZR, [["render", nN], ["__scopeId", "data-v-43a7e951"
     for (var r of Hg(a))
       lN.call(a, r) && Wg(e, r, a[r]);
   return e;
-}, W1 = (e, a) => oN(e, iN(a));
-const z1 = window.Vue.defineComponent, uN = window.Vue.ref, qs = window.Vue.computed, cN = window.Vue.reactive, zg = window.Vue.watch, mf = window.Vue.inject, G1 = window.Vue.resolveComponent, ih = window.Vue.openBlock, Y1 = window.Vue.createElementBlock, Ma = window.Vue.createElementVNode, dN = window.Vue.createBlock, fN = window.Vue.createCommentVNode, j1 = window.Vue.renderSlot, hN = window.Vue.pushScopeId, pN = window.Vue.popScopeId, vf = window.Vue.toRef, Gg = window.Vue.mergeProps, mN = window.Vue.toDisplayString, vN = window.Vue.createVNode;
-var K1 = (e, a) => {
+}, W0 = (e, a) => oN(e, iN(a));
+const z0 = window.Vue.defineComponent, uN = window.Vue.ref, qs = window.Vue.computed, cN = window.Vue.reactive, zg = window.Vue.watch, mf = window.Vue.inject, G0 = window.Vue.resolveComponent, ih = window.Vue.openBlock, Y0 = window.Vue.createElementBlock, Ma = window.Vue.createElementVNode, dN = window.Vue.createBlock, fN = window.Vue.createCommentVNode, j0 = window.Vue.renderSlot, hN = window.Vue.pushScopeId, pN = window.Vue.popScopeId, vf = window.Vue.toRef, Gg = window.Vue.mergeProps, mN = window.Vue.toDisplayString, vN = window.Vue.createVNode;
+var K0 = (e, a) => {
   const r = e.__vccOpts || e;
   for (const [i, s] of a)
     r[i] = s;
@@ -10651,7 +10651,7 @@ const gN = {
     type: Boolean,
     default: !1
   }
-}, wN = z1({
+}, wN = z0({
   props: gN,
   setup(e) {
     const a = uN(), r = () => {
@@ -10703,8 +10703,8 @@ const gN = {
   ])
 ], -1)), VN = ["id"];
 function CN(e, a, r, i, s, u) {
-  const c = G1("feather-ripple");
-  return ih(), Y1("div", bN, [
+  const c = G0("feather-ripple");
+  return ih(), Y0("div", bN, [
     Ma("div", {
       class: "feather-radio",
       role: "radio",
@@ -10730,13 +10730,13 @@ function CN(e, a, r, i, s, u) {
         "data-ref-id": "feather-radio-label",
         id: e.labelId
       }, [
-        j1(e.$slots, "default", {}, void 0, !0)
+        j0(e.$slots, "default", {}, void 0, !0)
       ], 8, VN)
     ], 40, yN)
   ]);
 }
-var sh = /* @__PURE__ */ K1(wN, [["render", CN], ["__scopeId", "data-v-24790cf0"]]);
-const EN = W1(yu({}, Di), {
+var sh = /* @__PURE__ */ K0(wN, [["render", CN], ["__scopeId", "data-v-24790cf0"]]);
+const EN = W0(yu({}, Di), {
   label: {
     type: String,
     required: !0
@@ -10755,7 +10755,7 @@ const EN = W1(yu({}, Di), {
 }), SN = {
   "update:modelValue": (e) => !0,
   blur: (e) => !0
-}, kN = z1({
+}, kN = z0({
   model: {
     prop: "modelValue",
     event: "update:modelValue"
@@ -10765,7 +10765,7 @@ const EN = W1(yu({}, Di), {
   setup(e, a) {
     Mi(e);
     const r = vf(e, "error"), i = vf(e, "modelValue"), s = qs(() => Oe("feather-input-description")), u = qs(() => {
-      const c = W1(yu({}, a.attrs), {
+      const c = W0(yu({}, a.attrs), {
         class: "",
         "aria-describedby": s.value
       });
@@ -10774,15 +10774,15 @@ const EN = W1(yu({}, Di), {
     return yu(yu({
       descriptionId: s,
       attrs: u
-    }, I1(i, a.emit, e.label, e.schema, vf(e, "error"))), Pi(a.attrs));
+    }, I0(i, a.emit, e.label, e.schema, vf(e, "error"))), Pi(a.attrs));
   },
   components: {
     InputSubText: Ni
   }
 }), TN = ["for"], IN = ["id"];
 function AN(e, a, r, i, s, u) {
-  const c = G1("InputSubText");
-  return ih(), Y1("div", Gg(e.inherittedAttrs, {
+  const c = G0("InputSubText");
+  return ih(), Y0("div", Gg(e.inherittedAttrs, {
     class: ["feather-radio-group-container", { vertical: e.vertical }]
   }), [
     Ma("label", {
@@ -10796,12 +10796,12 @@ function AN(e, a, r, i, s, u) {
       id: e.groupId,
       onKeydown: a[0] || (a[0] = (...f) => e.keydown && e.keydown(...f))
     }), [
-      j1(e.$slots, "default", {}, void 0, !0)
+      j0(e.$slots, "default", {}, void 0, !0)
     ], 16, IN),
     vN(c, { id: e.descriptionId }, null, 8, ["id"])
   ], 16);
 }
-var Z1 = /* @__PURE__ */ K1(kN, [["render", AN], ["__scopeId", "data-v-6775aeb9"]]);
+var Z0 = /* @__PURE__ */ K0(kN, [["render", AN], ["__scopeId", "data-v-6775aeb9"]]);
 const LN = window.Vue.defineComponent, ON = window.Vue.renderList, RN = window.Vue.Fragment, Yg = window.Vue.openBlock, NN = window.Vue.createElementBlock, BN = window.Vue.toDisplayString, PN = window.Vue.createTextVNode, jg = window.Vue.unref, Kg = window.Vue.withCtx, DN = window.Vue.createVNode, MN = window.Vue.createBlock, FN = window.Vue.watch, UN = window.Vue.ref, qN = /* @__PURE__ */ LN({
   __name: "FilterByDate",
   props: {
@@ -10817,7 +10817,7 @@ const LN = window.Vue.defineComponent, ON = window.Vue.renderList, RN = window.V
     ], s = UN(r.preSelected || i[0].id);
     return FN(r, () => {
       r.preSelected && (s.value = r.preSelected);
-    }), (u, c) => (Yg(), MN(jg(Z1), {
+    }), (u, c) => (Yg(), MN(jg(Z0), {
       label: "",
       modelValue: s.value,
       "onUpdate:modelValue": [
@@ -10975,8 +10975,8 @@ const VB = {}, CB = {
 function kB(e, a) {
   return bB(), yB("svg", CB, SB);
 }
-var X1 = /* @__PURE__ */ xB(VB, [["render", kB]]);
-const TB = window.Vue.defineComponent, Vr = window.Vue.unref, po = window.Vue.createVNode, Qg = window.Vue.toDisplayString, ea = window.Vue.createElementVNode, J1 = window.Vue.createTextVNode, ew = window.Vue.openBlock, tw = window.Vue.createElementBlock, IB = window.Vue.createCommentVNode, AB = window.Vue.withCtx, LB = window.Vue.vShow, OB = window.Vue.normalizeClass, RB = window.Vue.withDirectives, NB = window.Vue.Fragment, BB = window.Vue.pushScopeId, PB = window.Vue.popScopeId, Q1 = (e) => (BB("data-v-d75ae1ee"), e = e(), PB(), e), DB = /* @__PURE__ */ J1(" Filters "), MB = { class: "count" }, FB = { class: "results" }, UB = { class: "total" }, qB = /* @__PURE__ */ J1(" Reset "), HB = /* @__PURE__ */ Q1(() => /* @__PURE__ */ ea("div", { class: "title" }, "By Severities:", -1)), WB = /* @__PURE__ */ Q1(() => /* @__PURE__ */ ea("div", { class: "title" }, "By Start Date:", -1)), mo = window.Vue.ref, zB = window.Vue.reactive, GB = window.Vue.markRaw, nw = window.Vue.watch, YB = /* @__PURE__ */ TB({
+var X0 = /* @__PURE__ */ xB(VB, [["render", kB]]);
+const TB = window.Vue.defineComponent, Vr = window.Vue.unref, po = window.Vue.createVNode, Qg = window.Vue.toDisplayString, ea = window.Vue.createElementVNode, J0 = window.Vue.createTextVNode, ew = window.Vue.openBlock, tw = window.Vue.createElementBlock, IB = window.Vue.createCommentVNode, AB = window.Vue.withCtx, LB = window.Vue.vShow, OB = window.Vue.normalizeClass, RB = window.Vue.withDirectives, NB = window.Vue.Fragment, BB = window.Vue.pushScopeId, PB = window.Vue.popScopeId, Q0 = (e) => (BB("data-v-242d5010"), e = e(), PB(), e), DB = /* @__PURE__ */ J0(" Filters "), MB = { class: "count" }, FB = { class: "results" }, UB = { class: "total" }, qB = /* @__PURE__ */ J0(" Reset "), HB = /* @__PURE__ */ Q0(() => /* @__PURE__ */ ea("div", { class: "title" }, "By Severities:", -1)), WB = /* @__PURE__ */ Q0(() => /* @__PURE__ */ ea("div", { class: "title" }, "By Start Date:", -1)), mo = window.Vue.ref, zB = window.Vue.reactive, GB = window.Vue.markRaw, nw = window.Vue.watch, YB = /* @__PURE__ */ TB({
   __name: "CommonFilters",
   props: {
     list: null,
@@ -10990,7 +10990,7 @@ const TB = window.Vue.defineComponent, Vr = window.Vue.unref, po = window.Vue.cr
       FilterAlt: uB,
       ExpandLess: _B,
       ExpandMore: Qs,
-      Refresh: X1
+      Refresh: X0
     }), s = mr(), u = mo(r.isOpen), c = mo(["all"]), f = mo(1), v = mo(r.list), p = mo(!1), g = mo(0), _ = mo(null), y = zB({
       nodes: s.nodes,
       results: s.nodes,
@@ -11126,7 +11126,7 @@ const TB = window.Vue.defineComponent, Vr = window.Vue.unref, po = window.Vue.cr
       ])
     ], 64));
   }
-}), Ui = /* @__PURE__ */ Re(YB, [["__scopeId", "data-v-d75ae1ee"]]), jB = window.Vue.openBlock, KB = window.Vue.createElementBlock, ZB = window.Vue.createElementVNode;
+}), Ui = /* @__PURE__ */ Re(YB, [["__scopeId", "data-v-242d5010"]]), jB = window.Vue.openBlock, KB = window.Vue.createElementBlock, ZB = window.Vue.createElementVNode;
 var XB = (e, a) => {
   const r = e.__vccOpts || e;
   for (const [i, s] of a)
@@ -11143,7 +11143,7 @@ function nP(e, a) {
   return jB(), KB("svg", QB, tP);
 }
 var Ju = /* @__PURE__ */ XB(JB, [["render", nP]]);
-const rP = window.Vue.openBlock, aP = window.Vue.createElementBlock, e0 = window.Vue.createElementVNode;
+const rP = window.Vue.openBlock, aP = window.Vue.createElementBlock, e1 = window.Vue.createElementVNode;
 var oP = (e, a) => {
   const r = e.__vccOpts || e;
   for (const [i, s] of a)
@@ -11153,7 +11153,7 @@ var oP = (e, a) => {
 const iP = {}, sP = {
   xmlns: "http://www.w3.org/2000/svg",
   viewBox: "0 0 24 24"
-}, lP = /* @__PURE__ */ e0("path", { d: "M22.93,11.63A11.79,11.79,0,0,0,12,4,11.79,11.79,0,0,0,1.07,11.63a1,1,0,0,0,0,.74A11.79,11.79,0,0,0,12,20a11.79,11.79,0,0,0,10.93-7.63A1,1,0,0,0,22.93,11.63ZM12,18a9.77,9.77,0,0,1-8.92-6A9.77,9.77,0,0,1,12,6a9.77,9.77,0,0,1,8.92,6A9.77,9.77,0,0,1,12,18Z" }, null, -1), uP = /* @__PURE__ */ e0("circle", {
+}, lP = /* @__PURE__ */ e1("path", { d: "M22.93,11.63A11.79,11.79,0,0,0,12,4,11.79,11.79,0,0,0,1.07,11.63a1,1,0,0,0,0,.74A11.79,11.79,0,0,0,12,20a11.79,11.79,0,0,0,10.93-7.63A1,1,0,0,0,22.93,11.63ZM12,18a9.77,9.77,0,0,1-8.92-6A9.77,9.77,0,0,1,12,6a9.77,9.77,0,0,1,8.92,6A9.77,9.77,0,0,1,12,18Z" }, null, -1), uP = /* @__PURE__ */ e1("circle", {
   cx: "12",
   cy: "12",
   r: "3"
@@ -11243,13 +11243,13 @@ const RP = window.Vue.defineComponent, gf = window.Vue.unref, NP = window.Vue.cr
       _: 1
     }));
   }
-}), t0 = /* @__PURE__ */ Re(zP, [["__scopeId", "data-v-6d6d8faa"]]), GP = "data:image/svg+xml,%3csvg%20width='32px'%20height='32px'%20viewBox='0%200%2032%2032'%20id='icon'%20xmlns='http://www.w3.org/2000/svg'%3e%3cdefs%3e%3cstyle%3e%20.cls-1%20{%20fill:%20none;%20}%20%3c/style%3e%3c/defs%3e%3cpath%20d='M16,7a3,3,0,1,1,3-3A3.0033,3.0033,0,0,1,16,7Zm0-4a1,1,0,1,0,1,1A1.001,1.001,0,0,0,16,3Z'/%3e%3cpath%20d='M11,30a3,3,0,1,1,3-3A3.0033,3.0033,0,0,1,11,30Zm0-4a1,1,0,1,0,1,1A1.001,1.001,0,0,0,11,26Z'/%3e%3cpath%20d='M7,11a3,3,0,1,1,3-3A3.0033,3.0033,0,0,1,7,11ZM7,7A1,1,0,1,0,8,8,1.001,1.001,0,0,0,7,7Z'/%3e%3cpath%20d='M21,30a3,3,0,1,1,3-3A3.0033,3.0033,0,0,1,21,30Zm0-4a1,1,0,1,0,1,1A1.001,1.001,0,0,0,21,26Z'/%3e%3cpath%20d='M25,11a3,3,0,1,1,3-3A3.0033,3.0033,0,0,1,25,11Zm0-4a1,1,0,1,0,1,1A1.001,1.001,0,0,0,25,7Z'/%3e%3cpath%20d='M4,21a3,3,0,1,1,3-3A3.0033,3.0033,0,0,1,4,21Zm0-4a1,1,0,1,0,1,1A1.001,1.001,0,0,0,4,17Z'/%3e%3cpath%20d='M28,21a3,3,0,1,1,3-3A3.0033,3.0033,0,0,1,28,21Zm0-4a1,1,0,1,0,1,1A1.001,1.001,0,0,0,28,17Z'/%3e%3cpath%20d='M16,22a6,6,0,1,1,6-6A6.0069,6.0069,0,0,1,16,22Zm0-10a4,4,0,1,0,4,4A4.0045,4.0045,0,0,0,16,12Z'/%3e%3crect%20id='_Transparent_Rectangle_'%20data-name='&lt;Transparent%20Rectangle&gt;'%20class='cls-1'%20width='32'%20height='32'/%3e%3c/svg%3e", YP = window.Vue.defineComponent, tu = window.Vue.unref, si = window.Vue.openBlock, li = window.Vue.createElementBlock, jP = window.Vue.createCommentVNode, n0 = window.Vue.createTextVNode, aw = window.Vue.Fragment, r0 = window.Vue.createElementVNode, KP = window.Vue.pushScopeId, ZP = window.Vue.popScopeId, XP = (e) => (KP("data-v-f252a5fa"), e = e(), ZP(), e), JP = ["src"], QP = { class: "engine" }, e5 = /* @__PURE__ */ n0(" ENGINE "), t5 = {
+}), t1 = /* @__PURE__ */ Re(zP, [["__scopeId", "data-v-6d6d8faa"]]), GP = "data:image/svg+xml,%3csvg%20width='32px'%20height='32px'%20viewBox='0%200%2032%2032'%20id='icon'%20xmlns='http://www.w3.org/2000/svg'%3e%3cdefs%3e%3cstyle%3e%20.cls-1%20{%20fill:%20none;%20}%20%3c/style%3e%3c/defs%3e%3cpath%20d='M16,7a3,3,0,1,1,3-3A3.0033,3.0033,0,0,1,16,7Zm0-4a1,1,0,1,0,1,1A1.001,1.001,0,0,0,16,3Z'/%3e%3cpath%20d='M11,30a3,3,0,1,1,3-3A3.0033,3.0033,0,0,1,11,30Zm0-4a1,1,0,1,0,1,1A1.001,1.001,0,0,0,11,26Z'/%3e%3cpath%20d='M7,11a3,3,0,1,1,3-3A3.0033,3.0033,0,0,1,7,11ZM7,7A1,1,0,1,0,8,8,1.001,1.001,0,0,0,7,7Z'/%3e%3cpath%20d='M21,30a3,3,0,1,1,3-3A3.0033,3.0033,0,0,1,21,30Zm0-4a1,1,0,1,0,1,1A1.001,1.001,0,0,0,21,26Z'/%3e%3cpath%20d='M25,11a3,3,0,1,1,3-3A3.0033,3.0033,0,0,1,25,11Zm0-4a1,1,0,1,0,1,1A1.001,1.001,0,0,0,25,7Z'/%3e%3cpath%20d='M4,21a3,3,0,1,1,3-3A3.0033,3.0033,0,0,1,4,21Zm0-4a1,1,0,1,0,1,1A1.001,1.001,0,0,0,4,17Z'/%3e%3cpath%20d='M28,21a3,3,0,1,1,3-3A3.0033,3.0033,0,0,1,28,21Zm0-4a1,1,0,1,0,1,1A1.001,1.001,0,0,0,28,17Z'/%3e%3cpath%20d='M16,22a6,6,0,1,1,6-6A6.0069,6.0069,0,0,1,16,22Zm0-10a4,4,0,1,0,4,4A4.0045,4.0045,0,0,0,16,12Z'/%3e%3crect%20id='_Transparent_Rectangle_'%20data-name='&lt;Transparent%20Rectangle&gt;'%20class='cls-1'%20width='32'%20height='32'/%3e%3c/svg%3e", YP = window.Vue.defineComponent, tu = window.Vue.unref, si = window.Vue.openBlock, li = window.Vue.createElementBlock, jP = window.Vue.createCommentVNode, n1 = window.Vue.createTextVNode, aw = window.Vue.Fragment, r1 = window.Vue.createElementVNode, KP = window.Vue.pushScopeId, ZP = window.Vue.popScopeId, XP = (e) => (KP("data-v-f252a5fa"), e = e(), ZP(), e), JP = ["src"], QP = { class: "engine" }, e5 = /* @__PURE__ */ n1(" ENGINE "), t5 = {
   key: 0,
   class: "type"
 }, n5 = {
   key: 1,
   class: "type"
-}, r5 = /* @__PURE__ */ n0(" ENGINE "), a5 = /* @__PURE__ */ XP(() => /* @__PURE__ */ r0("div", {
+}, r5 = /* @__PURE__ */ n1(" ENGINE "), a5 = /* @__PURE__ */ XP(() => /* @__PURE__ */ r1("div", {
   class: "type not-set",
   "data-test": "configuration-not-set"
 }, "CONFIGURE", -1)), ow = window.Vue.computed, o5 = /* @__PURE__ */ YP({
@@ -11278,7 +11278,7 @@ const RP = window.Vue.defineComponent, gf = window.Vue.unref, NP = window.Vue.cr
         src: tu(GP),
         class: "icon-type"
       }, null, 8, JP)) : jP("", !0),
-      r0("div", QP, [
+      r1("div", QP, [
         tu(s) ? (si(), li(aw, { key: 0 }, [
           e5,
           tu(u) ? (si(), li("div", t5, "CLUSTERING")) : (si(), li("div", n5, "LLM"))
@@ -11296,7 +11296,7 @@ const c5 = { class: "empty" };
 function d5(e, a) {
   return l5(), u5("div", c5, "No results found.");
 }
-const qi = /* @__PURE__ */ Re(s5, [["render", d5], ["__scopeId", "data-v-2415ea97"]]), f5 = window.Vue.defineComponent, Sr = window.Vue.createElementVNode, _s = window.Vue.unref, go = window.Vue.createVNode, h5 = window.Vue.withCtx, nu = window.Vue.toDisplayString, Jr = window.Vue.openBlock, wo = window.Vue.createElementBlock, iw = window.Vue.createCommentVNode, sw = window.Vue.createBlock, p5 = window.Vue.renderList, m5 = window.Vue.Fragment, v5 = window.Vue.pushScopeId, g5 = window.Vue.popScopeId, a0 = (e) => (v5("data-v-8a617929"), e = e(), g5(), e), w5 = { class: "list-main" }, _5 = { class: "header" }, b5 = /* @__PURE__ */ a0(() => /* @__PURE__ */ Sr("h2", null, "Situation List", -1)), y5 = { class: "link-btns" }, $5 = /* @__PURE__ */ a0(() => /* @__PURE__ */ Sr("span", null, "View Unassociated Alarms", -1)), x5 = { class: "content" }, V5 = { class: "left-filters" }, C5 = { class: "container" }, E5 = { class: "autocomplete" }, S5 = { key: 0 }, k5 = { key: 1 }, T5 = { key: 0 }, I5 = { class: "situation-list" }, A5 = {
+const qi = /* @__PURE__ */ Re(s5, [["render", d5], ["__scopeId", "data-v-2415ea97"]]), f5 = window.Vue.defineComponent, Sr = window.Vue.createElementVNode, _s = window.Vue.unref, go = window.Vue.createVNode, h5 = window.Vue.withCtx, nu = window.Vue.toDisplayString, Jr = window.Vue.openBlock, wo = window.Vue.createElementBlock, iw = window.Vue.createCommentVNode, sw = window.Vue.createBlock, p5 = window.Vue.renderList, m5 = window.Vue.Fragment, v5 = window.Vue.pushScopeId, g5 = window.Vue.popScopeId, a1 = (e) => (v5("data-v-8a617929"), e = e(), g5(), e), w5 = { class: "list-main" }, _5 = { class: "header" }, b5 = /* @__PURE__ */ a1(() => /* @__PURE__ */ Sr("h2", null, "Situation List", -1)), y5 = { class: "link-btns" }, $5 = /* @__PURE__ */ a1(() => /* @__PURE__ */ Sr("span", null, "View Unassociated Alarms", -1)), x5 = { class: "content" }, V5 = { class: "left-filters" }, C5 = { class: "container" }, E5 = { class: "autocomplete" }, S5 = { key: 0 }, k5 = { key: 1 }, T5 = { key: 0 }, I5 = { class: "situation-list" }, A5 = {
   key: 0,
   class: "footer-pager"
 }, L5 = window.Vue.reactive, ru = window.Vue.ref, O5 = window.Vue.watch, R5 = window.Vue.markRaw, N5 = /* @__PURE__ */ f5({
@@ -11365,7 +11365,7 @@ const qi = /* @__PURE__ */ Re(s5, [["render", d5], ["__scopeId", "data-v-2415ea9
               ]),
               _: 1
             }),
-            go(t0),
+            go(t1),
             go(i5)
           ])
         ]),
@@ -11393,7 +11393,7 @@ const qi = /* @__PURE__ */ Re(s5, [["render", d5], ["__scopeId", "data-v-2415ea9
                     class: "card",
                     key: D.id
                   }, [
-                    go(C1, {
+                    go(C0, {
                       onClick: () => $(D.id),
                       "situation-info": D
                     }, null, 8, ["onClick", "situation-info"])
@@ -11414,7 +11414,7 @@ const qi = /* @__PURE__ */ Re(s5, [["render", d5], ["__scopeId", "data-v-2415ea9
       ]);
     };
   }
-}), B5 = /* @__PURE__ */ Re(N5, [["__scopeId", "data-v-8a617929"]]), au = window.Vue.ref, P5 = window.Vue.inject, D5 = window.Vue.computed, M5 = window.Vue.onMounted, o0 = {
+}), B5 = /* @__PURE__ */ Re(N5, [["__scopeId", "data-v-8a617929"]]), au = window.Vue.ref, P5 = window.Vue.inject, D5 = window.Vue.computed, M5 = window.Vue.onMounted, o1 = {
   id: {
     type: String
   },
@@ -11425,7 +11425,7 @@ const qi = /* @__PURE__ */ Re(s5, [["render", d5], ["__scopeId", "data-v-2415ea9
     type: Boolean,
     default: !1
   }
-}, i0 = (e) => {
+}, i1 = (e) => {
   const a = au(!1), r = au(), i = au(e.controls), s = au(e.id), u = () => {
     r.value && r.value.focus();
   }, c = P5("registerTab");
@@ -11458,12 +11458,12 @@ const qi = /* @__PURE__ */ Re(s5, [["render", d5], ["__scopeId", "data-v-2415ea9
     attrs: f,
     tab: r
   };
-}, lw = window.Vue.ref, F5 = window.Vue.toRef, U5 = window.Vue.watch, uw = window.Vue.provide, s0 = {
+}, lw = window.Vue.ref, F5 = window.Vue.toRef, U5 = window.Vue.watch, uw = window.Vue.provide, s1 = {
   prop: "modelValue",
   event: "update:modelValue"
-}, l0 = {
+}, l1 = {
   "update:modelValue": (e) => !0
-}, u0 = {
+}, u1 = {
   modelValue: {
     type: Number,
     default: 0
@@ -11472,7 +11472,7 @@ const qi = /* @__PURE__ */ Re(s5, [["render", d5], ["__scopeId", "data-v-2415ea9
     type: Boolean,
     default: !0
   }
-}, c0 = (e, a) => {
+}, c1 = (e, a) => {
   const r = F5(e, "modelValue"), i = lw(e.modelValue), s = lw([]);
   U5(r, (V) => {
     v(V);
@@ -11529,14 +11529,14 @@ const qi = /* @__PURE__ */ Re(s5, [["render", d5], ["__scopeId", "data-v-2415ea9
     pairs: s
     //feather tab container watches this
   };
-}, ou = window.Vue.ref, q5 = window.Vue.inject, H5 = window.Vue.computed, W5 = window.Vue.onMounted, d0 = {
+}, ou = window.Vue.ref, q5 = window.Vue.inject, H5 = window.Vue.computed, W5 = window.Vue.onMounted, d1 = {
   id: {
     type: String
   },
   tab: {
     type: String
   }
-}, f0 = (e) => {
+}, f1 = (e) => {
   const a = ou(!1), r = ou(), i = ou(e.tab), s = ou(e.id), u = q5("registerPanel");
   W5(() => {
     if (u) {
@@ -11564,17 +11564,17 @@ const qi = /* @__PURE__ */ Re(s5, [["render", d5], ["__scopeId", "data-v-2415ea9
     attrs: c,
     panel: r
   };
-}, xh = window.Vue.defineComponent, z5 = window.Vue.resolveComponent, Vh = window.Vue.openBlock, Ch = window.Vue.createElementBlock, Hs = window.Vue.createElementVNode, h0 = window.Vue.mergeProps, Ou = window.Vue.renderSlot, G5 = window.Vue.createVNode, Y5 = window.Vue.normalizeStyle, j5 = window.Vue.toHandlers, K5 = window.Vue.withDirectives, Z5 = window.Vue.normalizeProps, X5 = window.Vue.guardReactiveProps, J5 = window.Vue.vShow;
+}, xh = window.Vue.defineComponent, z5 = window.Vue.resolveComponent, Vh = window.Vue.openBlock, Ch = window.Vue.createElementBlock, Hs = window.Vue.createElementVNode, h1 = window.Vue.mergeProps, Ou = window.Vue.renderSlot, G5 = window.Vue.createVNode, Y5 = window.Vue.normalizeStyle, j5 = window.Vue.toHandlers, K5 = window.Vue.withDirectives, Z5 = window.Vue.normalizeProps, X5 = window.Vue.guardReactiveProps, J5 = window.Vue.vShow;
 var Eh = (e, a) => {
   const r = e.__vccOpts || e;
   for (const [i, s] of a)
     r[i] = s;
   return r;
 };
-const Q5 = o0, e4 = xh({
+const Q5 = o1, e4 = xh({
   props: Q5,
   setup(e) {
-    return i0(e);
+    return i1(e);
   },
   components: {
     FeatherRipple: Ua
@@ -11583,7 +11583,7 @@ const Q5 = o0, e4 = xh({
 function r4(e, a, r, i, s, u) {
   const c = z5("FeatherRipple");
   return Vh(), Ch("li", t4, [
-    Hs("button", h0(e.attrs, {
+    Hs("button", h1(e.attrs, {
       class: ["tab hover focus", { disabled: e.disabled, selected: e.selected }]
     }), [
       Hs("span", n4, [
@@ -11594,12 +11594,12 @@ function r4(e, a, r, i, s, u) {
   ]);
 }
 var Si = /* @__PURE__ */ Eh(e4, [["render", r4], ["__scopeId", "data-v-e6bb52b6"]]);
-const a4 = u0, o4 = l0, i4 = xh({
-  model: s0,
+const a4 = u1, o4 = l1, i4 = xh({
+  model: s1,
   emits: o4,
   props: a4,
   setup(e, a) {
-    return c0(e, a);
+    return c1(e, a);
   },
   data: () => ({
     transform: "",
@@ -11653,7 +11653,7 @@ function u4(e, a, r, i, s, u) {
         width: e.width
       })
     }, null, 4),
-    Hs("ul", h0(e.attrs, j5(e.listeners)), [
+    Hs("ul", h1(e.attrs, j5(e.listeners)), [
       Ou(e.$slots, "tabs", {}, void 0, !0)
     ], 16),
     Hs("div", l4, [
@@ -11661,11 +11661,11 @@ function u4(e, a, r, i, s, u) {
     ])
   ]);
 }
-var p0 = /* @__PURE__ */ Eh(i4, [["render", u4], ["__scopeId", "data-v-27adffb9"]]);
-const c4 = d0, d4 = xh({
+var p1 = /* @__PURE__ */ Eh(i4, [["render", u4], ["__scopeId", "data-v-27adffb9"]]);
+const c4 = d1, d4 = xh({
   props: c4,
   setup(e) {
-    return f0(e);
+    return f1(e);
   }
 });
 function f4(e, a, r, i, s, u) {
@@ -11691,7 +11691,7 @@ const h4 = window.Vue.defineComponent, p4 = window.Vue.toDisplayString, m4 = win
       class: m4(["severity-status", [`${a.severity.toLowerCase()}-color`]])
     }, p4(a.severity), 3)) : w4("", !0);
   }
-}), m0 = /* @__PURE__ */ Re(_4, [["__scopeId", "data-v-83c2cdce"]]), b4 = window.Vue.defineComponent, cw = window.Vue.toDisplayString, dw = window.Vue.createElementVNode, y4 = window.Vue.openBlock, $4 = window.Vue.createElementBlock;
+}), m1 = /* @__PURE__ */ Re(_4, [["__scopeId", "data-v-83c2cdce"]]), b4 = window.Vue.defineComponent, cw = window.Vue.toDisplayString, dw = window.Vue.createElementVNode, y4 = window.Vue.openBlock, $4 = window.Vue.createElementBlock;
 window.Vue.pushScopeId;
 window.Vue.popScopeId;
 const x4 = { class: "box" }, V4 = { class: "label" }, C4 = { class: "date" }, E4 = /* @__PURE__ */ b4({
@@ -11770,12 +11770,12 @@ const tD = window.Vue.defineComponent, ur = window.Vue.unref, yf = window.Vue.cr
   },
   setup(e) {
     const a = e, r = mr(), i = async (u) => {
-      await IE(a.alarm.id, u) && r.getSituation(a.situationId), a.isSituation && await c1(
+      await IE(a.alarm.id, u) && r.getSituation(a.situationId), a.isSituation && await c0(
         a.situationId,
         St.ACCEPTED.toLowerCase()
       );
     }, s = async (u) => {
-      await r1(a.alarm.id, u) && r.getSituation(a.situationId);
+      await r0(a.alarm.id, u) && r.getSituation(a.situationId);
     };
     return (u, c) => (iu(), rD("div", {
       class: nD(["action-btns-group", a.direction === "horizontal" ? "horizontal" : "vertical"])
@@ -11827,7 +11827,7 @@ const tD = window.Vue.defineComponent, ur = window.Vue.unref, yf = window.Vue.cr
       })) : Vf("", !0)
     ], 2));
   }
-}), v0 = /* @__PURE__ */ Re(uD, [["__scopeId", "data-v-d9c6a479"]]);
+}), v1 = /* @__PURE__ */ Re(uD, [["__scopeId", "data-v-d9c6a479"]]);
 var cD = Object.defineProperty, dD = Object.defineProperties, fD = Object.getOwnPropertyDescriptors, fw = Object.getOwnPropertySymbols, hD = Object.prototype.hasOwnProperty, pD = Object.prototype.propertyIsEnumerable, hw = (e, a, r) => a in e ? cD(e, a, { enumerable: !0, configurable: !0, writable: !0, value: r }) : e[a] = r, lh = (e, a) => {
   for (var r in a || (a = {}))
     hD.call(a, r) && hw(e, r, a[r]);
@@ -11835,8 +11835,8 @@ var cD = Object.defineProperty, dD = Object.defineProperties, fD = Object.getOwn
     for (var r of fw(a))
       pD.call(a, r) && hw(e, r, a[r]);
   return e;
-}, g0 = (e, a) => dD(e, fD(a));
-const w0 = window.Vue.defineComponent, mD = window.Vue.inject, vD = window.Vue.resolveComponent, Cf = window.Vue.openBlock, pw = window.Vue.createElementBlock, yi = window.Vue.createElementVNode, gD = window.Vue.createBlock, mw = window.Vue.createCommentVNode, wD = window.Vue.renderSlot, _D = window.Vue.pushScopeId, bD = window.Vue.popScopeId, Ef = window.Vue.toRef, su = window.Vue.computed, yD = window.Vue.ref;
+}, g1 = (e, a) => dD(e, fD(a));
+const w1 = window.Vue.defineComponent, mD = window.Vue.inject, vD = window.Vue.resolveComponent, Cf = window.Vue.openBlock, pw = window.Vue.createElementBlock, yi = window.Vue.createElementVNode, gD = window.Vue.createBlock, mw = window.Vue.createCommentVNode, wD = window.Vue.renderSlot, _D = window.Vue.pushScopeId, bD = window.Vue.popScopeId, Ef = window.Vue.toRef, su = window.Vue.computed, yD = window.Vue.ref;
 window.Vue.mergeProps;
 window.Vue.toDisplayString;
 window.Vue.createVNode;
@@ -11870,7 +11870,7 @@ const xD = {
   "update:modelValue": (e) => !0,
   click: (e) => !0,
   indeterminate: (e) => !0
-}, CD = w0({
+}, CD = w1({
   model: {
     prop: "modelValue",
     event: "update:modelValue"
@@ -11969,7 +11969,7 @@ function LD(e, a, r, i, s, u) {
   ]);
 }
 var Io = /* @__PURE__ */ $D(CD, [["render", LD], ["__scopeId", "data-v-a7af27e2"]]);
-const OD = g0(lh({}, Di), {
+const OD = g1(lh({}, Di), {
   modelValue: {
     type: [Array, Object],
     required: !1
@@ -11987,7 +11987,7 @@ const OD = g0(lh({}, Di), {
     required: !1
   }
 });
-w0({
+w1({
   props: OD,
   provide() {
     return {
@@ -11998,7 +11998,7 @@ w0({
     Mi(e);
     const r = Ef(e, "error"), i = su(() => Oe("feather-checkbox-group")), s = su(() => Oe("feather-input-description")), u = su(() => Oe("feather-input-label")), c = su(() => {
       const g = JSON.parse(JSON.stringify(a.attrs));
-      return g["aria-invalid"] || (g["aria-invalid"] = !!r.value), g0(lh({}, g), {
+      return g["aria-invalid"] || (g["aria-invalid"] = !!r.value), g1(lh({}, g), {
         class: "",
         "aria-describedby": s.value
       });
@@ -12019,7 +12019,7 @@ w0({
     InputSubText: Ni
   }
 });
-const RD = window.Vue.openBlock, ND = window.Vue.createElementBlock, _0 = window.Vue.createElementVNode;
+const RD = window.Vue.openBlock, ND = window.Vue.createElementBlock, _1 = window.Vue.createElementVNode;
 var BD = (e, a) => {
   const r = e.__vccOpts || e;
   for (const [i, s] of a)
@@ -12029,7 +12029,7 @@ var BD = (e, a) => {
 const PD = {}, DD = {
   xmlns: "http://www.w3.org/2000/svg",
   viewBox: "0 0 24 24"
-}, MD = /* @__PURE__ */ _0("path", { d: "M20.71,5.63,18.37,3.29A1,1,0,0,0,17.66,3a1,1,0,0,0-.7.29l-1,1L19.75,8l1-1A1,1,0,0,0,20.71,5.63Z" }, null, -1), FD = /* @__PURE__ */ _0("path", { d: "M3.59,16.66A2,2,0,0,0,3,18.08V21H5.92a2,2,0,0,0,1.42-.59L18.88,8.88,15.12,5.12ZM5.92,19H5v-.92L14.06,9,15.12,8l.92.92Z" }, null, -1), UD = [
+}, MD = /* @__PURE__ */ _1("path", { d: "M20.71,5.63,18.37,3.29A1,1,0,0,0,17.66,3a1,1,0,0,0-.7.29l-1,1L19.75,8l1-1A1,1,0,0,0,20.71,5.63Z" }, null, -1), FD = /* @__PURE__ */ _1("path", { d: "M3.59,16.66A2,2,0,0,0,3,18.08V21H5.92a2,2,0,0,0,1.42-.59L18.88,8.88,15.12,5.12ZM5.92,19H5v-.92L14.06,9,15.12,8l.92.92Z" }, null, -1), UD = [
   MD,
   FD
 ];
@@ -12043,15 +12043,15 @@ var HD = /* @__PURE__ */ BD(PD, [["render", qD]]), WD = Object.defineProperty, z
     for (var r of vw(a))
       jD.call(a, r) && gw(e, r, a[r]);
   return e;
-}, b0 = (e, a) => zD(e, GD(a));
-const KD = window.Vue.defineComponent, Sf = window.Vue.toRef, ZD = window.Vue.computed, ww = window.Vue.resolveComponent, _w = window.Vue.openBlock, bw = window.Vue.createElementBlock, yw = window.Vue.mergeProps, $w = window.Vue.createVNode, XD = window.Vue.normalizeClass, xw = window.Vue.withCtx, JD = window.Vue.createElementVNode, QD = window.Vue.toDisplayString, eM = window.Vue.createCommentVNode;
-var tM = (e, a) => {
+}, b1 = (e, a) => zD(e, GD(a));
+const KD = window.Vue.defineComponent, Sf = window.Vue.toRef, ZD = window.Vue.computed, ww = window.Vue.resolveComponent, _w = window.Vue.openBlock, bw = window.Vue.createElementBlock, yw = window.Vue.mergeProps, $w = window.Vue.createVNode, XD = window.Vue.normalizeClass, xw = window.Vue.withCtx, JD = window.Vue.createElementVNode, QD = window.Vue.toDisplayString, e8 = window.Vue.createCommentVNode;
+var t8 = (e, a) => {
   const r = e.__vccOpts || e;
   for (const [i, s] of a)
     r[i] = s;
   return r;
 };
-const nM = b0($i($i({}, Wu), Di), {
+const n8 = b1($i($i({}, Wu), Di), {
   modelValue: {
     type: String
   },
@@ -12072,15 +12072,15 @@ const nM = b0($i($i({}, Wu), Di), {
     type: String,
     required: !1
   }
-}), rM = {
+}), r8 = {
   "update:modelValue": (e) => !0
-}, aM = KD({
+}, a8 = KD({
   model: {
     prop: "modelValue",
     event: "update:modelValue"
   },
-  emits: rM,
-  props: nM,
+  emits: r8,
+  props: n8,
   setup(e, a) {
     Mi(e), zu(e);
     const r = Sf(e, "id"), i = ZD(() => r.value ? r.value : Oe("feather-textarea-label")), { validate: s } = Bi(i, Sf(e, "modelValue"), e.label, e.schema, Sf(e, "error"));
@@ -12113,7 +12113,7 @@ const nM = b0($i($i({}, Wu), Di), {
     },
     attrs() {
       const e = $i({}, this.$attrs);
-      return delete e.placeholder, e["aria-invalid"] || (e["aria-invalid"] = !!this.error), b0($i($i({}, e), this.listeners), {
+      return delete e.placeholder, e["aria-invalid"] || (e["aria-invalid"] = !!this.error), b1($i($i({}, e), this.listeners), {
         class: "",
         id: this.inputId,
         name: this.inputId,
@@ -12195,12 +12195,12 @@ const nM = b0($i($i({}, Wu), Di), {
     InputSubText: Ni,
     InputWrapper: Hu
   }
-}), oM = ["maxlength"], iM = {
+}), o8 = ["maxlength"], i8 = {
   key: 0,
   class: "feather-textarea-count",
   "data-ref-id": "feather-form-element-count"
 };
-function sM(e, a, r, i, s, u) {
+function s8(e, a, r, i, s, u) {
   const c = ww("InputWrapper"), f = ww("InputSubText");
   return _w(), bw("div", yw(e.inherittedAttrs, { class: "feather-textarea-container" }), [
     $w(c, {
@@ -12218,20 +12218,20 @@ function sM(e, a, r, i, s, u) {
           "data-ref-id": "feather-textarea-input",
           maxlength: e.maxlength > 0 ? e.maxlength : void 0,
           ref: "input"
-        }), null, 16, oM)
+        }), null, 16, o8)
       ]),
       _: 1
     }, 8, ["for", "raised", "focused", "show-clear", "onWrapperClick", "onClear", "class"]),
     $w(f, { id: e.descriptionId }, {
       right: xw(() => [
-        e.maxlength ? (_w(), bw("div", iM, QD(e.charCount), 1)) : eM("", !0)
+        e.maxlength ? (_w(), bw("div", i8, QD(e.charCount), 1)) : e8("", !0)
       ]),
       _: 1
     }, 8, ["id"])
   ], 16);
 }
-var Ks = /* @__PURE__ */ tM(aM, [["render", sM], ["__scopeId", "data-v-0648df5c"]]);
-const lM = window.Pinia.defineStore, Qu = lM("appStore", {
+var Ks = /* @__PURE__ */ t8(a8, [["render", s8], ["__scopeId", "data-v-0648df5c"]]);
+const l8 = window.Pinia.defineStore, Qu = l8("appStore", {
   state: () => ({
     showError: !1,
     errorMessage: ""
@@ -12243,19 +12243,19 @@ const lM = window.Pinia.defineStore, Qu = lM("appStore", {
       }, 1800);
     }
   }
-}), uM = window.Vue.defineComponent, Vw = window.Vue.toDisplayString, bs = window.Vue.createElementVNode, _o = window.Vue.unref, ui = window.Vue.openBlock, Cw = window.Vue.createBlock, ys = window.Vue.createCommentVNode, Ew = window.Vue.createVNode, lu = window.Vue.createElementBlock, cM = window.Vue.normalizeClass;
+}), u8 = window.Vue.defineComponent, Vw = window.Vue.toDisplayString, bs = window.Vue.createElementVNode, _o = window.Vue.unref, ui = window.Vue.openBlock, Cw = window.Vue.createBlock, ys = window.Vue.createCommentVNode, Ew = window.Vue.createVNode, lu = window.Vue.createElementBlock, c8 = window.Vue.normalizeClass;
 window.Vue.pushScopeId;
 window.Vue.popScopeId;
-const dM = { class: "row" }, fM = { class: "label" }, hM = { class: "action-icons" }, pM = { class: "icon-btn" }, mM = {
+const d8 = { class: "row" }, f8 = { class: "label" }, h8 = { class: "action-icons" }, p8 = { class: "icon-btn" }, m8 = {
   key: 0,
   class: "icon-btn"
-}, vM = {
+}, v8 = {
   key: 1,
   class: "icon-btn"
-}, gM = {
+}, g8 = {
   key: 0,
   class: "text"
-}, wM = window.Vue.watch, Sw = window.Vue.ref, _M = /* @__PURE__ */ uM({
+}, w8 = window.Vue.watch, Sw = window.Vue.ref, _8 = /* @__PURE__ */ u8({
   __name: "MemoBox",
   props: {
     id: null,
@@ -12268,7 +12268,7 @@ const dM = { class: "row" }, fM = { class: "label" }, hM = { class: "action-icon
   setup(e) {
     var v;
     const a = e, r = Qu(), i = Sw(!1), s = Sw((v = a.memo) == null ? void 0 : v.body);
-    wM(a, () => {
+    w8(a, () => {
       var p;
       s.value = (p = a.memo) == null ? void 0 : p.body, i.value = !1;
     });
@@ -12280,12 +12280,12 @@ const dM = { class: "row" }, fM = { class: "label" }, hM = { class: "action-icon
       i.value = !1, s.value && s.value !== "" && (await BE(a.id, a.type, s.value) || r.showErrorMsg("Error on saving memo :("));
     };
     return (p, g) => (ui(), lu("div", {
-      class: cM([a.boxType === "small" ? "box-small" : "box"])
+      class: c8([a.boxType === "small" ? "box-small" : "box"])
     }, [
-      bs("div", dM, [
-        bs("div", fM, Vw(e.label), 1),
-        bs("div", hM, [
-          bs("div", pM, [
+      bs("div", d8, [
+        bs("div", f8, Vw(e.label), 1),
+        bs("div", h8, [
+          bs("div", p8, [
             i.value ? ys("", !0) : (ui(), Cw(_o(ae), {
               key: 0,
               icon: _o(HD),
@@ -12294,7 +12294,7 @@ const dM = { class: "row" }, fM = { class: "label" }, hM = { class: "action-icon
               onClick: u
             }, null, 8, ["icon"]))
           ]),
-          i.value ? (ui(), lu("div", mM, [
+          i.value ? (ui(), lu("div", m8, [
             Ew(_o(ae), {
               icon: _o(Ii),
               "aria-hidden": "true",
@@ -12302,7 +12302,7 @@ const dM = { class: "row" }, fM = { class: "label" }, hM = { class: "action-icon
               onClick: f
             }, null, 8, ["icon"])
           ])) : ys("", !0),
-          s.value && s.value != "" || i.value ? (ui(), lu("div", vM, [
+          s.value && s.value != "" || i.value ? (ui(), lu("div", v8, [
             Ew(_o(ae), {
               icon: _o(Oi),
               "aria-hidden": "true",
@@ -12313,7 +12313,7 @@ const dM = { class: "row" }, fM = { class: "label" }, hM = { class: "action-icon
         ])
       ]),
       bs("div", null, [
-        !i.value && s.value != null ? (ui(), lu("div", gM, Vw(s.value), 1)) : ys("", !0),
+        !i.value && s.value != null ? (ui(), lu("div", g8, Vw(s.value), 1)) : ys("", !0),
         i.value ? (ui(), Cw(_o(Ks), {
           key: 1,
           class: "textarea",
@@ -12326,13 +12326,13 @@ const dM = { class: "row" }, fM = { class: "label" }, hM = { class: "action-icon
       ])
     ], 2));
   }
-}), Nu = /* @__PURE__ */ Re(_M, [["__scopeId", "data-v-ee1264b5"]]), bM = window.Vue.defineComponent, Aa = window.Vue.unref, ci = window.Vue.createVNode, $s = window.Vue.toDisplayString, hr = window.Vue.createElementVNode, kw = window.Vue.openBlock, Tw = window.Vue.createElementBlock, Iw = window.Vue.createCommentVNode, kf = window.Vue.createTextVNode, yM = window.Vue.pushScopeId, $M = window.Vue.popScopeId, Th = (e) => (yM("data-v-b59dc239"), e = e(), $M(), e), xM = {
+}), Nu = /* @__PURE__ */ Re(_8, [["__scopeId", "data-v-ee1264b5"]]), b8 = window.Vue.defineComponent, Aa = window.Vue.unref, ci = window.Vue.createVNode, $s = window.Vue.toDisplayString, hr = window.Vue.createElementVNode, kw = window.Vue.openBlock, Tw = window.Vue.createElementBlock, Iw = window.Vue.createCommentVNode, kf = window.Vue.createTextVNode, y8 = window.Vue.pushScopeId, $8 = window.Vue.popScopeId, Th = (e) => (y8("data-v-b59dc239"), e = e(), $8(), e), x8 = {
   key: 0,
   class: "card"
-}, VM = { class: "row" }, CM = {
+}, V8 = { class: "row" }, C8 = {
   key: 0,
   class: "ack"
-}, EM = /* @__PURE__ */ Th(() => /* @__PURE__ */ hr("strong", null, " Duration: ", -1)), SM = ["innerHTML"], kM = /* @__PURE__ */ Th(() => /* @__PURE__ */ hr("strong", null, "First Event", -1)), TM = /* @__PURE__ */ Th(() => /* @__PURE__ */ hr("strong", null, "Last Event", -1)), IM = { class: "section memo-boxes" }, Aw = window.Vue.ref, AM = window.Vue.watch, LM = /* @__PURE__ */ bM({
+}, E8 = /* @__PURE__ */ Th(() => /* @__PURE__ */ hr("strong", null, " Duration: ", -1)), S8 = ["innerHTML"], k8 = /* @__PURE__ */ Th(() => /* @__PURE__ */ hr("strong", null, "First Event", -1)), T8 = /* @__PURE__ */ Th(() => /* @__PURE__ */ hr("strong", null, "Last Event", -1)), I8 = { class: "section memo-boxes" }, Aw = window.Vue.ref, A8 = window.Vue.watch, L8 = /* @__PURE__ */ b8({
   __name: "AlarmDetail",
   props: {
     alarm: null,
@@ -12342,20 +12342,20 @@ const dM = { class: "row" }, fM = { class: "label" }, hM = { class: "action-icon
   emits: ["alarm-selected"],
   setup(e, { emit: a }) {
     const r = e, i = Aw(!1), s = Aw(r.alarm), u = (/* @__PURE__ */ new Date()).getTime();
-    AM(r, () => {
+    A8(r, () => {
       s.value = r.alarm, i.value = r.selectAll, r.selectAll && a("alarm-selected", r.alarm.id);
     });
     const c = () => {
       a("alarm-selected", r.alarm.id);
     }, f = async (v) => {
-      const p = await a1(v);
+      const p = await a0(v);
       p && (s.value = p);
     };
     return (v, p) => {
       var g, _, y, $, V;
-      return s.value ? (kw(), Tw("div", xM, [
+      return s.value ? (kw(), Tw("div", x8, [
         hr("div", null, [
-          hr("div", VM, [
+          hr("div", V8, [
             ci(Aa(Io), {
               modelValue: i.value,
               "onUpdate:modelValue": [
@@ -12370,10 +12370,10 @@ const dM = { class: "row" }, fM = { class: "label" }, hM = { class: "action-icon
                 i.value = !i.value, c();
               })
             }, $s(s.value.nodeLabel) + " - " + $s(s.value.id), 1),
-            ci(m0, {
+            ci(m1, {
               severity: (g = s.value) == null ? void 0 : g.severity
             }, null, 8, ["severity"]),
-            s.value.ackTime ? (kw(), Tw("div", CM, [
+            s.value.ackTime ? (kw(), Tw("div", C8, [
               ci(Aa(ae), {
                 icon: Aa(Ii),
                 "aria-hidden": "true",
@@ -12382,22 +12382,22 @@ const dM = { class: "row" }, fM = { class: "label" }, hM = { class: "action-icon
             ])) : Iw("", !0)
           ]),
           hr("div", null, [
-            EM,
+            E8,
             kf(" " + $s(Aa(Uu)(Aa(u), new Date(s.value.firstEventTime))), 1)
           ]),
           hr("div", {
             class: "description",
-            innerHTML: Aa(x1)(s.value.description || "")
-          }, null, 8, SM),
+            innerHTML: Aa(x0)(s.value.description || "")
+          }, null, 8, S8),
           hr("div", null, [
-            kM,
+            k8,
             kf(" - " + $s(Aa(Ar)(s.value.firstEventTime)), 1)
           ]),
           hr("div", null, [
-            TM,
+            T8,
             kf(" - " + $s(Aa(Ar)(s.value.lastEventTime)), 1)
           ]),
-          hr("div", IM, [
+          hr("div", I8, [
             ci(Nu, {
               id: (_ = s.value) == null ? void 0 : _.id,
               boxType: "small",
@@ -12416,7 +12416,7 @@ const dM = { class: "row" }, fM = { class: "label" }, hM = { class: "action-icon
             }, null, 8, ["id", "situationId", "memo"])
           ])
         ]),
-        ci(v0, {
+        ci(v1, {
           alarm: s.value,
           direction: "vertical",
           "situation-id": r.situationId,
@@ -12425,74 +12425,74 @@ const dM = { class: "row" }, fM = { class: "label" }, hM = { class: "action-icon
       ])) : Iw("", !0);
     };
   }
-}), OM = /* @__PURE__ */ Re(LM, [["__scopeId", "data-v-b59dc239"]]), RM = window.Vue.openBlock, NM = window.Vue.createElementBlock, y0 = window.Vue.createElementVNode;
-var BM = (e, a) => {
+}), O8 = /* @__PURE__ */ Re(L8, [["__scopeId", "data-v-b59dc239"]]), R8 = window.Vue.openBlock, N8 = window.Vue.createElementBlock, y1 = window.Vue.createElementVNode;
+var B8 = (e, a) => {
   const r = e.__vccOpts || e;
   for (const [i, s] of a)
     r[i] = s;
   return r;
 };
-const PM = {}, DM = {
+const P8 = {}, D8 = {
   xmlns: "http://www.w3.org/2000/svg",
   viewBox: "0 0 24 24"
-}, MM = /* @__PURE__ */ y0("path", { d: "M19,3H5A2,2,0,0,0,3,5V9H5V5H19V19H5V15H3v4a2,2,0,0,0,2,2H19a2,2,0,0,0,2-2V5A2,2,0,0,0,19,3Z" }, null, -1), FM = /* @__PURE__ */ y0("path", { d: "M3,12a1,1,0,0,0,1,1h9.17l-2.34,2.34a1,1,0,0,0,1.41,1.42L17,12,12.24,7.24a1,1,0,0,0-1.41,0,1,1,0,0,0,0,1.41L13.17,11H4A1,1,0,0,0,3,12Z" }, null, -1), UM = [
-  MM,
-  FM
+}, M8 = /* @__PURE__ */ y1("path", { d: "M19,3H5A2,2,0,0,0,3,5V9H5V5H19V19H5V15H3v4a2,2,0,0,0,2,2H19a2,2,0,0,0,2-2V5A2,2,0,0,0,19,3Z" }, null, -1), F8 = /* @__PURE__ */ y1("path", { d: "M3,12a1,1,0,0,0,1,1h9.17l-2.34,2.34a1,1,0,0,0,1.41,1.42L17,12,12.24,7.24a1,1,0,0,0-1.41,0,1,1,0,0,0,0,1.41L13.17,11H4A1,1,0,0,0,3,12Z" }, null, -1), U8 = [
+  M8,
+  F8
 ];
-function qM(e, a) {
-  return RM(), NM("svg", DM, UM);
+function q8(e, a) {
+  return R8(), N8("svg", D8, U8);
 }
-var uh = /* @__PURE__ */ BM(PM, [["render", qM]]);
-const HM = window.Vue.watch, WM = window.Vue.ref, zM = window.Vue.onBeforeUnmount, $0 = (e) => {
-  const a = WM(!1), r = (i) => {
+var uh = /* @__PURE__ */ B8(P8, [["render", q8]]);
+const H8 = window.Vue.watch, W8 = window.Vue.ref, z8 = window.Vue.onBeforeUnmount, $1 = (e) => {
+  const a = W8(!1), r = (i) => {
     i.keyCode === $e.ESCAPE && (i.preventDefault(), a.value = !a.value);
   };
-  return HM(e, (i) => {
+  return H8(e, (i) => {
     i ? document.addEventListener("keydown", r) : typeof document < "u" && document.removeEventListener("keydown", r);
-  }, { immediate: !0 }), zM(() => {
+  }, { immediate: !0 }), z8(() => {
     document.removeEventListener("keydown", r);
   }), a;
-}, GM = window.Vue.watch, x0 = (e) => {
+}, G8 = window.Vue.watch, x1 = (e) => {
   let a;
-  GM(e, (r) => {
+  G8(e, (r) => {
     r ? a = document.activeElement : setTimeout(() => {
       a && a.focus && a.focus(), a = void 0;
     }, 0);
   });
-}, V0 = window.Vue.watch, C0 = window.Vue.onBeforeUnmount, E0 = window.Vue.nextTick, YM = window.Vue.onMounted, S0 = (e) => {
+}, V1 = window.Vue.watch, C1 = window.Vue.onBeforeUnmount, E1 = window.Vue.nextTick, Y8 = window.Vue.onMounted, S1 = (e) => {
   if (e === !1)
     return "hidden";
   const a = e.style.overflow;
   return e.style.overflow = "hidden", a;
 }, Bu = (e, a) => {
   e !== void 0 && a !== !1 && (a.style.overflow = e);
-}, k0 = (e) => {
+}, k1 = (e) => {
   let a;
   const r = typeof document < "u" ? document.body : !1;
-  C0(() => Bu(a, r)), YM(() => V0(e, (i) => {
-    i ? E0(() => {
-      a = S0(r);
+  C1(() => Bu(a, r)), Y8(() => V1(e, (i) => {
+    i ? E1(() => {
+      a = S1(r);
     }) : Bu(a, r);
   }, { immediate: !0 }));
-}, jM = (e, a) => {
+}, j8 = (e, a) => {
   let r;
-  C0(() => Bu(r, a.value ? a.value.offsetParent : !1)), V0([e, a], ([i, s]) => {
-    i && s ? E0(() => {
-      r = S0(s.offsetParent);
+  C1(() => Bu(r, a.value ? a.value.offsetParent : !1)), V1([e, a], ([i, s]) => {
+    i && s ? E1(() => {
+      r = S1(s.offsetParent);
     }) : s && Bu(r, s.offsetParent);
   }, {
     immediate: !0
   });
 };
-var KM = Object.defineProperty, Lw = Object.getOwnPropertySymbols, ZM = Object.prototype.hasOwnProperty, XM = Object.prototype.propertyIsEnumerable, Ow = (e, a, r) => a in e ? KM(e, a, { enumerable: !0, configurable: !0, writable: !0, value: r }) : e[a] = r, JM = (e, a) => {
+var K8 = Object.defineProperty, Lw = Object.getOwnPropertySymbols, Z8 = Object.prototype.hasOwnProperty, X8 = Object.prototype.propertyIsEnumerable, Ow = (e, a, r) => a in e ? K8(e, a, { enumerable: !0, configurable: !0, writable: !0, value: r }) : e[a] = r, J8 = (e, a) => {
   for (var r in a || (a = {}))
-    ZM.call(a, r) && Ow(e, r, a[r]);
+    Z8.call(a, r) && Ow(e, r, a[r]);
   if (Lw)
     for (var r of Lw(a))
-      XM.call(a, r) && Ow(e, r, a[r]);
+      X8.call(a, r) && Ow(e, r, a[r]);
   return e;
 };
-const Ih = window.Vue.defineComponent, Ws = window.Vue.ref, QM = window.Vue.nextTick, T0 = window.Vue.openBlock, I0 = window.Vue.createElementBlock, Ah = window.Vue.createElementVNode, e8 = window.Vue.renderSlot, t8 = window.Vue.resolveComponent, n8 = window.Vue.normalizeClass, r8 = window.Vue.withModifiers, a8 = window.Vue.createVNode, Rw = window.Vue.toRef, Nw = window.Vue.computed, Bw = window.Vue.watch;
+const Ih = window.Vue.defineComponent, Ws = window.Vue.ref, Q8 = window.Vue.nextTick, T1 = window.Vue.openBlock, I1 = window.Vue.createElementBlock, Ah = window.Vue.createElementVNode, eM = window.Vue.renderSlot, tM = window.Vue.resolveComponent, nM = window.Vue.normalizeClass, rM = window.Vue.withModifiers, aM = window.Vue.createVNode, Rw = window.Vue.toRef, Nw = window.Vue.computed, Bw = window.Vue.watch;
 window.Vue.createBlock;
 window.Vue.Teleport;
 window.Vue.withDirectives;
@@ -12501,19 +12501,19 @@ window.Vue.withCtx;
 window.Vue.vShow;
 window.Vue.toDisplayString;
 window.Vue.createCommentVNode;
-var A0 = (e, a) => {
+var A1 = (e, a) => {
   const r = e.__vccOpts || e;
   for (const [i, s] of a)
     r[i] = s;
   return r;
 };
-const o8 = {
+const oM = {
   enable: {
     type: Boolean,
     required: !0
   }
-}, i8 = Ih({
-  props: o8,
+}, iM = Ih({
+  props: oM,
   data() {
     return {
       rendered: !1
@@ -12565,7 +12565,7 @@ const o8 = {
       }
     }, f = (g) => {
       const _ = g.querySelector("[first-focus]");
-      _ && _.focus ? QM(() => {
+      _ && _.focus ? Q8(() => {
         _.focus();
       }) : i(g);
     }, v = Ws();
@@ -12631,21 +12631,21 @@ const o8 = {
   beforeUnmount() {
     this.removeFocusTrapEvents();
   }
-}), s8 = /* @__PURE__ */ Ah("div", { tabindex: "0" }, null, -1), l8 = {
+}), sM = /* @__PURE__ */ Ah("div", { tabindex: "0" }, null, -1), lM = {
   class: "focus-trap-content",
   ref: "content"
-}, u8 = /* @__PURE__ */ Ah("div", { tabindex: "0" }, null, -1);
-function c8(e, a, r, i, s, u) {
-  return T0(), I0("div", null, [
-    s8,
-    Ah("div", l8, [
-      e8(e.$slots, "default")
+}, uM = /* @__PURE__ */ Ah("div", { tabindex: "0" }, null, -1);
+function cM(e, a, r, i, s, u) {
+  return T1(), I1("div", null, [
+    sM,
+    Ah("div", lM, [
+      eM(e.$slots, "default")
     ], 512),
-    u8
+    uM
   ]);
 }
-var L0 = /* @__PURE__ */ A0(i8, [["render", c8]]);
-const d8 = Ih({
+var L1 = /* @__PURE__ */ A1(iM, [["render", cM]]);
+const dM = Ih({
   emits: ["close"],
   props: {
     closeText: {
@@ -12663,29 +12663,29 @@ const d8 = Ih({
   components: {
     FeatherIcon: ae
   }
-}), f8 = ["aria-label"];
-function h8(e, a, r, i, s, u) {
-  const c = t8("FeatherIcon");
-  return T0(), I0("a", {
+}), fM = ["aria-label"];
+function hM(e, a, r, i, s, u) {
+  const c = tM("FeatherIcon");
+  return T1(), I1("a", {
     href: "#",
-    class: n8(["closeButton", { small: e.small }]),
+    class: nM(["closeButton", { small: e.small }]),
     "data-ref-id": "dialog-close",
     "aria-label": e.closeText,
-    onClick: a[0] || (a[0] = r8((f) => e.$emit("close"), ["prevent"]))
+    onClick: a[0] || (a[0] = rM((f) => e.$emit("close"), ["prevent"]))
   }, [
-    a8(c, {
+    aM(c, {
       "aria-hidden": "true",
       focusable: "false",
       class: "fill",
       icon: e.icon
     }, null, 8, ["icon"])
-  ], 10, f8);
+  ], 10, fM);
 }
-var O0 = /* @__PURE__ */ A0(d8, [["render", h8], ["__scopeId", "data-v-fc0f3f00"]]);
-const R0 = {
+var O1 = /* @__PURE__ */ A1(dM, [["render", hM], ["__scopeId", "data-v-fc0f3f00"]]);
+const R1 = {
   title: "REQUIRED",
   close: "Close Dialog"
-}, p8 = {
+}, pM = {
   modelValue: {
     type: Boolean
   },
@@ -12703,10 +12703,10 @@ const R0 = {
   },
   labels: {
     type: Object,
-    default: () => R0,
+    default: () => R1,
     validator: (e) => !!e.title
   }
-}, m8 = {
+}, mM = {
   "update:modelValue": (e) => !0,
   shown: () => !0,
   hidden: () => !0
@@ -12716,34 +12716,34 @@ Ih({
     prop: "modelValue",
     event: "update:modelValue"
   },
-  emits: m8,
-  props: p8,
+  emits: mM,
+  props: pM,
   setup(e, a) {
-    const r = qu(Rw(e, "labels"), R0), i = Rw(e, "modelValue"), s = Ws(), u = () => {
+    const r = qu(Rw(e, "labels"), R1), i = Rw(e, "modelValue"), s = Ws(), u = () => {
       a.emit("update:modelValue", !1);
     }, c = Nw(() => !!a.slots.footer), f = Nw(() => Oe("dialog-header"));
-    e.relative ? jM(i, s) : k0(i), x0(i), Bw($0(i), () => {
+    e.relative ? j8(i, s) : k1(i), x1(i), Bw($1(i), () => {
       u();
     });
     const v = Ws(e.modelValue);
     return Bw(v, (p) => {
       p ? a.emit("shown") : a.emit("hidden");
-    }), JM({ close: u, hasFooter: c, headerId: f, element: s, shown: v }, r);
+    }), J8({ close: u, hasFooter: c, headerId: f, element: s, shown: v }, r);
   },
   components: {
-    FocusTrap: L0,
-    DialogClose: O0
+    FocusTrap: L1,
+    DialogClose: O1
   }
 });
-var v8 = Object.defineProperty, Pw = Object.getOwnPropertySymbols, g8 = Object.prototype.hasOwnProperty, w8 = Object.prototype.propertyIsEnumerable, Dw = (e, a, r) => a in e ? v8(e, a, { enumerable: !0, configurable: !0, writable: !0, value: r }) : e[a] = r, ec = (e, a) => {
+var vM = Object.defineProperty, Pw = Object.getOwnPropertySymbols, gM = Object.prototype.hasOwnProperty, wM = Object.prototype.propertyIsEnumerable, Dw = (e, a, r) => a in e ? vM(e, a, { enumerable: !0, configurable: !0, writable: !0, value: r }) : e[a] = r, ec = (e, a) => {
   for (var r in a || (a = {}))
-    g8.call(a, r) && Dw(e, r, a[r]);
+    gM.call(a, r) && Dw(e, r, a[r]);
   if (Pw)
     for (var r of Pw(a))
-      w8.call(a, r) && Dw(e, r, a[r]);
+      wM.call(a, r) && Dw(e, r, a[r]);
   return e;
 };
-const tc = window.Vue.defineComponent, Mw = window.Vue.toRef, Fw = window.Vue.watch, Uw = window.Vue.ref, qw = window.Vue.resolveComponent, uu = window.Vue.openBlock, Hw = window.Vue.createBlock, _8 = window.Vue.Teleport, Ww = window.Vue.createElementBlock, Tf = window.Vue.createVNode, zw = window.Vue.Transition, If = window.Vue.withCtx, Gw = window.Vue.createCommentVNode, b8 = window.Vue.withDirectives, y8 = window.Vue.normalizeStyle, $8 = window.Vue.normalizeClass, Yw = window.Vue.createElementVNode, x8 = window.Vue.renderSlot, V8 = window.Vue.vShow;
+const tc = window.Vue.defineComponent, Mw = window.Vue.toRef, Fw = window.Vue.watch, Uw = window.Vue.ref, qw = window.Vue.resolveComponent, uu = window.Vue.openBlock, Hw = window.Vue.createBlock, _M = window.Vue.Teleport, Ww = window.Vue.createElementBlock, Tf = window.Vue.createVNode, zw = window.Vue.Transition, If = window.Vue.withCtx, Gw = window.Vue.createCommentVNode, bM = window.Vue.withDirectives, yM = window.Vue.normalizeStyle, $M = window.Vue.normalizeClass, Yw = window.Vue.createElementVNode, xM = window.Vue.renderSlot, VM = window.Vue.vShow;
 window.Vue.mergeProps;
 window.Vue.toDisplayString;
 window.Vue.toHandlers;
@@ -12751,16 +12751,16 @@ window.Vue.resolveDirective;
 window.Vue.createTextVNode;
 window.Vue.pushScopeId;
 window.Vue.popScopeId;
-var C8 = (e, a) => {
+var CM = (e, a) => {
   const r = e.__vccOpts || e;
   for (const [i, s] of a)
     r[i] = s;
   return r;
 };
-const N0 = {
+const N1 = {
   title: "REQUIRED",
   close: "Close Dialog"
-}, E8 = {
+}, EM = {
   modelValue: {
     type: Boolean,
     default: !1,
@@ -12777,25 +12777,25 @@ const N0 = {
   },
   labels: {
     type: Object,
-    default: () => N0,
+    default: () => N1,
     validator: (e) => !!e.title
   }
-}, S8 = {
+}, SM = {
   "update:modelValue": (e) => !0,
   shown: () => !0,
   hidden: () => !0
-}, k8 = tc({
+}, kM = tc({
   model: {
     prop: "modelValue",
     event: "update:modelValue"
   },
-  emits: S8,
-  props: E8,
+  emits: SM,
+  props: EM,
   setup(e, a) {
-    const r = qu(Mw(e, "labels"), N0), i = Mw(e, "modelValue"), s = () => {
+    const r = qu(Mw(e, "labels"), N1), i = Mw(e, "modelValue"), s = () => {
       a.emit("update:modelValue", !1);
     };
-    k0(i), x0(i), Fw($0(i), () => {
+    k1(i), x1(i), Fw($1(i), () => {
       s();
     });
     const u = Uw(), c = Uw(!1);
@@ -12804,23 +12804,23 @@ const N0 = {
     }), ec({ close: s, shown: c, isShown: i, element: u }, r);
   },
   components: {
-    DialogClose: O0,
-    FocusTrap: L0
+    DialogClose: O1,
+    FocusTrap: L1
   }
-}), T8 = {
+}), TM = {
   key: 0,
   class: "drawer-container feather-styles"
-}, I8 = {
+}, IM = {
   key: 0,
   class: "greyedOut"
-}, A8 = ["aria-label"], L8 = { class: "slot" };
-function O8(e, a, r, i, s, u) {
+}, AM = ["aria-label"], LM = { class: "slot" };
+function OM(e, a, r, i, s, u) {
   const c = qw("dialog-close"), f = qw("focus-trap");
-  return uu(), Hw(_8, { to: "body" }, [
-    e.modelValue ? (uu(), Ww("div", T8, [
+  return uu(), Hw(_M, { to: "body" }, [
+    e.modelValue ? (uu(), Ww("div", TM, [
       Tf(zw, { name: "greyOutShim" }, {
         default: If(() => [
-          e.modelValue ? (uu(), Ww("div", I8)) : Gw("", !0)
+          e.modelValue ? (uu(), Ww("div", IM)) : Gw("", !0)
         ]),
         _: 1
       }),
@@ -12830,11 +12830,11 @@ function O8(e, a, r, i, s, u) {
         onAfterLeave: a[1] || (a[1] = (v) => e.shown = !1)
       }, {
         default: If(() => [
-          b8((uu(), Hw(f, {
+          bM((uu(), Hw(f, {
             enable: e.modelValue,
-            style: y8({ width: e.width }),
+            style: yM({ width: e.width }),
             key: "sect",
-            class: $8(["content", { left: e.left }]),
+            class: $M(["content", { left: e.left }]),
             ref: "element"
           }, {
             default: If(() => [
@@ -12847,18 +12847,18 @@ function O8(e, a, r, i, s, u) {
                 tabindex: "-1",
                 "first-focus": ""
               }, [
-                Yw("div", L8, [
-                  x8(e.$slots, "default", {}, void 0, !0)
+                Yw("div", LM, [
+                  xM(e.$slots, "default", {}, void 0, !0)
                 ]),
                 Tf(c, {
                   "close-text": e.closeLabel,
                   onClose: e.close
                 }, null, 8, ["close-text", "onClose"])
-              ], 8, A8)
+              ], 8, AM)
             ]),
             _: 3
           }, 8, ["enable", "style", "class"])), [
-            [V8, e.modelValue]
+            [VM, e.modelValue]
           ])
         ]),
         _: 3
@@ -12866,16 +12866,16 @@ function O8(e, a, r, i, s, u) {
     ])) : Gw("", !0)
   ]);
 }
-var B0 = /* @__PURE__ */ C8(k8, [["render", O8], ["__scopeId", "data-v-0a36e1dc"]]);
-const R8 = ec({
+var B1 = /* @__PURE__ */ CM(kM, [["render", OM], ["__scopeId", "data-v-0a36e1dc"]]);
+const RM = ec({
   label: {
     type: String,
     required: !0
   }
-}, o0);
+}, o1);
 tc({
   name: "DrawerTab",
-  props: R8,
+  props: RM,
   data() {
     return {
       showLabel: !1,
@@ -12898,40 +12898,40 @@ tc({
     }
   },
   setup(e) {
-    return i0(e);
+    return i1(e);
   },
   components: {
     FeatherRipple: Ua
   }
 });
-const N8 = ec({}, u0), B8 = l0;
+const NM = ec({}, u1), BM = l1;
 tc({
-  emits: B8,
-  model: s0,
-  props: N8,
+  emits: BM,
+  model: s1,
+  props: NM,
   setup(e, a) {
-    return c0(e, a);
+    return c1(e, a);
   }
 });
-const P8 = ec({
+const PM = ec({
   header: {
     type: String
   }
-}, d0);
+}, d1);
 tc({
   name: "DrawerTabContent",
-  props: P8,
+  props: PM,
   setup(e) {
-    return f0(e);
+    return f1(e);
   },
   directives: {
     MenuFocusLoop: QL
   }
 });
-const D8 = window.Vue.defineComponent, P0 = window.Vue.createElementVNode, jw = window.Vue.createVNode, M8 = window.Vue.renderList, F8 = window.Vue.Fragment, xs = window.Vue.openBlock, Af = window.Vue.createElementBlock, Kw = window.Vue.createBlock, U8 = window.Vue.unref, q8 = window.Vue.withCtx, H8 = window.Vue.pushScopeId, W8 = window.Vue.popScopeId, z8 = (e) => (H8("data-v-37e146e7"), e = e(), W8(), e), G8 = { class: "content" }, Y8 = /* @__PURE__ */ z8(() => /* @__PURE__ */ P0("h4", { class: "title" }, "CHOOSE THE SITUATION:", -1)), j8 = {
+const DM = window.Vue.defineComponent, P1 = window.Vue.createElementVNode, jw = window.Vue.createVNode, MM = window.Vue.renderList, FM = window.Vue.Fragment, xs = window.Vue.openBlock, Af = window.Vue.createElementBlock, Kw = window.Vue.createBlock, UM = window.Vue.unref, qM = window.Vue.withCtx, HM = window.Vue.pushScopeId, WM = window.Vue.popScopeId, zM = (e) => (HM("data-v-6e3457f1"), e = e(), WM(), e), GM = { class: "content" }, YM = /* @__PURE__ */ zM(() => /* @__PURE__ */ P1("h4", { class: "title" }, "CHOOSE THE SITUATION:", -1)), jM = {
   key: 0,
   class: "situation-list"
-}, Lf = window.Vue.ref, Zw = window.Vue.watch, K8 = /* @__PURE__ */ D8({
+}, Lf = window.Vue.ref, Zw = window.Vue.watch, KM = /* @__PURE__ */ DM({
   __name: "DrawerSituations",
   props: {
     situationId: null,
@@ -12956,7 +12956,7 @@ const D8 = window.Vue.defineComponent, P0 = window.Vue.createElementVNode, jw = 
     const v = (p) => {
       f.value = p;
     };
-    return (p, g) => (xs(), Kw(U8(B0), {
+    return (p, g) => (xs(), Kw(UM(B1), {
       modelValue: s.value,
       "onUpdate:modelValue": [
         g[0] || (g[0] = (_) => s.value = _),
@@ -12964,20 +12964,20 @@ const D8 = window.Vue.defineComponent, P0 = window.Vue.createElementVNode, jw = 
       ],
       labels: { close: "close", title: "Situations" }
     }, {
-      default: q8(() => [
-        P0("div", G8, [
-          Y8,
+      default: qM(() => [
+        P1("div", GM, [
+          YM,
           jw(Ui, {
             list: c.value,
             isSituation: "",
             onFilteredList: v
           }, null, 8, ["list"]),
-          f.value.length ? (xs(), Af("div", j8, [
-            (xs(!0), Af(F8, null, M8(f.value, (_) => (xs(), Af("div", {
+          f.value.length ? (xs(), Af("div", jM, [
+            (xs(!0), Af(FM, null, MM(f.value, (_) => (xs(), Af("div", {
               class: "card",
               key: _.id
             }, [
-              jw(C1, {
+              jw(C0, {
                 onClick: (y) => a("situation-selected", _.id),
                 "situation-info": _,
                 small: ""
@@ -12989,7 +12989,7 @@ const D8 = window.Vue.defineComponent, P0 = window.Vue.createElementVNode, jw = 
       _: 1
     }, 8, ["modelValue"]));
   }
-}), D0 = /* @__PURE__ */ Re(K8, [["__scopeId", "data-v-37e146e7"]]), Z8 = window.Vue.defineComponent, Xw = window.Vue.normalizeClass, _i = window.Vue.createElementVNode, cu = window.Vue.unref, X8 = window.Vue.createVNode, du = window.Vue.toDisplayString, J8 = window.Vue.createTextVNode, Q8 = window.Vue.openBlock, e7 = window.Vue.createElementBlock, t7 = window.Vue.pushScopeId, n7 = window.Vue.popScopeId, r7 = (e) => (t7("data-v-f3d99277"), e = e(), n7(), e), a7 = { class: "alarmInfo" }, o7 = { class: "alarm-title" }, i7 = /* @__PURE__ */ r7(() => /* @__PURE__ */ _i("strong", null, " Duration: ", -1)), s7 = { class: "description" }, l7 = /* @__PURE__ */ Z8({
+}), D1 = /* @__PURE__ */ Re(KM, [["__scopeId", "data-v-6e3457f1"]]), ZM = window.Vue.defineComponent, Xw = window.Vue.normalizeClass, _i = window.Vue.createElementVNode, cu = window.Vue.unref, XM = window.Vue.createVNode, du = window.Vue.toDisplayString, JM = window.Vue.createTextVNode, QM = window.Vue.openBlock, e7 = window.Vue.createElementBlock, t7 = window.Vue.pushScopeId, n7 = window.Vue.popScopeId, r7 = (e) => (t7("data-v-f3d99277"), e = e(), n7(), e), a7 = { class: "alarmInfo" }, o7 = { class: "alarm-title" }, i7 = /* @__PURE__ */ r7(() => /* @__PURE__ */ _i("strong", null, " Duration: ", -1)), s7 = { class: "description" }, l7 = /* @__PURE__ */ ZM({
   __name: "UnassignedAlarmCard",
   props: {
     alarm: null,
@@ -12998,14 +12998,14 @@ const D8 = window.Vue.defineComponent, P0 = window.Vue.createElementVNode, jw = 
   emits: ["selected-alarm"],
   setup(e, { emit: a }) {
     const r = e, i = (/* @__PURE__ */ new Date()).getTime();
-    return (s, u) => (Q8(), e7("div", {
+    return (s, u) => (QM(), e7("div", {
       class: Xw(["alarm", { selected: r.selected }])
     }, [
       _i("div", a7, [
         _i("div", {
           class: Xw(["triangle", [`${e.alarm.severity.toLowerCase()}`]])
         }, null, 2),
-        X8(cu(Io), {
+        XM(cu(Io), {
           modelValue: r.selected,
           label: "selected",
           "onUpdate:modelValue": u[0] || (u[0] = (c) => a("selected-alarm", e.alarm.id))
@@ -13014,9 +13014,9 @@ const D8 = window.Vue.defineComponent, P0 = window.Vue.createElementVNode, jw = 
       ]),
       _i("div", null, [
         i7,
-        J8(" " + du(cu(Uu)(cu(i), new Date(e.alarm.firstEventTime))), 1)
+        JM(" " + du(cu(Uu)(cu(i), new Date(e.alarm.firstEventTime))), 1)
       ]),
-      _i("div", s7, du(cu(V1)(e.alarm.description, 120)), 1)
+      _i("div", s7, du(cu(V0)(e.alarm.description, 120)), 1)
     ], 2));
   }
 }), Lh = /* @__PURE__ */ Re(l7, [["__scopeId", "data-v-f3d99277"]]), u7 = window.Vue.defineComponent, $u = window.Vue.createElementVNode, di = window.Vue.unref, c7 = window.Vue.toDisplayString, Jw = window.Vue.withCtx, Of = window.Vue.createVNode, d7 = window.Vue.renderList, f7 = window.Vue.Fragment, Vs = window.Vue.openBlock, Rf = window.Vue.createElementBlock, Qw = window.Vue.createBlock, h7 = window.Vue.pushScopeId, p7 = window.Vue.popScopeId, m7 = (e) => (h7("data-v-35547098"), e = e(), p7(), e), v7 = { class: "content" }, g7 = { class: "header" }, w7 = /* @__PURE__ */ m7(() => /* @__PURE__ */ $u("h4", null, "ADD ALARMS", -1)), _7 = {
@@ -13050,7 +13050,7 @@ const D8 = window.Vue.defineComponent, P0 = window.Vue.createElementVNode, jw = 
     }, _ = (y) => {
       f.value = y;
     };
-    return (y, $) => (Vs(), Qw(di(B0), {
+    return (y, $) => (Vs(), Qw(di(B1), {
       modelValue: s.value,
       "onUpdate:modelValue": [
         $[0] || ($[0] = (V) => s.value = V),
@@ -13093,7 +13093,7 @@ const D8 = window.Vue.defineComponent, P0 = window.Vue.createElementVNode, jw = 
       _: 1
     }, 8, ["modelValue"]));
   }
-}), y7 = /* @__PURE__ */ Re(b7, [["__scopeId", "data-v-35547098"]]), $7 = window.Vue.openBlock, x7 = window.Vue.createElementBlock, M0 = window.Vue.createElementVNode;
+}), y7 = /* @__PURE__ */ Re(b7, [["__scopeId", "data-v-35547098"]]), $7 = window.Vue.openBlock, x7 = window.Vue.createElementBlock, M1 = window.Vue.createElementVNode;
 var V7 = (e, a) => {
   const r = e.__vccOpts || e;
   for (const [i, s] of a)
@@ -13103,7 +13103,7 @@ var V7 = (e, a) => {
 const C7 = {}, E7 = {
   xmlns: "http://www.w3.org/2000/svg",
   viewBox: "0 0 24 24"
-}, S7 = /* @__PURE__ */ M0("path", { d: "M6,19a2,2,0,0,0,2,2h8a2,2,0,0,0,2-2V7H6ZM8,9h8V19H8Z" }, null, -1), k7 = /* @__PURE__ */ M0("path", { d: "M17.5,4H16L15,3H9L8,4H6.5a.5.5,0,0,0-.5.5v1a.5.5,0,0,0,.5.5h11a.5.5,0,0,0,.5-.5v-1A.5.5,0,0,0,17.5,4Z" }, null, -1), T7 = [
+}, S7 = /* @__PURE__ */ M1("path", { d: "M6,19a2,2,0,0,0,2,2h8a2,2,0,0,0,2-2V7H6ZM8,9h8V19H8Z" }, null, -1), k7 = /* @__PURE__ */ M1("path", { d: "M17.5,4H16L15,3H9L8,4H6.5a.5.5,0,0,0-.5.5v1a.5.5,0,0,0,.5.5h11a.5.5,0,0,0,.5-.5v-1A.5.5,0,0,0,17.5,4Z" }, null, -1), T7 = [
   S7,
   k7
 ];
@@ -13111,7 +13111,7 @@ function I7(e, a) {
   return $7(), x7("svg", E7, T7);
 }
 var t_ = /* @__PURE__ */ V7(C7, [["render", I7]]);
-const A7 = window.Vue.defineComponent, Nn = window.Vue.createElementVNode, Ut = window.Vue.unref, en = window.Vue.createVNode, Cs = window.Vue.withCtx, L7 = window.Vue.renderList, n_ = window.Vue.Fragment, Es = window.Vue.openBlock, hu = window.Vue.createElementBlock, O7 = window.Vue.createBlock, R7 = window.Vue.pushScopeId, N7 = window.Vue.popScopeId, Hi = (e) => (R7("data-v-76f75ba2"), e = e(), N7(), e), B7 = { class: "container" }, P7 = { class: "header" }, D7 = /* @__PURE__ */ Hi(() => /* @__PURE__ */ Nn("div", { class: "title" }, "Alarms", -1)), M7 = /* @__PURE__ */ Hi(() => /* @__PURE__ */ Nn("span", null, "Add Alarms", -1)), F7 = { class: "alarms-container" }, U7 = { class: "filters" }, q7 = { class: "list" }, H7 = { class: "row actions" }, W7 = /* @__PURE__ */ Hi(() => /* @__PURE__ */ Nn("span", null, "Clear", -1)), z7 = /* @__PURE__ */ Hi(() => /* @__PURE__ */ Nn("span", null, "Acknowledge", -1)), G7 = /* @__PURE__ */ Hi(() => /* @__PURE__ */ Nn("span", null, "Move", -1)), Y7 = /* @__PURE__ */ Hi(() => /* @__PURE__ */ Nn("span", null, "Remove", -1)), j7 = { class: "section" }, K7 = {
+const A7 = window.Vue.defineComponent, Nn = window.Vue.createElementVNode, Ut = window.Vue.unref, en = window.Vue.createVNode, Cs = window.Vue.withCtx, L7 = window.Vue.renderList, n_ = window.Vue.Fragment, Es = window.Vue.openBlock, hu = window.Vue.createElementBlock, O7 = window.Vue.createBlock, R7 = window.Vue.pushScopeId, N7 = window.Vue.popScopeId, Hi = (e) => (R7("data-v-bd8cae22"), e = e(), N7(), e), B7 = { class: "container" }, P7 = { class: "header" }, D7 = /* @__PURE__ */ Hi(() => /* @__PURE__ */ Nn("div", { class: "title" }, "Alarms", -1)), M7 = /* @__PURE__ */ Hi(() => /* @__PURE__ */ Nn("span", null, "Add Alarms", -1)), F7 = { class: "alarms-container" }, U7 = { class: "filters" }, q7 = { class: "list" }, H7 = { class: "row actions" }, W7 = /* @__PURE__ */ Hi(() => /* @__PURE__ */ Nn("span", null, "Clear", -1)), z7 = /* @__PURE__ */ Hi(() => /* @__PURE__ */ Nn("span", null, "Acknowledge", -1)), G7 = /* @__PURE__ */ Hi(() => /* @__PURE__ */ Nn("span", null, "Move", -1)), Y7 = /* @__PURE__ */ Hi(() => /* @__PURE__ */ Nn("span", null, "Remove", -1)), j7 = { class: "section" }, K7 = {
   key: 0,
   class: "alarm-list"
 }, pu = window.Vue.ref, Z7 = window.Vue.watch, X7 = window.Vue.reactive, J7 = window.Vue.markRaw, Q7 = /* @__PURE__ */ A7({
@@ -13149,7 +13149,7 @@ const A7 = window.Vue.defineComponent, Nn = window.Vue.createElementVNode, Ut = 
         p.selectedAlarms
       ) ? await k(R, p.selectedAlarms) : i.showErrorMsg("Error on moving the alarms :(")), f.value = !1;
     }, k = async (R, D) => {
-      D.length ? await d1(R, D) ? s.getSituation(R) : i.showErrorMsg("Error on moving the alarms :(") : i.showErrorMsg("You need to select the alarms");
+      D.length ? await d0(R, D) ? s.getSituation(R) : i.showErrorMsg("Error on moving the alarms :(") : i.showErrorMsg("You need to select the alarms");
     }, B = async (R) => {
       await k(a.situationId, R), v.value = !1;
     }, S = () => {
@@ -13241,7 +13241,7 @@ const A7 = window.Vue.defineComponent, Nn = window.Vue.createElementVNode, Ut = 
                 (Es(!0), hu(n_, null, L7(p.alarms, (q) => (Es(), hu("div", {
                   key: q.id
                 }, [
-                  en(OM, {
+                  en(O8, {
                     alarm: q,
                     selectAll: u.value,
                     "situation-id": a.situationId,
@@ -13253,7 +13253,7 @@ const A7 = window.Vue.defineComponent, Nn = window.Vue.createElementVNode, Ut = 
           ])
         ])
       ]),
-      en(D0, {
+      en(D1, {
         situationId: a.situationId,
         visible: f.value,
         onSituationSelected: V,
@@ -13266,7 +13266,7 @@ const A7 = window.Vue.defineComponent, Nn = window.Vue.createElementVNode, Ut = 
       }, null, 8, ["visible"])
     ], 64));
   }
-}), e6 = /* @__PURE__ */ Re(Q7, [["__scopeId", "data-v-76f75ba2"]]), t6 = window.Vue.defineComponent, cr = window.Vue.createVNode, On = window.Vue.unref, Nf = window.Vue.normalizeClass, mu = window.Vue.toDisplayString, Ss = window.Vue.openBlock, ks = window.Vue.createElementBlock, r_ = window.Vue.createCommentVNode, n6 = window.Vue.withCtx, Jn = window.Vue.createElementVNode, r6 = window.Vue.Fragment, a6 = window.Vue.pushScopeId, o6 = window.Vue.popScopeId, i6 = (e) => (a6("data-v-fafb3615"), e = e(), o6(), e), s6 = { class: "section" }, l6 = { class: "action-section" }, u6 = { class: "btn-row" }, c6 = { key: 0 }, d6 = { key: 1 }, f6 = {
+}), e6 = /* @__PURE__ */ Re(Q7, [["__scopeId", "data-v-bd8cae22"]]), t6 = window.Vue.defineComponent, cr = window.Vue.createVNode, On = window.Vue.unref, Nf = window.Vue.normalizeClass, mu = window.Vue.toDisplayString, Ss = window.Vue.openBlock, ks = window.Vue.createElementBlock, r_ = window.Vue.createCommentVNode, n6 = window.Vue.withCtx, Jn = window.Vue.createElementVNode, r6 = window.Vue.Fragment, a6 = window.Vue.pushScopeId, o6 = window.Vue.popScopeId, i6 = (e) => (a6("data-v-fafb3615"), e = e(), o6(), e), s6 = { class: "section" }, l6 = { class: "action-section" }, u6 = { class: "btn-row" }, c6 = { key: 0 }, d6 = { key: 1 }, f6 = {
   key: 0,
   class: "situation-detail"
 }, h6 = { class: "situation-info" }, p6 = { class: "id" }, m6 = ["innerHTML"], v6 = /* @__PURE__ */ i6(() => /* @__PURE__ */ Jn("p", null, null, -1)), g6 = { class: "boxes" }, w6 = { class: "parameters" }, _6 = { class: "section memo-boxes" }, b6 = { key: 0 }, y6 = window.Vue.computed, a_ = window.Vue.ref, $6 = window.Vue.watch, x6 = /* @__PURE__ */ t6({
@@ -13282,11 +13282,11 @@ const A7 = window.Vue.defineComponent, Nn = window.Vue.createElementVNode, Ut = 
     const f = y6(
       () => {
         var p;
-        return x1($1(((p = c.value) == null ? void 0 : p.description) || ""));
+        return x0($0(((p = c.value) == null ? void 0 : p.description) || ""));
       }
     ), v = async (p) => {
       var _;
-      await c1(
+      await c0(
         (_ = a.situationInfo) == null ? void 0 : _.id,
         p.toLowerCase()
       ) ? (u.value = p, i.getSituation(a.situationInfo.id)) : r.showErrorMsg("Error on rejecting the situation");
@@ -13296,7 +13296,7 @@ const A7 = window.Vue.defineComponent, Nn = window.Vue.createElementVNode, Ut = 
       return Ss(), ks(r6, null, [
         Jn("div", s6, [
           Jn("div", l6, [
-            cr(v0, {
+            cr(v1, {
               alarm: c.value,
               direction: "horizontal",
               showClear: "",
@@ -13311,7 +13311,7 @@ const A7 = window.Vue.defineComponent, Nn = window.Vue.createElementVNode, Ut = 
               }, {
                 default: n6(() => [
                   cr(On(ae), {
-                    icon: On(f1),
+                    icon: On(f0),
                     "aria-hidden": "true",
                     class: Nf(["icon reject", { rejected: u.value == On(s) }])
                   }, null, 8, ["icon", "class"]),
@@ -13328,7 +13328,7 @@ const A7 = window.Vue.defineComponent, Nn = window.Vue.createElementVNode, Ut = 
             Jn("div", h6, [
               Jn("div", p6, [
                 Jn("div", null, " Situation - " + mu(($ = c.value) == null ? void 0 : $.id) + " - " + mu(c.value.alarms.length) + " alarm(s) affects " + mu(On(ze.size)(On(ze.groupBy)((V = c.value) == null ? void 0 : V.alarms, "nodeId"))) + " node(s) ", 1),
-                cr(m0, {
+                cr(m1, {
                   severity: (k = c.value) == null ? void 0 : k.severity
                 }, null, 8, ["severity"])
               ]),
@@ -13394,14 +13394,14 @@ var C6 = Object.defineProperty, E6 = Object.defineProperties, S6 = Object.getOwn
       T6.call(a, r) && i_(e, r, a[r]);
   return e;
 }, I6 = (e, a) => E6(e, S6(a));
-const F0 = window.Vue.defineComponent, So = window.Vue.resolveComponent, xu = window.Vue.openBlock, s_ = window.Vue.createBlock, Vu = window.Vue.mergeProps, ko = window.Vue.withCtx, U0 = window.Vue.createElementBlock, A6 = window.Vue.Fragment, L6 = window.Vue.renderList, O6 = window.Vue.createTextVNode, R6 = window.Vue.toDisplayString, N6 = window.Vue.computed, l_ = window.Vue.toRef, Ts = window.Vue.createVNode, u_ = window.Vue.toHandlers, B6 = window.Vue.renderSlot, P6 = window.Vue.normalizeClass, D6 = window.Vue.createElementVNode;
-var q0 = (e, a) => {
+const F1 = window.Vue.defineComponent, So = window.Vue.resolveComponent, xu = window.Vue.openBlock, s_ = window.Vue.createBlock, Vu = window.Vue.mergeProps, ko = window.Vue.withCtx, U1 = window.Vue.createElementBlock, A6 = window.Vue.Fragment, L6 = window.Vue.renderList, O6 = window.Vue.createTextVNode, R6 = window.Vue.toDisplayString, N6 = window.Vue.computed, l_ = window.Vue.toRef, Ts = window.Vue.createVNode, u_ = window.Vue.toHandlers, B6 = window.Vue.renderSlot, P6 = window.Vue.normalizeClass, D6 = window.Vue.createElementVNode;
+var q1 = (e, a) => {
   const r = e.__vccOpts || e;
   for (const [i, s] of a)
     r[i] = s;
   return r;
 };
-const M6 = F0({
+const M6 = F1({
   inheritAttrs: !0,
   emits: ["select"],
   props: {
@@ -13466,7 +13466,7 @@ function F6(e, a, r, i, s, u) {
     class: "feather-select-options-list"
   }), {
     default: ko(() => [
-      (xu(!0), U0(A6, null, L6(e.options, (v, p) => (xu(), s_(c, {
+      (xu(!0), U1(A6, null, L6(e.options, (v, p) => (xu(), s_(c, {
         key: v[e.textProp],
         "as-li": "",
         id: e.getId(p),
@@ -13486,7 +13486,7 @@ function F6(e, a, r, i, s, u) {
     _: 1
   }, 16);
 }
-var U6 = /* @__PURE__ */ q0(M6, [["render", F6], ["__scopeId", "data-v-eae820da"]]);
+var U6 = /* @__PURE__ */ q1(M6, [["render", F6], ["__scopeId", "data-v-eae820da"]]);
 const q6 = I6(ch(ch({}, Wu), Di), {
   modelValue: {
     type: Object,
@@ -13506,7 +13506,7 @@ const q6 = I6(ch(ch({}, Wu), Di), {
   }
 }), H6 = {
   "update:modelValue": (e) => !0
-}, W6 = F0({
+}, W6 = F1({
   model: {
     prop: "modelValue",
     event: "update:modelValue"
@@ -13642,14 +13642,14 @@ const q6 = I6(ch(ch({}, Wu), Di), {
   components: {
     InputWrapper: Hu,
     InputSubText: Ni,
-    FeatherMenu: B1,
+    FeatherMenu: B0,
     List: U6,
     FeatherIcon: ae
   }
 });
 function z6(e, a, r, i, s, u) {
   const c = So("FeatherIcon"), f = So("InputWrapper"), v = So("List"), p = So("FeatherMenu"), g = So("InputSubText");
-  return xu(), U0("div", Vu(e.inherittedAttrs, { class: "feather-select-container" }), [
+  return xu(), U1("div", Vu(e.inherittedAttrs, { class: "feather-select-container" }), [
     Ts(p, {
       "no-expand": "",
       fill: "",
@@ -13704,8 +13704,8 @@ function z6(e, a, r, i, s, u) {
     Ts(g, { id: e.subTextId }, null, 8, ["id"])
   ], 16);
 }
-var H0 = /* @__PURE__ */ q0(W6, [["render", z6], ["__scopeId", "data-v-ecb32d90"]]);
-const G6 = window.Vue.openBlock, Y6 = window.Vue.createElementBlock, W0 = window.Vue.createElementVNode;
+var H1 = /* @__PURE__ */ q1(W6, [["render", z6], ["__scopeId", "data-v-ecb32d90"]]);
+const G6 = window.Vue.openBlock, Y6 = window.Vue.createElementBlock, W1 = window.Vue.createElementVNode;
 var j6 = (e, a) => {
   const r = e.__vccOpts || e;
   for (const [i, s] of a)
@@ -13715,7 +13715,7 @@ var j6 = (e, a) => {
 const K6 = {}, Z6 = {
   xmlns: "http://www.w3.org/2000/svg",
   viewBox: "0 0 24 24"
-}, X6 = /* @__PURE__ */ W0("path", { d: "M16,11H13V8a1,1,0,0,0-2,0v3H8a1,1,0,0,0,0,2h3v3a1,1,0,0,0,2,0V13h3a1,1,0,0,0,0-2Z" }, null, -1), J6 = /* @__PURE__ */ W0("path", { d: "M12,2A10,10,0,1,0,22,12,10,10,0,0,0,12,2Zm0,18a8,8,0,1,1,8-8A8,8,0,0,1,12,20Z" }, null, -1), Q6 = [
+}, X6 = /* @__PURE__ */ W1("path", { d: "M16,11H13V8a1,1,0,0,0-2,0v3H8a1,1,0,0,0,0,2h3v3a1,1,0,0,0,2,0V13h3a1,1,0,0,0,0-2Z" }, null, -1), J6 = /* @__PURE__ */ W1("path", { d: "M12,2A10,10,0,1,0,22,12,10,10,0,0,0,12,2Zm0,18a8,8,0,1,1,8-8A8,8,0,0,1,12,20Z" }, null, -1), Q6 = [
   X6,
   J6
 ];
@@ -13723,8 +13723,8 @@ function eF(e, a) {
   return G6(), Y6("svg", Z6, Q6);
 }
 var tF = /* @__PURE__ */ j6(K6, [["render", eF]]);
-const Cu = window.Vue.openBlock, dh = window.Vue.createElementBlock, z0 = window.Vue.createElementVNode, nF = window.Vue.defineComponent, bo = window.Vue.ref, rF = window.Vue.provide, c_ = window.Vue.computed, aF = window.Vue.onUnmounted, d_ = window.Vue.toRef, oF = window.Vue.resolveComponent, iF = window.Vue.Fragment, sF = window.Vue.createBlock, lF = window.Vue.Teleport, f_ = window.Vue.createVNode, uF = window.Vue.Transition, cF = window.Vue.withCtx, dF = window.Vue.normalizeClass, fF = window.Vue.normalizeStyle, hF = window.Vue.toDisplayString, pF = window.Vue.createCommentVNode, mF = window.Vue.renderSlot, Bf = window.Vue.nextTick;
-var G0 = (e, a) => {
+const Cu = window.Vue.openBlock, dh = window.Vue.createElementBlock, z1 = window.Vue.createElementVNode, nF = window.Vue.defineComponent, bo = window.Vue.ref, rF = window.Vue.provide, c_ = window.Vue.computed, aF = window.Vue.onUnmounted, d_ = window.Vue.toRef, oF = window.Vue.resolveComponent, iF = window.Vue.Fragment, sF = window.Vue.createBlock, lF = window.Vue.Teleport, f_ = window.Vue.createVNode, uF = window.Vue.Transition, cF = window.Vue.withCtx, dF = window.Vue.normalizeClass, fF = window.Vue.normalizeStyle, hF = window.Vue.toDisplayString, pF = window.Vue.createCommentVNode, mF = window.Vue.renderSlot, Bf = window.Vue.nextTick;
+var G1 = (e, a) => {
   const r = e.__vccOpts || e;
   for (const [i, s] of a)
     r[i] = s;
@@ -13736,7 +13736,7 @@ const vF = {}, gF = {
   viewBox: "0 0 32 9",
   fill: "none",
   xmlns: "http://www.w3.org/2000/svg"
-}, wF = /* @__PURE__ */ z0("path", {
+}, wF = /* @__PURE__ */ z1("path", {
   "fill-rule": "evenodd",
   "clip-rule": "evenodd",
   d: "M8.01471 2.17157C7.26457 1.42143 6.24715 1 5.18629 1H0.5C0.223858 1 0 0.776142 0 0.5V0.5C0 0.223858 0.223858 0 0.5 0H31.5C31.7761 0 32 0.223858 32 0.5V0.5C32 0.776142 31.7761 1 31.5 1H27.1274C26.0666 1 25.0492 1.42143 24.299 2.17157L18.9853 7.4853C17.4232 9.04739 14.8905 9.04739 13.3284 7.48529L8.01471 2.17157Z",
@@ -13747,7 +13747,7 @@ const vF = {}, gF = {
 function bF(e, a) {
   return Cu(), dh("svg", gF, _F);
 }
-var yF = /* @__PURE__ */ G0(vF, [["render", bF]]), Nt = /* @__PURE__ */ ((e) => (e.top = "top", e.bottom = "bottom", e.left = "left", e.right = "right", e))(Nt || {}), ta = /* @__PURE__ */ ((e) => (e.center = "center", e.left = "left", e.right = "right", e))(ta || {});
+var yF = /* @__PURE__ */ G1(vF, [["render", bF]]), Nt = /* @__PURE__ */ ((e) => (e.top = "top", e.bottom = "bottom", e.left = "left", e.right = "right", e))(Nt || {}), ta = /* @__PURE__ */ ((e) => (e.center = "center", e.left = "left", e.right = "right", e))(ta || {});
 const $F = (e, a, r, i = 9) => {
   const s = window.innerHeight - e.bottom, u = window.innerWidth - e.right, c = [];
   e.top >= a.height + i && c.push(Nt.top), s >= a.height + i && c.push(Nt.bottom);
@@ -13802,7 +13802,7 @@ const $F = (e, a, r, i = 9) => {
       focus: f,
       blur: v,
       keydown: p
-    }, y = bo(document), $ = N1(y, () => B(!0));
+    }, y = bo(document), $ = N0(y, () => B(!0));
     aF(() => B(!0));
     const V = () => document.getElementById(s), k = () => {
       r.value = !1, a.value = !0, Bf(() => {
@@ -13869,7 +13869,7 @@ function SF(e, a, r, i, s, u) {
             ref: "tooltip",
             style: fF({ left: e.left, top: e.top })
           }, [
-            z0("div", {
+            z1("div", {
               class: "tooltip",
               role: "tooltip",
               id: e.tooltipID
@@ -13886,7 +13886,7 @@ function SF(e, a, r, i, s, u) {
     }, void 0, !0)
   ], 64);
 }
-var h_ = /* @__PURE__ */ G0(CF, [["render", SF], ["__scopeId", "data-v-3da6b22e"]]);
+var h_ = /* @__PURE__ */ G1(CF, [["render", SF], ["__scopeId", "data-v-3da6b22e"]]);
 const kF = window.Vue.defineComponent, Pf = window.Vue.normalizeStyle, Df = window.Vue.createElementVNode, Is = window.Vue.unref, p_ = window.Vue.toHandlers, m_ = window.Vue.mergeProps, v_ = window.Vue.withCtx, g_ = window.Vue.createVNode, TF = window.Vue.renderList, IF = window.Vue.Fragment, As = window.Vue.openBlock, Ls = window.Vue.createElementBlock, w_ = window.Vue.normalizeClass, __ = window.Vue.createCommentVNode;
 window.Vue.pushScopeId;
 window.Vue.popScopeId;
@@ -13947,7 +13947,7 @@ const AF = { class: "row" }, LF = /* @__PURE__ */ kF({
       }, null, 6)
     ]));
   }
-}), OF = /* @__PURE__ */ Re(LF, [["__scopeId", "data-v-6c43a557"]]), RF = window.Vue.openBlock, NF = window.Vue.createElementBlock, Y0 = window.Vue.createElementVNode;
+}), OF = /* @__PURE__ */ Re(LF, [["__scopeId", "data-v-6c43a557"]]), RF = window.Vue.openBlock, NF = window.Vue.createElementBlock, Y1 = window.Vue.createElementVNode;
 var BF = (e, a) => {
   const r = e.__vccOpts || e;
   for (const [i, s] of a)
@@ -13957,7 +13957,7 @@ var BF = (e, a) => {
 const PF = {}, DF = {
   xmlns: "http://www.w3.org/2000/svg",
   viewBox: "0 0 24 24"
-}, MF = /* @__PURE__ */ Y0("path", { d: "M12,2A10,10,0,1,0,22,12,10,10,0,0,0,12,2Zm0,18a8,8,0,1,1,8-8A8,8,0,0,1,12,20Z" }, null, -1), FF = /* @__PURE__ */ Y0("path", { d: "M16,11H8a1,1,0,0,0,0,2h8a1,1,0,0,0,0-2Z" }, null, -1), UF = [
+}, MF = /* @__PURE__ */ Y1("path", { d: "M12,2A10,10,0,1,0,22,12,10,10,0,0,0,12,2Zm0,18a8,8,0,1,1,8-8A8,8,0,0,1,12,20Z" }, null, -1), FF = /* @__PURE__ */ Y1("path", { d: "M16,11H8a1,1,0,0,0,0,2h8a1,1,0,0,0,0-2Z" }, null, -1), UF = [
   MF,
   FF
 ];
@@ -13985,10 +13985,10 @@ const WF = window.Vue.defineComponent, fh = window.Vue.createElementVNode, zF = 
       ]))), 128))
     ], 64));
   }
-}), QF = /* @__PURE__ */ Re(JF, [["__scopeId", "data-v-2e087f7b"]]), eU = window.Vue.defineComponent, tU = window.Vue.normalizeClass, Rn = window.Vue.createElementVNode, fi = window.Vue.toDisplayString, vn = window.Vue.unref, hi = window.Vue.createVNode, j0 = window.Vue.createTextVNode, nU = window.Vue.renderList, $_ = window.Vue.Fragment, Qr = window.Vue.openBlock, yo = window.Vue.createElementBlock, x_ = window.Vue.createBlock, vu = window.Vue.createCommentVNode, rU = window.Vue.normalizeStyle, aU = window.Vue.pushScopeId, oU = window.Vue.popScopeId, iU = (e) => (aU("data-v-57b5ddda"), e = e(), oU(), e), sU = { class: "section detail" }, lU = { class: "id" }, uU = {
+}), QF = /* @__PURE__ */ Re(JF, [["__scopeId", "data-v-2e087f7b"]]), eU = window.Vue.defineComponent, tU = window.Vue.normalizeClass, Rn = window.Vue.createElementVNode, fi = window.Vue.toDisplayString, vn = window.Vue.unref, hi = window.Vue.createVNode, j1 = window.Vue.createTextVNode, nU = window.Vue.renderList, $_ = window.Vue.Fragment, Qr = window.Vue.openBlock, yo = window.Vue.createElementBlock, x_ = window.Vue.createBlock, vu = window.Vue.createCommentVNode, rU = window.Vue.normalizeStyle, aU = window.Vue.pushScopeId, oU = window.Vue.popScopeId, iU = (e) => (aU("data-v-57b5ddda"), e = e(), oU(), e), sU = { class: "section detail" }, lU = { class: "id" }, uU = {
   key: 0,
   class: "section"
-}, cU = /* @__PURE__ */ iU(() => /* @__PURE__ */ Rn("div", { class: "id" }, "Alarms", -1)), dU = { class: "action-btns" }, fU = { class: "zoom" }, hU = /* @__PURE__ */ j0(" Zoom "), pU = { class: "times" }, mU = {
+}, cU = /* @__PURE__ */ iU(() => /* @__PURE__ */ Rn("div", { class: "id" }, "Alarms", -1)), dU = { class: "action-btns" }, fU = { class: "zoom" }, hU = /* @__PURE__ */ j1(" Zoom "), pU = { class: "times" }, mU = {
   key: 0,
   class: "timeline-container"
 }, vU = { class: "alarm-id" }, gU = {
@@ -14069,7 +14069,7 @@ const WF = window.Vue.defineComponent, fh = window.Vue.createElementVNode, zF = 
         _.value && _.value.length > 0 ? (Qr(), yo("div", uU, [
           cU,
           Rn("div", dU, [
-            hi(vn(H0), {
+            hi(vn(H1), {
               class: "select",
               label: "Sort by:",
               options: s,
@@ -14090,7 +14090,7 @@ const WF = window.Vue.defineComponent, fh = window.Vue.createElementVNode, zF = 
                   onClick: k
                 }, null, 8, ["icon"]),
                 hi(vn(ae), {
-                  icon: vn(X1),
+                  icon: vn(X0),
                   class: "zoom-icon",
                   onClick: S
                 }, null, 8, ["icon"]),
@@ -14119,7 +14119,7 @@ const WF = window.Vue.defineComponent, fh = window.Vue.createElementVNode, zF = 
                 key: X.id
               }, [
                 Rn("div", vU, [
-                  j0(fi(X.nodeLabel) + " - " + fi(X.id) + " ", 1),
+                  j1(fi(X.nodeLabel) + " - " + fi(X.id) + " ", 1),
                   i.value === X.id ? (Qr(), x_(vn(ae), {
                     key: 0,
                     icon: vn(Qs),
@@ -14127,7 +14127,7 @@ const WF = window.Vue.defineComponent, fh = window.Vue.createElementVNode, zF = 
                     onClick: R
                   }, null, 8, ["icon"])) : (Qr(), x_(vn(ae), {
                     key: 1,
-                    icon: vn(S1),
+                    icon: vn(S0),
                     class: "zoom-icon expand",
                     onClick: () => T(X.id)
                   }, null, 8, ["icon", "onClick"]))
@@ -14231,7 +14231,7 @@ const WF = window.Vue.defineComponent, fh = window.Vue.createElementVNode, zF = 
         await y(), i.value !== "pending" && g();
       }, c));
     }, y = async () => {
-      const T = await u1(a.situationId);
+      const T = await u0(a.situationId);
       if (T === !1) {
         i.value = "error";
         return;
@@ -14397,7 +14397,7 @@ function k9(e, a) {
   return b9(), y9("svg", C9, S9);
 }
 var Ti = /* @__PURE__ */ x9(V9, [["render", k9]]);
-const K0 = window.Vue.defineComponent, Hf = window.Vue.ref, T9 = window.Vue.toRef, Wf = window.Vue.inject, E_ = window.Vue.watch, I9 = window.Vue.nextTick, S_ = window.Vue.openBlock, k_ = window.Vue.createElementBlock, zf = window.Vue.createElementVNode, A9 = window.Vue.normalizeClass, T_ = window.Vue.renderSlot, I_ = window.Vue.createCommentVNode, Gf = window.Vue.provide;
+const K1 = window.Vue.defineComponent, Hf = window.Vue.ref, T9 = window.Vue.toRef, Wf = window.Vue.inject, E_ = window.Vue.watch, I9 = window.Vue.nextTick, S_ = window.Vue.openBlock, k_ = window.Vue.createElementBlock, zf = window.Vue.createElementVNode, A9 = window.Vue.normalizeClass, T_ = window.Vue.renderSlot, I_ = window.Vue.createCommentVNode, Gf = window.Vue.provide;
 window.Vue.createBlock;
 window.Vue.Teleport;
 var L9 = (e, a) => {
@@ -14426,7 +14426,7 @@ const O9 = {
 }, R9 = {
   "update:modelValue": (e) => !0,
   closed: () => !0
-}, N9 = K0({
+}, N9 = K1({
   emits: R9,
   props: O9,
   setup(e, a) {
@@ -14522,7 +14522,7 @@ const U9 = {
     default: !1
   }
 };
-K0({
+K1({
   props: U9,
   setup() {
     let e, a = [];
@@ -14645,7 +14645,7 @@ const q9 = window.Vue.defineComponent, ot = window.Vue.unref, qt = window.Vue.cr
         class: "spinner"
       })) : (xo(), wu("div", Z9, [
         v.value ? (xo(), wu("div", X9, [
-          qt(ot(p0), { "onUpdate:modelValue": k }, {
+          qt(ot(p1), { "onUpdate:modelValue": k }, {
             tabs: gn(() => [
               qt(ot(Si), null, {
                 default: gn(() => [
@@ -14722,7 +14722,7 @@ const q9 = window.Vue.defineComponent, ot = window.Vue.unref, qt = window.Vue.cr
       }, 8, ["modelValue"])
     ]));
   }
-}), iq = /* @__PURE__ */ Re(oq, [["__scopeId", "data-v-28366268"]]), sq = window.Vue.defineComponent, Ot = window.Vue.unref, Xn = window.Vue.createVNode, an = window.Vue.createElementVNode, mi = window.Vue.withCtx, vi = window.Vue.openBlock, Os = window.Vue.createElementBlock, lq = window.Vue.createCommentVNode, uq = window.Vue.toDisplayString, Rh = window.Vue.createTextVNode, cq = window.Vue.normalizeClass, dq = window.Vue.renderList, fq = window.Vue.Fragment, hq = window.Vue.createBlock, pq = window.Vue.pushScopeId, mq = window.Vue.popScopeId, nl = (e) => (pq("data-v-e9ff4c5b"), e = e(), mq(), e), vq = { class: "container" }, gq = /* @__PURE__ */ nl(() => /* @__PURE__ */ an("span", null, "Situation List", -1)), wq = /* @__PURE__ */ nl(() => /* @__PURE__ */ an("h2", null, "New Situation", -1)), _q = { class: "form" }, bq = { class: "fields" }, yq = {
+}), iq = /* @__PURE__ */ Re(oq, [["__scopeId", "data-v-28366268"]]), sq = window.Vue.defineComponent, Ot = window.Vue.unref, Xn = window.Vue.createVNode, an = window.Vue.createElementVNode, mi = window.Vue.withCtx, vi = window.Vue.openBlock, Os = window.Vue.createElementBlock, lq = window.Vue.createCommentVNode, uq = window.Vue.toDisplayString, Rh = window.Vue.createTextVNode, cq = window.Vue.normalizeClass, dq = window.Vue.renderList, fq = window.Vue.Fragment, hq = window.Vue.createBlock, pq = window.Vue.pushScopeId, mq = window.Vue.popScopeId, nl = (e) => (pq("data-v-f52393db"), e = e(), mq(), e), vq = { class: "container" }, gq = /* @__PURE__ */ nl(() => /* @__PURE__ */ an("span", null, "Situation List", -1)), wq = /* @__PURE__ */ nl(() => /* @__PURE__ */ an("h2", null, "New Situation", -1)), _q = { class: "form" }, bq = { class: "fields" }, yq = {
   key: 0,
   class: "errorList"
 }, $q = { class: "footer" }, xq = /* @__PURE__ */ nl(() => /* @__PURE__ */ an("span", null, "Clear", -1)), Vq = /* @__PURE__ */ nl(() => /* @__PURE__ */ an("span", null, "Add Situation", -1)), Cq = { class: "alarm-column" }, Eq = { class: "header-alarms" }, Sq = /* @__PURE__ */ nl(() => /* @__PURE__ */ an("h3", null, "Add Unassociated Alarms", -1)), kq = /* @__PURE__ */ Rh(" Total Alarms Added: "), Tq = { class: "total" }, Iq = { class: "list" }, Aq = { class: "filters" }, Lq = {
@@ -14889,7 +14889,7 @@ const q9 = window.Vue.defineComponent, ot = window.Vue.unref, qt = window.Vue.cr
       }, 8, ["modelValue"])
     ]));
   }
-}), Pq = /* @__PURE__ */ Re(Bq, [["__scopeId", "data-v-e9ff4c5b"]]), Dq = window.Vue.defineComponent, Mq = window.Vue.createElementVNode, Fq = window.Vue.createTextVNode, Uq = window.Vue.unref, qq = window.Vue.withCtx, Hq = window.Vue.createVNode, Wq = window.Vue.Fragment, zq = window.Vue.openBlock, Gq = window.Vue.createElementBlock, Yq = window.Vue.pushScopeId, jq = window.Vue.popScopeId, Kq = (e) => (Yq("data-v-7c52e38b"), e = e(), jq(), e), Zq = /* @__PURE__ */ Kq(() => /* @__PURE__ */ Mq("div", { class: "main" }, "Something bad is happening...", -1)), Xq = /* @__PURE__ */ Fq(" Reload "), Jq = /* @__PURE__ */ Dq({
+}), Pq = /* @__PURE__ */ Re(Bq, [["__scopeId", "data-v-f52393db"]]), Dq = window.Vue.defineComponent, Mq = window.Vue.createElementVNode, Fq = window.Vue.createTextVNode, Uq = window.Vue.unref, qq = window.Vue.withCtx, Hq = window.Vue.createVNode, Wq = window.Vue.Fragment, zq = window.Vue.openBlock, Gq = window.Vue.createElementBlock, Yq = window.Vue.pushScopeId, jq = window.Vue.popScopeId, Kq = (e) => (Yq("data-v-7c52e38b"), e = e(), jq(), e), Zq = /* @__PURE__ */ Kq(() => /* @__PURE__ */ Mq("div", { class: "main" }, "Something bad is happening...", -1)), Xq = /* @__PURE__ */ Fq(" Reload "), Jq = /* @__PURE__ */ Dq({
   __name: "ErrorPage",
   setup(e) {
     const a = Wa(), r = () => {
@@ -14908,10 +14908,10 @@ const q9 = window.Vue.defineComponent, ot = window.Vue.unref, qt = window.Vue.cr
       })
     ], 64));
   }
-}), Qq = /* @__PURE__ */ Re(Jq, [["__scopeId", "data-v-7c52e38b"]]), eH = window.Vue.defineComponent, tn = window.Vue.unref, fr = window.Vue.createVNode, Pa = window.Vue.createElementVNode, Rs = window.Vue.withCtx, Co = window.Vue.openBlock, R_ = window.Vue.createBlock, tH = window.Vue.renderList, nH = window.Vue.Fragment, Ns = window.Vue.createElementBlock, rH = window.Vue.toDisplayString, Z0 = window.Vue.createTextVNode, aH = window.Vue.pushScopeId, oH = window.Vue.popScopeId, Nh = (e) => (aH("data-v-543c4501"), e = e(), oH(), e), iH = { class: "container" }, sH = { class: "nav-btns" }, lH = /* @__PURE__ */ Nh(() => /* @__PURE__ */ Pa("span", null, "Situation List", -1)), uH = /* @__PURE__ */ Nh(() => /* @__PURE__ */ Pa("h2", null, "List Unassociated Alarms", -1)), cH = { class: "content" }, dH = { class: "filters" }, fH = { class: "list" }, hH = { class: "action-btns" }, pH = /* @__PURE__ */ Nh(() => /* @__PURE__ */ Pa("span", null, "Move", -1)), mH = { key: 1 }, vH = {
+}), Qq = /* @__PURE__ */ Re(Jq, [["__scopeId", "data-v-7c52e38b"]]), eH = window.Vue.defineComponent, tn = window.Vue.unref, fr = window.Vue.createVNode, Pa = window.Vue.createElementVNode, Rs = window.Vue.withCtx, Co = window.Vue.openBlock, R_ = window.Vue.createBlock, tH = window.Vue.renderList, nH = window.Vue.Fragment, Ns = window.Vue.createElementBlock, rH = window.Vue.toDisplayString, Z1 = window.Vue.createTextVNode, aH = window.Vue.pushScopeId, oH = window.Vue.popScopeId, Nh = (e) => (aH("data-v-543c4501"), e = e(), oH(), e), iH = { class: "container" }, sH = { class: "nav-btns" }, lH = /* @__PURE__ */ Nh(() => /* @__PURE__ */ Pa("span", null, "Situation List", -1)), uH = /* @__PURE__ */ Nh(() => /* @__PURE__ */ Pa("h2", null, "List Unassociated Alarms", -1)), cH = { class: "content" }, dH = { class: "filters" }, fH = { class: "list" }, hH = { class: "action-btns" }, pH = /* @__PURE__ */ Nh(() => /* @__PURE__ */ Pa("span", null, "Move", -1)), mH = { key: 1 }, vH = {
   key: 0,
   class: "alarms"
-}, gH = /* @__PURE__ */ Z0("dismiss"), Na = window.Vue.ref, wH = window.Vue.watch, _H = window.Vue.markRaw, bH = /* @__PURE__ */ eH({
+}, gH = /* @__PURE__ */ Z1("dismiss"), Na = window.Vue.ref, wH = window.Vue.watch, _H = window.Vue.markRaw, bH = /* @__PURE__ */ eH({
   __name: "ViewUnassignedAlarms",
   setup(e) {
     const a = _H({
@@ -14931,7 +14931,7 @@ const q9 = window.Vue.defineComponent, ot = window.Vue.unref, qt = window.Vue.cr
     }, $ = () => {
       c.value ? u.value = s.value.map((T) => T.id) : u.value = [];
     }, V = async (T) => {
-      await d1(T, u.value) ? i.getUnassignedAlarms() : (p.value = !0, g.value = !0, v.value = "Error on moving the alarms :("), f.value = !1;
+      await d0(T, u.value) ? i.getUnassignedAlarms() : (p.value = !0, g.value = !0, v.value = "Error on moving the alarms :("), f.value = !1;
     }, k = () => {
       r.push({
         name: yt.situations
@@ -14957,7 +14957,7 @@ const q9 = window.Vue.defineComponent, ot = window.Vue.unref, qt = window.Vue.cr
           ]),
           _: 1
         }),
-        fr(t0)
+        fr(t1)
       ]),
       uH,
       Pa("div", cH, [
@@ -15008,7 +15008,7 @@ const q9 = window.Vue.defineComponent, ot = window.Vue.unref, qt = window.Vue.cr
           ]))
         ])
       ]),
-      fr(D0, {
+      fr(D1, {
         situationId: 0,
         visible: f.value,
         onSituationSelected: V,
@@ -15033,7 +15033,7 @@ const q9 = window.Vue.defineComponent, ot = window.Vue.unref, qt = window.Vue.cr
           })
         ]),
         default: Rs(() => [
-          Z0(rH(v.value) + " ", 1)
+          Z1(rH(v.value) + " ", 1)
         ]),
         _: 1
       }, 8, ["modelValue", "error"])
@@ -15276,7 +15276,7 @@ function dW(e, a) {
   return nW(), rW("svg", iW, cW);
 }
 var fW = /* @__PURE__ */ aW(oW, [["render", dW]]);
-const hW = window.Vue.openBlock, pW = window.Vue.createElementBlock, X0 = window.Vue.createElementVNode;
+const hW = window.Vue.openBlock, pW = window.Vue.createElementBlock, X1 = window.Vue.createElementVNode;
 var mW = (e, a) => {
   const r = e.__vccOpts || e;
   for (const [i, s] of a)
@@ -15286,7 +15286,7 @@ var mW = (e, a) => {
 const vW = {}, gW = {
   xmlns: "http://www.w3.org/2000/svg",
   viewBox: "0 0 24 24"
-}, wW = /* @__PURE__ */ X0("path", { d: "M13.26,3A9,9,0,0,0,4,12H2.21a.49.49,0,0,0-.35.85L5,16l3.14-3.16A.5.5,0,0,0,7.79,12H6a7,7,0,0,1,7.07-7A7.09,7.09,0,0,1,20,11.87,7,7,0,0,1,13,19a6.9,6.9,0,0,1-4.28-1.48,1,1,0,0,0-1.24,1.57A8.86,8.86,0,0,0,13,21a9,9,0,0,0,.26-18Z" }, null, -1), _W = /* @__PURE__ */ X0("path", { d: "M12,8a1,1,0,0,0-1,1v4a1,1,0,0,0,.46.84l3,2A1,1,0,0,0,15,16a1,1,0,0,0,.84-.46,1,1,0,0,0-.3-1.39L13,12.49V9A1,1,0,0,0,12,8Z" }, null, -1), bW = [
+}, wW = /* @__PURE__ */ X1("path", { d: "M13.26,3A9,9,0,0,0,4,12H2.21a.49.49,0,0,0-.35.85L5,16l3.14-3.16A.5.5,0,0,0,7.79,12H6a7,7,0,0,1,7.07-7A7.09,7.09,0,0,1,20,11.87,7,7,0,0,1,13,19a6.9,6.9,0,0,1-4.28-1.48,1,1,0,0,0-1.24,1.57A8.86,8.86,0,0,0,13,21a9,9,0,0,0,.26-18Z" }, null, -1), _W = /* @__PURE__ */ X1("path", { d: "M12,8a1,1,0,0,0-1,1v4a1,1,0,0,0,.46.84l3,2A1,1,0,0,0,15,16a1,1,0,0,0,.84-.46,1,1,0,0,0-.3-1.39L13,12.49V9A1,1,0,0,0,12,8Z" }, null, -1), bW = [
   wW,
   _W
 ];
@@ -15294,7 +15294,7 @@ function yW(e, a) {
   return hW(), pW("svg", gW, bW);
 }
 var $W = /* @__PURE__ */ mW(vW, [["render", yW]]);
-const J0 = [
+const J1 = [
   {
     name: "Anthropic (Claude)",
     baseUrl: "https://api.anthropic.com/v1/",
@@ -15346,13 +15346,13 @@ const J0 = [
     local: !0,
     models: []
   }
-], Q0 = (e) => {
+], Q1 = (e) => {
   const a = (e || "").toLowerCase();
   if (a)
-    return J0.find((r) => r.matches.some((i) => a.includes(i)));
-}, xW = () => J0, VW = (e) => {
+    return J1.find((r) => r.matches.some((i) => a.includes(i)));
+}, xW = () => J1, VW = (e) => {
   var a;
-  return ((a = Q0(e)) == null ? void 0 : a.models) ?? [];
+  return ((a = Q1(e)) == null ? void 0 : a.models) ?? [];
 }, CW = window.Vue.defineComponent, de = window.Vue.createVNode, L = window.Vue.createElementVNode, ne = window.Vue.createTextVNode, W = window.Vue.unref, lt = window.Vue.withCtx, He = window.Vue.openBlock, Xe = window.Vue.createElementBlock, Ct = window.Vue.createCommentVNode, gi = window.Vue.Fragment, tt = window.Vue.toDisplayString, Kf = window.Vue.createBlock, W_ = window.Vue.renderList, EW = window.Vue.normalizeClass, SW = window.Vue.pushScopeId, kW = window.Vue.popScopeId, _e = (e) => (SW("data-v-01e00fb5"), e = e(), kW(), e), TW = { class: "container" }, IW = /* @__PURE__ */ _e(() => /* @__PURE__ */ L("h3", { "data-test": "page-title" }, "ALEC Configuration", -1)), AW = /* @__PURE__ */ ne("Correlation Engine"), LW = /* @__PURE__ */ ne("LLM Root Cause Analysis"), OW = /* @__PURE__ */ ne("LLM Setup"), RW = { class: "section" }, NW = { class: "title-row" }, BW = { class: "title" }, PW = /* @__PURE__ */ ne(" Choose the correlation engine that ALEC will use (see "), DW = ["href"], MW = /* @__PURE__ */ ne(" for more information): "), FW = ["aria-expanded"], UW = {
   key: 0,
   class: "help-popover",
@@ -15593,7 +15593,7 @@ const J0 = [
       re.value = Y.value.trim();
     }, Pe = () => {
       he.value = X.value.trim();
-    }, gt = xW(), on = ke(!1), sn = ke(!1), nr = nn(() => VW(Y.value)), Ge = nn(() => Q0(Y.value)), Or = (ie) => {
+    }, gt = xW(), on = ke(!1), sn = ke(!1), nr = nn(() => VW(Y.value)), Ge = nn(() => Q1(Y.value)), Or = (ie) => {
       Y.value = ie, on.value = !1;
     }, Ue = (ie) => {
       X.value = ie, sn.value = !1;
@@ -15723,7 +15723,7 @@ Continue and save?`
       de(RH),
       L("div", TW, [
         IW,
-        de(W(p0), { "data-test": "config-tabs" }, {
+        de(W(p1), { "data-test": "config-tabs" }, {
           tabs: lt(() => [
             de(W(Si), { "data-test": "tab-engine" }, {
               default: lt(() => [
@@ -15771,7 +15771,7 @@ Continue and save?`
                     ], 8, FW)
                   ]),
                   un.value ? (He(), Xe("div", UW, HW)) : Ct("", !0),
-                  de(W(Z1), {
+                  de(W(Z0), {
                     vertical: "",
                     modelValue: u.value,
                     "onUpdate:modelValue": K[2] || (K[2] = (J) => u.value = J),
@@ -15818,7 +15818,7 @@ Continue and save?`
                   W(k) ? (He(), Xe(gi, { key: 1 }, [
                     ez,
                     L("div", tz, [
-                      de(W(H0), {
+                      de(W(H1), {
                         label: "How often to re-cluster",
                         options: B,
                         modelValue: S.value,
