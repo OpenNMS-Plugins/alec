@@ -46,22 +46,31 @@ import '@featherds/tooltip/dist/style.css'
 // Theme variables (--feather-*). A Feather-based host defines these on :root
 // and switches them for dark mode, so injecting a theme unconditionally would
 // pin the plugin to one theme and break dark mode there. Instead, when the
-// host page defines no Feather theme at all (the PrimeVue-based OpenNMS 37
-// host), inject the matching theme at runtime. That host still stamps the
-// Feather theme name ("open-light"/"open-dark") as a class on <html> and
-// flips it with its dark-mode toggle, so key off that class and follow it
-// live. The vendored copies have the @font-face rules stripped so no font
-// files get inlined in the bundle.
+// host page defines no Feather theme (the PrimeVue-based OpenNMS 37 host),
+// inject the matching theme at runtime. That host still stamps the Feather
+// theme name ("open-light"/"open-dark") as a class on <html> and flips it
+// with its dark-mode toggle, so key off that class and follow it live. The
+// vendored copies keep only the :root variable blocks — no @font-face (would
+// base64-inline fonts the host provides) and no global utility classes
+// (would restyle host pages). The <style> is head-PREPENDED so a real host
+// theme, should one appear later in the cascade, still wins every tie.
 import openLightTheme from './assets/feather-open-light-vars.css?inline'
 import openDarkTheme from './assets/feather-open-dark-vars.css?inline'
 
-const hostTheme = getComputedStyle(document.documentElement)
-	.getPropertyValue('--feather-primary')
-if (!hostTheme.trim()) {
+// Probe two sentinels so a stray single-var definition by some other plugin
+// or host shim can't make us skip injection and leave the rest undefined.
+const rootStyle = getComputedStyle(document.documentElement)
+const hostHasTheme =
+	rootStyle.getPropertyValue('--feather-primary').trim() !== '' &&
+	rootStyle.getPropertyValue('--feather-background').trim() !== ''
+if (!hostHasTheme) {
 	const style = document.createElement('style')
 	style.setAttribute('data-alec-feather-theme', '')
+	let currentDark: boolean | undefined
 	const applyTheme = () => {
 		const dark = document.documentElement.classList.contains('open-dark')
+		if (dark === currentDark) return
+		currentDark = dark
 		style.textContent = dark ? openDarkTheme : openLightTheme
 	}
 	applyTheme()
