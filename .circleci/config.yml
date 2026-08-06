@@ -442,7 +442,8 @@ jobs:
             mvn -s .circleci.settings.xml -DskipTests -Prelease deploy
 
   deploy-packages:
-      executor: cloudsmith/default
+      docker:
+        - image: cimg/python:3.10
       resource_class: small
       steps:
         - attach_workspace:
