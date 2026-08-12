@@ -256,9 +256,25 @@ public class Driver implements EngineRegistry {
 
     public void destroy() {
         state = DriverState.DESTROYING;
-        situationDatasource.unregisterHandler(deletingSituationHandler);
-        situationDatasource.unregisterHandler(confirmingSituationHandler);
-        
+        // Stop the (non-daemon) tick timer FIRST so no new engine work starts
+        // while we tear down, and so it can never outlive a slow destroy.
+        if (timer != null) {
+            timer.cancel();
+            timer = null;
+        }
+        // situationDatasource is a blueprint reference proxy: when the
+        // datasource bundle has already stopped (bundle stop order during a
+        // framework shutdown), a direct call blocks for Aries' full 5-minute
+        // service-damping timeout PER CALL and stalls the entire bundle-stop
+        // cascade — the sentinel/OpenNMS JVM appears hung on shutdown. Make
+        // the unregistrations best-effort and bounded: instant when the
+        // service is up, abandoned after 5s when it is gone (the datasource is
+        // being torn down with its handler list anyway).
+        bestEffortServiceCall("unregister-deleting-handler",
+                () -> situationDatasource.unregisterHandler(deletingSituationHandler));
+        bestEffortServiceCall("unregister-confirming-handler",
+                () -> situationDatasource.unregisterHandler(confirmingSituationHandler));
+
         if (initThread != null && initThread.isAlive()) {
             initThread.interrupt();
             try {
@@ -276,10 +292,6 @@ public class Driver implements EngineRegistry {
         if (serviceRegistration != null) {
             serviceRegistration.unregister();
         }
-        if (timer != null) {
-            timer.cancel();
-            timer = null;
-        }
         if (engine != null) {
             engine.destroy();
             engine = null;
@@ -288,6 +300,34 @@ public class Driver implements EngineRegistry {
         jmxReporter.stop();
 
         state = DriverState.DESTROYED;
+    }
+
+    /**
+     * Run a best-effort cleanup call against a blueprint service-reference
+     * proxy on a bounded daemon thread. If the backing service is gone the
+     * proxy would otherwise block for Aries' 5-minute damping timeout and
+     * stall the framework's bundle-stop cascade; the daemon thread cannot keep
+     * the JVM alive, so shutdown proceeds after the bound.
+     */
+    private static void bestEffortServiceCall(String description, Runnable serviceCall) {
+        Thread t = new Thread(() -> {
+            try {
+                serviceCall.run();
+            } catch (Exception e) {
+                LOG.debug("Best-effort shutdown call '{}' failed: {}", description, e.getMessage());
+            }
+        }, "alec-destroy-" + description);
+        t.setDaemon(true);
+        t.start();
+        try {
+            t.join(TimeUnit.SECONDS.toMillis(5));
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        if (t.isAlive()) {
+            LOG.warn("Best-effort shutdown call '{}' did not complete within 5 seconds "
+                    + "(backing service likely already unregistered); abandoning it", description);
+        }
     }
 
     DriverState getState() {

@@ -106,7 +106,9 @@ public class OpenNMSClient {
     // --- Alarms ---
 
     public List<Alarm> getAlarms() {
-        Response response = getBuilder(restTarget().path("alarms"))
+        // limit=0 returns all records — omitting it causes OpenNMS to apply its default
+        // page size (25), which silently truncates and leaves most alarms uncleaned.
+        Response response = getBuilder(restTarget().path("alarms").queryParam("limit", "0"))
                 .accept(MediaType.APPLICATION_JSON)
                 .get();
         requireSuccess("getAlarms", response);

@@ -1,0 +1,52 @@
+
+= LLM Clustering Engine (experimental)
+:description: Learn how the experimental LLM-based clustering (correlation) engine in OpenNMS's Architecture for Learning Enabled Correlation (ALEC) works.
+
+The LLM clustering engine is an experimental xref:engines/introduction.adoc[correlation engine] that uses a large language model (LLM) to group alarms into situations.
+It is an alternative to the default xref:engines/clustering.adoc[DBSCAN clustering] engine: you select one correlation engine at a time.
+
+[IMPORTANT]
+====
+Do not confuse the two LLM features in ALEC — they are independent and do different jobs:
+
+* *LLM clustering engine* (this page) *correlates* alarms — it decides which alarms belong together in a situation. It replaces DBSCAN as the correlation engine.
+* xref:reference:llm-root-cause-analysis.adoc[LLM Root Cause Analysis] *explains* a situation after it has been formed — it suggests probable root causes and resolutions. It runs on top of whichever correlation engine is active.
+
+Both share the same *LLM Setup* (endpoint, model, API key, and token budgets), but you can enable either, both, or neither.
+====
+
+== How it works
+
+Like the DBSCAN engine, the LLM clustering engine builds and maintains the network topology graph during pre-processing.
+Instead of computing distances with DBSCAN, it periodically sends the current set of active alarms and the topology (nodes and the links between them) to the configured LLM and asks it to group the alarms into situations.
+
+As with xref:reference:llm-root-cause-analysis.adoc[Root Cause Analysis], the engine uses *function (tool) calling* to constrain the model's response to a schema-checked structure, and treats all alarm text as untrusted data rather than instructions — the primary defense against prompt injection.
+The model you choose must support tool/function calling.
+
+== Enable and configure
+
+The LLM clustering engine requires a configured LLM.
+Set the endpoint, model, and API key on the *LLM Setup* tab first (these are the same settings described in xref:reference:llm-root-cause-analysis.adoc[LLM Root Cause Analysis]); the engine cannot be enabled until they are set.
+
+. Click *Plugins > ALEC* in the top menu bar, then click the *gear* symbol.
+. On the *LLM Setup* tab, configure the endpoint, model, and API key (and, optionally, daily/monthly token budgets).
+. On the *Correlation Engine* tab, select the *LLM Based* engine and configure the settings below.
+. Click *Save Changes*.
+
+Clustering frequency:: How often ALEC asks the LLM to re-cluster the active alarms — every minute, 5 minutes (default), 15 minutes, 30 minutes, or hour.
+More frequent clustering reflects changes faster but sends more requests (and, for a hosted provider, costs more).
+
+Clustering prompt:: The instructions sent to the model each time it clusters.
+Customize it to add site-specific context (topology conventions, what should or should not be grouped).
+A *Reset to default* control restores the built-in prompt; the alarm and topology data are appended automatically — do not paste alarm data into this field.
+
+Token budgets:: Optional daily and monthly token limits (shared with Root Cause Analysis via *LLM Setup*; `0` means unlimited).
+When a budget is exhausted, ALEC stops sending requests until the window resets.
+
+== Cost, usage, and privacy
+
+Because the engine calls the LLM on a schedule for the full active-alarm set, its usage — and, for a hosted provider, its cost — can be higher than Root Cause Analysis, which runs once per situation.
+Use a longer clustering frequency, token budgets, or a xref:reference:llm-root-cause-analysis.adoc#local-llm[locally run LLM] to control cost.
+
+When the engine is enabled against a hosted provider, your active alarm data and topology leave your network and are subject to that provider's data-handling policies.
+If this is a concern, run the model on your own hardware — see xref:reference:llm-root-cause-analysis.adoc#local-llm[Use a locally run LLM].

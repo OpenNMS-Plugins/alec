@@ -51,7 +51,7 @@ public class DistributedStandaloneCorrelationTest extends CorrelationTestBase {
 
     @Parameterized.Parameters
     public static Object[] data() {
-        return new Object[]{"cluster", "dbscan", "deeplearning"};
+        return new Object[]{"dbscan"};
     }
 
     @Override

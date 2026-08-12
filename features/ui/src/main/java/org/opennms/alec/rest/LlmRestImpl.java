@@ -173,8 +173,15 @@ public class LlmRestImpl implements LlmRest {
         if (request.isClearApiKey()) {
             // Clearing the key disables the integration but preserves the user's
             // autoEvaluate / endpoint / model preferences (and recorded defaults)
-            // so re-enabling later doesn't surprise them.
-            return builder.enabled(false).apiKey(null).build();
+            // so re-enabling later doesn't surprise them. The endpoint/model/
+            // prompt were already applied to the builder above with preserve-
+            // when-absent semantics; carry the token budgets through too.
+            return builder
+                    .enabled(false)
+                    .dailyTokenLimit(request.getDailyTokenLimit())
+                    .monthlyTokenLimit(request.getMonthlyTokenLimit())
+                    .apiKey(null)
+                    .build();
         }
 
         String requestKey = request.getApiKey();
@@ -183,6 +190,11 @@ public class LlmRestImpl implements LlmRest {
         } else if (existing != null) {
             builder.apiKey(existing.getApiKey());
         }
+        // Token budgets are primitive longs (can't express "absent"); the UI
+        // always submits the current values, so carry them through like the
+        // enabled/autoEvaluate flags.
+        builder.dailyTokenLimit(request.getDailyTokenLimit());
+        builder.monthlyTokenLimit(request.getMonthlyTokenLimit());
         return builder.enabled(request.isEnabled()).build();
     }
 

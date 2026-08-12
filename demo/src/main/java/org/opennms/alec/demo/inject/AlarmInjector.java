@@ -133,6 +133,74 @@ public class AlarmInjector {
     }
 
     /**
+     * Two independent correlated outages on topologically isolated pairs of routers,
+     * plus uncorrelated noise alarms on a third isolated router. Designed to verify
+     * that the LLM clustering engine produces exactly two situations:
+     * <ul>
+     *   <li>Situation A: optical-degrade + interface-down + BGP-transition on llm-a1/a2</li>
+     *   <li>Situation B: CPU-spike + BGP-lost-service + BGP-transition on llm-b1/b2</li>
+     * </ul>
+     * The two threshold alarms on llm-c1 should remain uncorrelated (no situation).
+     *
+     * <p>Temporal separation: cluster A fires first, cluster B 5 s later (close enough
+     * that time alone does not explain the split — topology is the differentiator),
+     * and noise alarms fire 60 s after cluster B to ensure full temporal isolation.
+     *
+     * <p>Requires 5 nodes provisioned by {@code buildLlmClustering()} in the order
+     * llm-a1 (0), llm-a2 (1), llm-b1 (2), llm-b2 (3), llm-c1 (4).
+     */
+    public void injectLlmClustering() {
+        LOG.info("Injecting alarms for llm-clustering scenario");
+        if (state.getNodes().size() < 5) {
+            throw new IllegalStateException("llm-clustering requires 5 nodes; found "
+                    + state.getNodes().size() + " — run setup first");
+        }
+        int idA1 = state.getNodes().get(0).getNodeId();
+        int idA2 = state.getNodes().get(1).getNodeId();
+        int idB1 = state.getNodes().get(2).getNodeId();
+        int idB2 = state.getNodes().get(3).getNodeId();
+        int idC1 = state.getNodes().get(4).getNodeId();
+
+        // --- Cluster A: optical/interface/BGP cascade on island A ---
+        LOG.info("Injecting cluster A alarms (island A: llm-a1 / llm-a2)");
+        client.sendEvent(Event.opticalDegrade(idA1, "llm-a1-if0", -35.0));
+        sleep(500);
+        client.sendEvent(Event.interfaceDown(idA1, "10.0.1.1"));
+        sleep(500);
+        client.sendEvent(Event.bgpBackwardTransition(idA2, "10.0.1.1", 64500));
+
+        // 5 s gap — topological isolation is the primary cluster signal,
+        // not timing, but some separation makes the prompt easier to reason about
+        sleep(5_000);
+
+        // --- Cluster B: CPU/BGP cascade on island B ---
+        LOG.info("Injecting cluster B alarms (island B: llm-b1 / llm-b2)");
+        client.sendEvent(Event.cpuHigh(idB1, 97));
+        sleep(500);
+        client.sendEvent(Event.lostService(idB1, "BGP"));
+        sleep(500);
+        client.sendEvent(Event.bgpBackwardTransition(idB2, "10.0.2.1", 64501));
+
+        // 60 s gap — ensures noise alarms are clearly temporally isolated
+        LOG.info("Waiting 60 s before injecting noise alarms on isolated node llm-c1");
+        sleep(60_000);
+
+        // --- Noise: unrelated threshold alarms on isolated llm-c1 ---
+        LOG.info("Injecting noise alarms (isolated node: llm-c1)");
+        client.sendEvent(Event.lowThresholdExceeded(idC1, "llm-c1-if0", "ifInOctets", 500.0, 1000.0));
+        sleep(500);
+        client.sendEvent(Event.highThresholdExceeded(idC1, "llm-c1-if0", "ifOutOctets", 9500.0, 9000.0));
+    }
+
+    private static void sleep(long ms) {
+        try {
+            Thread.sleep(ms);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    /**
      * A realistic correlated outage suitable for exercising an LLM
      * suggestion path (ALEC-299). Simulates the timeline of a real incident:
      * <ol>

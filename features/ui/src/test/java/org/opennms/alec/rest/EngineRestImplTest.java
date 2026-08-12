@@ -64,15 +64,16 @@ import org.opennms.alec.driver.main.Driver;
 import org.opennms.alec.engine.api.DistanceMeasureFactory;
 import org.opennms.alec.engine.api.EngineFactory;
 import org.opennms.alec.engine.api.EngineRegistry;
-import org.opennms.alec.engine.cluster.ClusterEngineFactory;
 import org.opennms.alec.engine.dbscan.AlarmInSpaceAndTimeDistanceMeasureFactory;
 import org.opennms.alec.engine.dbscan.AlarmInSpaceTimeDistanceMeasure;
 import org.opennms.alec.engine.dbscan.DBScanEngine;
 import org.opennms.alec.engine.dbscan.DBScanEngineFactory;
+import org.opennms.alec.engine.llm.LlmEngineFactory;
 import org.opennms.integration.api.v1.distributed.KeyValueStore;
 import org.osgi.framework.ServiceReference;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -86,8 +87,6 @@ public class EngineRestImplTest {
     private Driver driver;
     @Mock
     private EngineRegistry engineRegistry;
-    @Spy
-    private ClusterEngineFactory clusterEngineFactory;
 
     private ObjectMapper objectMapper;
     private List<EngineFactory> engineFactories;
@@ -105,7 +104,7 @@ public class EngineRestImplTest {
                 new AlarmInSpaceAndTimeDistanceMeasureFactory(),
                 distanceMeasureFactoryMap);
         when(engineRegistry.getEngineRegistry()).thenReturn(driver);
-        engineFactories = Arrays.asList(dbScanEngineFactory, clusterEngineFactory);
+        engineFactories = Arrays.asList(dbScanEngineFactory);
         when(driver.initAsync()).thenReturn(CompletableFuture.completedFuture(null));
     }
 
@@ -161,24 +160,39 @@ public class EngineRestImplTest {
     }
 
     @Test
-    public void testSetClusterEngineConfiguration() throws JsonProcessingException {
+    public void testSetLlmEngineClampsNullClusterFrequencyToDefault() throws JsonProcessingException {
         EngineRestImpl underTest = new EngineRestImpl(kvStore, engineRegistry, engineFactories);
-
-        ServiceReference<?> engineServiceReference = mock(ServiceReference.class);
         ArgumentCaptor<String> argumentCaptor = ArgumentCaptor.forClass(String.class);
-
         when(kvStore.putAsync(anyString(), anyString(), anyString())).thenReturn(future);
         when(future.join()).thenReturn(1L);
 
-        try (Response result = underTest.setEngineConfiguration(getParameter().engineName("cluster").build())) {
+        // No clusterFrequencyMs supplied (null) — must NOT NPE (it feeds a long
+        // setter) and must persist the engine default rather than a zero tick.
+        try (Response result = underTest.setEngineConfiguration(
+                EngineParameterImpl.newBuilder().engineName("llm").build())) {
             assertThat(result.getStatus(), equalTo(Response.Status.OK.getStatusCode()));
         }
         verify(kvStore, times(1)).putAsync(eq(KeyEnum.ENGINE.toString()), argumentCaptor.capture(), eq(ALECRestUtils.ALEC_CONFIG));
-        verify(kvStore, times(1)).get(KeyEnum.ENGINE.toString(), ALECRestUtils.ALEC_CONFIG);
-        verifyNoMoreInteractions(kvStore, engineServiceReference);
+        JsonNode stored = objectMapper.readTree(argumentCaptor.getValue());
+        assertThat(stored.get("clusterFrequencyMs").asLong(),
+                equalTo(LlmEngineFactory.DEFAULT_CLUSTER_FREQUENCY_MS));
+    }
 
-        assertThat(argumentCaptor.getValue(), equalTo(getParameterAsString(EngineParameterImpl.newBuilder()
-                .engineName("cluster").build())));
+    @Test
+    public void testSetLlmEngineClampsNonPositiveClusterFrequencyToDefault() throws JsonProcessingException {
+        EngineRestImpl underTest = new EngineRestImpl(kvStore, engineRegistry, engineFactories);
+        ArgumentCaptor<String> argumentCaptor = ArgumentCaptor.forClass(String.class);
+        when(kvStore.putAsync(anyString(), anyString(), anyString())).thenReturn(future);
+        when(future.join()).thenReturn(1L);
+
+        try (Response result = underTest.setEngineConfiguration(
+                EngineParameterImpl.newBuilder().engineName("llm").clusterFrequencyMs(0).build())) {
+            assertThat(result.getStatus(), equalTo(Response.Status.OK.getStatusCode()));
+        }
+        verify(kvStore, times(1)).putAsync(eq(KeyEnum.ENGINE.toString()), argumentCaptor.capture(), eq(ALECRestUtils.ALEC_CONFIG));
+        JsonNode stored = objectMapper.readTree(argumentCaptor.getValue());
+        assertThat(stored.get("clusterFrequencyMs").asLong(),
+                equalTo(LlmEngineFactory.DEFAULT_CLUSTER_FREQUENCY_MS));
     }
 
     @Test

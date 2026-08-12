@@ -13,6 +13,10 @@ export type TEngine = {
 	epsilon: number
 	hellingerW?: number | null
 	hellingerBias?: number | null
+	// LLM-based clustering engine ("llm"): how often to re-cluster, and the
+	// operator-editable clustering prompt.
+	clusterFrequencyMs?: number | null
+	clusterPrompt?: string | null
 }
 
 // Server-returned shape of the LLM integration config (GET /alec/llm/configuration).
@@ -37,6 +41,13 @@ export type TLLMConfigStatus = {
 	// hard-coding the (long) prompt text in the frontend.
 	systemPrompt: string
 	defaultSystemPrompt: string
+	// The engine's built-in default clustering prompt, served so the UI's
+	// "Reset to default" for the LLM engine uses the same text the engine
+	// enforces (no hard-coded copy that could drift).
+	defaultClusterPrompt?: string
+	// Shared "LLM Setup" token budgets (0 = unlimited).
+	dailyTokenLimit: number
+	monthlyTokenLimit: number
 	apiKeyPresent: boolean
 }
 
@@ -55,6 +66,9 @@ export type TLLMConfigRequest = {
 	defaultModel?: string
 	// Custom system prompt. Blank falls back to the server default.
 	systemPrompt?: string
+	// Shared "LLM Setup" token budgets (0 = unlimited).
+	dailyTokenLimit?: number
+	monthlyTokenLimit?: number
 	apiKey?: string
 	clearApiKey?: boolean
 }
@@ -65,6 +79,17 @@ export type TLLMConfigRequest = {
 export type TLLMValidationResult = {
 	ok: boolean
 	message: string
+}
+
+// GET /alec/llm/budget — shared token-budget status. `blocked` means the daily
+// or monthly cap is reached and ALEC has paused LLM requests; `reason` explains.
+export type TLLMBudget = {
+	dailyLimit: number
+	dailyUsed: number
+	monthlyLimit: number
+	monthlyUsed: number
+	blocked: boolean
+	reason: string | null
 }
 
 // GET /alec/llm/suggestions/{situationId}.

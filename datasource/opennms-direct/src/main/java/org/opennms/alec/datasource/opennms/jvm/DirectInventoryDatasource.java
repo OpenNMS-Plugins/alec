@@ -40,6 +40,8 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -80,10 +82,20 @@ public class DirectInventoryDatasource implements InventoryDatasource, AlarmLife
      */
     private static final Set<TopologyProtocol> TOPOLOGY_PROTOCOLS = Collections.singleton(TopologyProtocol.ALL);
 
+    // 5-minute default; set to 0 to disable. Configurable via Blueprint cm property.
+    static final long DEFAULT_TOPOLOGY_REFRESH_INTERVAL_MS = 300_000L;
+
     /**
      * The startup thread; handles initialization.
      */
     private Thread initThread;
+
+    /**
+     * Periodically re-queries the EdgeDao to pick up topology changes (e.g. new UDLs) that were missed
+     * because EnhancedLinkd did not fire a TopologyEdgeConsumer callback.
+     */
+    private ScheduledExecutorService topologyRefreshExecutor;
+    private final long topologyRefreshIntervalMs;
 
     /**
      * The registry of handlers interested in receiving callbacks for inventory.
@@ -184,19 +196,20 @@ public class DirectInventoryDatasource implements InventoryDatasource, AlarmLife
      */
     private final ReadWriteLock inventoryLock = new ReentrantReadWriteLock(true);
 
-    /**
-     * @param nodeDao  used to retrieve the current inventory
-     * @param alarmDao used to retrieve the current inventory
-     * @param edgeDao  used to retrieve the current inventory
-     * @param mapper   used to Map between API and ALEC types
-     */
     public DirectInventoryDatasource(NodeDao nodeDao, AlarmDao alarmDao, EdgeDao edgeDao, ApiMapper mapper,
                                      EventSubscriptionService eventSubscriptionService) {
+        this(nodeDao, alarmDao, edgeDao, mapper, eventSubscriptionService, DEFAULT_TOPOLOGY_REFRESH_INTERVAL_MS);
+    }
+
+    public DirectInventoryDatasource(NodeDao nodeDao, AlarmDao alarmDao, EdgeDao edgeDao, ApiMapper mapper,
+                                     EventSubscriptionService eventSubscriptionService,
+                                     long topologyRefreshIntervalMs) {
         this.nodeDao = Objects.requireNonNull(nodeDao);
         this.alarmDao = Objects.requireNonNull(alarmDao);
         this.edgeDao = Objects.requireNonNull(edgeDao);
         this.mapper = Objects.requireNonNull(mapper);
         this.eventSubscriptionService = Objects.requireNonNull(eventSubscriptionService);
+        this.topologyRefreshIntervalMs = topologyRefreshIntervalMs;
     }
 
     /**
@@ -256,13 +269,79 @@ public class DirectInventoryDatasource implements InventoryDatasource, AlarmLife
         edgeDao.getEdges().forEach(e -> processEdge(e, false));
 
         initLock.countDown();
+
+        if (topologyRefreshIntervalMs > 0) {
+            topologyRefreshExecutor = Executors.newSingleThreadScheduledExecutor(
+                    r -> new Thread(r, "ALEC Topology Refresh"));
+            topologyRefreshExecutor.scheduleAtFixedRate(
+                    this::refreshEdgeTopology,
+                    topologyRefreshIntervalMs,
+                    topologyRefreshIntervalMs,
+                    TimeUnit.MILLISECONDS);
+            LOG.info("Scheduled periodic edge topology refresh every {}ms", topologyRefreshIntervalMs);
+        }
+    }
+
+    void refreshEdgeTopology() {
+        LOG.debug("Performing scheduled edge topology refresh from EdgeDao");
+        try {
+            // Snapshot the edges we already hold BEFORE polling. Reconciliation
+            // may only ever remove edges that were present in this snapshot —
+            // never an edge added concurrently. onEdgeAddedOrUpdated callbacks
+            // keep firing while we iterate the poll; an edge added after the DAO
+            // snapshot but before the stale scan would otherwise be in the
+            // mapping yet absent from the poll, and be wrongly deleted as
+            // "stale" (a brand-new UDL vanishing for up to a refresh interval —
+            // the exact symptom this refresh exists to prevent).
+            Set<String> knownBefore;
+            inventoryLock.readLock().lock();
+            try {
+                knownBefore = new HashSet<>(edgeIdToInventoryMapping.keySet());
+            } finally {
+                inventoryLock.readLock().unlock();
+            }
+
+            Set<String> liveEdgeIds = new HashSet<>();
+            edgeDao.getEdges().forEach(e -> {
+                liveEdgeIds.add(e.getId());
+                processEdge(e);
+            });
+
+            // Reconcile missed deletions: an edge we held before the poll that
+            // the poll no longer returns had its delete callback missed. (Edges
+            // added during the poll are absent from knownBefore, so they are
+            // never eligible for removal.)
+            List<String> staleEdgeIds = knownBefore.stream()
+                    .filter(id -> !liveEdgeIds.contains(id))
+                    .collect(Collectors.toList());
+            if (!staleEdgeIds.isEmpty()) {
+                LOG.info("Edge topology refresh removing {} stale edge(s) absent from EdgeDao", staleEdgeIds.size());
+                staleEdgeIds.forEach(this::removeEdgeInventory);
+            }
+        } catch (Exception e) {
+            LOG.warn("Scheduled edge topology refresh failed: {}", e.getMessage());
+        }
     }
 
     /**
      * On destroy we have to unsubscribe our listener.
      */
     public void destroy() {
-        eventSubscriptionService.removeEventListener(nodeEventListener);
+        // eventSubscriptionService is a blueprint reference proxy: if the
+        // backing service is already unregistered (typical during a framework
+        // shutdown, where our provider stops before us), a direct call blocks
+        // for Aries' full 5-minute service-damping timeout and stalls the
+        // entire bundle-stop cascade — the JVM appears hung on shutdown
+        // (thread-dump verified). Make the unsubscribe best-effort and
+        // bounded: instant when the service is up, abandoned after 5s when it
+        // is gone (the provider is being torn down with its listener list
+        // anyway).
+        bestEffortServiceCall("unsubscribe-node-events",
+                () -> eventSubscriptionService.removeEventListener(nodeEventListener));
+
+        if (topologyRefreshExecutor != null) {
+            topologyRefreshExecutor.shutdownNow();
+        }
 
         if (initThread != null && initThread.isAlive()) {
             initThread.interrupt();
@@ -274,6 +353,34 @@ public class DirectInventoryDatasource implements InventoryDatasource, AlarmLife
             } catch (InterruptedException e) {
                 LOG.error("Interrupted while waiting for initialization thread to stop.");
             }
+        }
+    }
+
+    /**
+     * Run a best-effort cleanup call against a blueprint service-reference
+     * proxy on a bounded daemon thread. If the backing service is gone the
+     * proxy would otherwise block for Aries' 5-minute damping timeout and
+     * stall the framework's bundle-stop cascade; the daemon thread cannot keep
+     * the JVM alive, so shutdown proceeds after the bound.
+     */
+    private static void bestEffortServiceCall(String description, Runnable serviceCall) {
+        Thread t = new Thread(() -> {
+            try {
+                serviceCall.run();
+            } catch (Exception e) {
+                LOG.debug("Best-effort shutdown call '{}' failed: {}", description, e.getMessage());
+            }
+        }, "alec-destroy-" + description);
+        t.setDaemon(true);
+        t.start();
+        try {
+            t.join(TimeUnit.SECONDS.toMillis(5));
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        if (t.isAlive()) {
+            LOG.warn("Best-effort shutdown call '{}' did not complete within 5 seconds "
+                    + "(backing service likely already unregistered); abandoning it", description);
         }
     }
 
@@ -666,27 +773,37 @@ public class DirectInventoryDatasource implements InventoryDatasource, AlarmLife
         processEdge(topologyEdge);
     }
 
-    @SuppressWarnings("Duplicates")
     @Override
     public void onEdgeDeleted(TopologyEdge topologyEdge) {
         LOG.trace("Received delete for edge {}", topologyEdge);
+        removeEdgeInventory(topologyEdge.getId());
+    }
+
+    /**
+     * Remove the inventory derived from a single edge. Shared by the
+     * {@link #onEdgeDeleted} callback and the periodic refresh's deletion
+     * reconciliation (see {@link #refreshEdgeTopology}).
+     */
+    @SuppressWarnings("Duplicates")
+    private void removeEdgeInventory(String edgeId) {
         inventoryLock.writeLock().lock();
         try {
             // Check if this edge had any inventory associated
-            Set<InventoryObject> inventoryForEdge = edgeIdToInventoryMapping.get(topologyEdge.getId());
+            Set<InventoryObject> inventoryForEdge = edgeIdToInventoryMapping.get(edgeId);
 
             if (inventoryForEdge != null) {
                 // Since this edge has been deleted we can clear the inventory associated with it
-                edgeIdToInventoryMapping.remove(topologyEdge.getId());
+                edgeIdToInventoryMapping.remove(edgeId);
 
                 inventoryForEdge.forEach(inventory -> {
                     Set<String> edgeIdsForInventory = inventoryToEdgeIdMapping.get(inventory);
-                    edgeIdsForInventory.remove(topologyEdge.getId());
-
-                    if (edgeIdsForInventory.isEmpty()) {
-                        // This inventory is no longer derived via edges
-                        inventoryFromEdges.remove(inventory);
-                        inventoryToEdgeIdMapping.remove(inventory);
+                    if (edgeIdsForInventory != null) {
+                        edgeIdsForInventory.remove(edgeId);
+                        if (edgeIdsForInventory.isEmpty()) {
+                            // This inventory is no longer derived via edges
+                            inventoryFromEdges.remove(inventory);
+                            inventoryToEdgeIdMapping.remove(inventory);
+                        }
                     }
                     considerInventoryForRemoval(inventory);
                 });

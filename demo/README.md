@@ -24,6 +24,7 @@ With **default ALEC configuration**, the current behavior is:
 | `linear-3`         | 3 alarms on each of 2 routers (6 total) | **2**   | Each node's alarms grouped separately               |
 | `star-5`           | 3 alarms on each of 5 routers (15 total) | **5**  | Each node's alarms grouped separately               |
 | `realistic-outage` | 5 correlated alarms (optical / flap / BGP / saturation) across 2 routers | **2** | Realistic ops scenario for exercising the LLM suggestion path (ALEC-299) |
+| `llm-clustering`   | 8 alarms: 2 island clusters (3 alarms each) + 2 noise alarms | **2** + 2 uncorrelated | Exercises the LLM-based clustering engine (ALEC-301) |
 
 ### Why one situation per node (not cross-node)?
 
@@ -94,6 +95,7 @@ table below summarizes what each one creates and what to expect.
 | `linear-3`         | 3 routers in a chain (Router-01 — Router-02 — Router-03) | 3 generic alarms each on Router-01 and Router-02 (6 total) | 2                   |
 | `star-5`           | Core-Router-01 + 4 edge routers in a star         | 3 generic alarms on each of the 5 routers (15 total) | 5                   |
 | `realistic-outage` | Edge-Router-East — Core-Router-01                 | Optical degrade → interface flap → BGP transition → link saturation → downstream flap (5 alarms total) | 2                   |
+| `llm-clustering`   | 2 isolated island pairs + 1 standalone node       | 3 cluster-A alarms + 3 cluster-B alarms + 2 noise alarms (8 total) | 2 situations + 2 uncorrelated |
 
 ### `single`
 
@@ -160,6 +162,37 @@ The scenario uses OpenNMS Horizon's **built-in** event UEIs
 (`threshold/lowThresholdExceeded`, `threshold/highThresholdExceeded`,
 `nodes/nodeLostService`, `nodes/interfaceDown`) so it works on any
 stock OpenNMS install — no `etc/events.d` step required.
+
+### `llm-clustering` (ALEC-301)
+
+The scenario designed to exercise the **LLM-based correlation engine**. Eight alarms
+across five routers arranged in two isolated island pairs plus one unconnected node:
+
+- **Island A** (`llm-a1` ↔ `llm-a2`): optical degrade on a1's uplink → interface down
+  on a1 → BGP peer drops on a2. Three alarms, injected 500 ms apart.
+- **Island B** (`llm-b1` ↔ `llm-b2`): control-plane CPU spike on b1 → BGP service lost →
+  BGP peer drops on b2. Three alarms, injected 500 ms apart.
+- **Noise** (`llm-c1`, isolated): two minor threshold alarms injected 60 s after the
+  island bursts — temporally and topologically isolated from both islands.
+
+```bash
+java -jar demo/target/alec-demo.jar run --scenario llm-clustering
+```
+
+Expected: **2 situations** (one per island) with 2 alarms left uncorrelated (the noise
+alarms on `llm-c1`). The DBSCAN engine will likely produce the same split because the two
+island pairs have no UDL link between them. The LLM engine should reach the same conclusion
+through semantic reasoning about alarm content and timing.
+
+To use this scenario with the LLM engine, switch the Correlation Engine to
+**LLM Based (Experimental)** in the ALEC settings UI before running `inject`.
+
+#### Custom event definitions required
+
+This scenario uses the custom UEIs from `alec-demo.events.xml`
+(`Event.opticalDegrade`, `Event.cpuHigh`, `Event.bgpBackwardTransition`). Install the
+events file first (see *Optional: custom event definitions* below) or the alarms will be
+created with generic descriptions that give the LLM less context to reason about.
 
 ### Optional: custom event definitions for richer descriptions
 
@@ -255,7 +288,7 @@ OpenNMS+ALEC deployment.
 # Other Tips
 
 To Start / Stop OpenNMS:
- cd dev/opennms/target/opennms-36.0.0-SNAPSHOT
+ cd dev/opennms/target/opennms-37.0.0-SNAPSHOT
  ./bin/opennms stop
  ./bin/opennms start
 

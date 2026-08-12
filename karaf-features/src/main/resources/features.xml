@@ -94,7 +94,7 @@
 
     <feature name="alec-engine" description="ALEC :: Engine" version="${project.version}">
         <feature version="${project.version}">alec-engine-dbscan</feature>
-        <feature version="${project.version}">alec-engine-deeplearning</feature>
+        <feature version="${project.version}">alec-engine-llm</feature>
     </feature>
 
     <feature name="alec-engine-api" description="ALEC :: Engine :: API" version="${project.version}">
@@ -116,16 +116,15 @@
         <bundle>mvn:org.opennms.alec.engine/org.opennms.alec.engine.dbscan/${project.version}</bundle>
     </feature>
 
-    <feature name="alec-engine-deeplearning" description="ALEC :: Engine :: Deep Learning" version="${project.version}">
-        <feature version="${tensorflow.version}">alec-dependency-tensorflow</feature>
-        <feature version="${project.version}">alec-engine-cluster</feature>
-        <bundle dependency="true">wrap:mvn:info.debatty/java-string-similarity/${string.similarity.version}</bundle>
-        <bundle dependency="true">wrap:mvn:com.google.code.gson/gson/${gson.version}</bundle>
-        <bundle dependency="true">mvn:commons-io/commons-io/${commons.io.version}</bundle>
-        <bundle dependency="true">mvn:com.googlecode.json-simple/json-simple/${json-simple.version}</bundle>
-        <bundle dependency="true">mvn:org.apache.httpcomponents/httpclient-osgi/${httpclient-osgi.version}</bundle>
-        <bundle dependency="true">mvn:org.apache.httpcomponents/httpcore-osgi/${httpcore-osgi.version}</bundle>
-        <bundle>mvn:org.opennms.alec.engine/org.opennms.alec.engine.deeplearning/${project.version}</bundle>
+    <feature name="alec-engine-llm" description="ALEC :: Engine :: LLM Clustering" version="${project.version}">
+        <feature dependency="true" version="${project.version}">alec-engine-cluster</feature>
+        <feature version="${opennms.api.version}" dependency="true">opennms-integration-api</feature>
+        <bundle dependency="true">mvn:org.apache.servicemix.bundles/org.apache.servicemix.bundles.okio/${okio.bundle.version}</bundle>
+        <bundle dependency="true">mvn:org.apache.servicemix.bundles/org.apache.servicemix.bundles.okhttp/${okhttp.bundle.version}</bundle>
+        <bundle dependency="true">mvn:com.fasterxml.jackson.core/jackson-core/${jackson.version}</bundle>
+        <bundle dependency="true">mvn:com.fasterxml.jackson.core/jackson-annotations/${jackson.version}</bundle>
+        <bundle dependency="true">mvn:com.fasterxml.jackson.core/jackson-databind/${jackson.version}</bundle>
+        <bundle>mvn:org.opennms.alec.engine/org.opennms.alec.engine.llm/${project.version}</bundle>
     </feature>
 
     <!-- Drivers -->
@@ -209,22 +208,9 @@
         <feature version="${project.version}">alec-datasource-jaxb</feature>
         <feature version="${project.version}">alec-features-graph-common</feature>
         <feature version="${project.version}">alec-engine-dbscan</feature>
-        <feature version="${project.version}">alec-engine-dbscan</feature>
-        <feature version="${project.version}">alec-engine-deeplearning</feature>
         <feature dependency="true">shell</feature>
         <bundle>mvn:org.opennms.alec.driver/org.opennms.alec.driver.test/${project.version}</bundle>
         <bundle>mvn:org.opennms.alec.features/org.opennms.alec.features.shell/${project.version}</bundle>
-    </feature>
-
-    <feature name="alec-features-deeplearning" description="ALEC :: Features :: Deep learning" version="${project.version}">
-        <feature version="${project.version}">alec-engine-deeplearning</feature>
-        <feature version="${project.version}">alec-features-score</feature>
-        <feature version="${project.version}">alec-datasource-jaxb</feature>
-        <feature version="${project.version}">alec-features-graph-common</feature>
-        <feature dependency="true">shell</feature>
-        <bundle dependency="true">mvn:org.apache.commons/commons-csv/${commons.csv.version}</bundle>
-        <bundle>mvn:org.opennms.alec.driver/org.opennms.alec.driver.test/${project.version}</bundle>
-        <bundle>mvn:org.opennms.alec.features/org.opennms.alec.features.deeplearning/${project.version}</bundle>
     </feature>
 
     <!-- OpenNMS Integration -->
@@ -256,7 +242,7 @@
         <feature>opennms-alec-plugin</feature>
         <feature>alec-driver-main</feature>
         <feature>alec-engine-dbscan</feature>
-        <feature>alec-engine-deeplearning</feature>
+        <feature>alec-engine-llm</feature>
         <feature>alec-datasource-opennms-direct</feature>
         <feature>alec-processor-standalone</feature>
         <feature>alec-features-graph-shell</feature>
@@ -314,10 +300,6 @@
         <bundle>mvn:com.fasterxml.jackson.core/jackson-core/${jackson.version}</bundle>
         <bundle>mvn:com.fasterxml.jackson.jaxrs/jackson-jaxrs-base/${jackson.version}</bundle>
         <bundle>mvn:com.fasterxml.jackson.jaxrs/jackson-jaxrs-json-provider/${jackson.version}</bundle>
-    </feature>
-
-    <feature name="alec-dependency-tensorflow" description="TensorFlow" version="${tensorflow.version}">
-        <bundle>mvn:org.opennms.alec.wrap/org.opennms.alec.wrap.tensorflow/${project.version}</bundle>
     </feature>
 
     <feature name="alec-dependency-groovy" description="Groovy" version="${groovy.version}">

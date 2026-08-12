@@ -5,6 +5,8 @@
         <cm:default-properties>
             <cm:property name="scriptFile" value="" /> <!--  use empty string to use default script included in bundle" -->
             <cm:property name="scriptCacheMillis" value="30000"/>  <!-- 30 seconds -->
+            <cm:property name="topologyRefreshIntervalMs" value="300000"/>  <!-- 5 minutes; set to 0 to disable -->
+            <cm:property name="maxAlarmsAtStartup" value="50000"/>  <!-- skip bulk alarm load above this; set to 0 to disable cap -->
         </cm:default-properties>
     </cm:property-placeholder>
 
@@ -30,6 +32,7 @@
         <argument ref="alarmDao"/>
         <argument ref="eventForwarder"/>
         <argument ref="mapper"/>
+        <argument value="${maxAlarmsAtStartup}"/>
     </bean>
     <service ref="directAlarmDatasource" interface="org.opennms.alec.datasource.api.AlarmDatasource"/>
     <service ref="directAlarmDatasource" interface="org.opennms.alec.datasource.api.SituationDatasource"/>
@@ -51,6 +54,7 @@
         <argument ref="edgeDao"/>
         <argument ref="mapper"/>
         <argument ref="eventService"/>
+        <argument value="${topologyRefreshIntervalMs}"/>
     </bean>
     <service ref="directInventoryDatasource" interface="org.opennms.alec.datasource.api.InventoryDatasource"/>
     <service ref="directInventoryDatasource" interface="org.opennms.integration.api.v1.alarms.AlarmLifecycleListener"/>
