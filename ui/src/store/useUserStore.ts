@@ -109,7 +109,7 @@ export const useUserStore = defineStore('userStore', {
 			}
 			return false
 		},
-		async getLLMUsage(days: number = 30) {
+		async getLLMUsage(days = 30) {
 			const result = await getLLMUsage(days)
 			if (result) {
 				this.llmUsage = result
