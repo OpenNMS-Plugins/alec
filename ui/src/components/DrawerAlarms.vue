@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { FeatherDrawer } from '@featherds/drawer'
+import { OnmsButton, OnmsDrawer } from '@opennms/onms-ui'
 import { useSituationsStore } from '@/store/useSituationsStore'
 import { ref, watch } from 'vue'
 import UnassignedAlarmCard from '@/components/UnassignedAlarmCard.vue'
 import { includes, remove } from 'lodash'
-import { FeatherButton } from '@featherds/button'
 import CommonFilters from '@/components/CommonFilters.vue'
 import { TAlarm } from '@/types/TSituation'
 import type { Ref } from 'vue'
@@ -62,17 +61,21 @@ const filterList = (alarmsFiltered: TAlarm[]) => {
 </script>
 
 <template>
-	<FeatherDrawer
-		v-model="visible"
-		:labels="{ title: 'Alarms' }"
-		@update:modelValue="emit('drawer-alarms-closed')"
+	<OnmsDrawer
+		:visible="visible"
+		header="Alarms"
+		width="760px"
+		@update:visible="visible = $event"
+		@hide="emit('drawer-alarms-closed')"
 	>
 		<div class="content">
 			<div class="header">
 				<h4>ADD ALARMS</h4>
-				<FeatherButton class="add-alarms-btn" @click="addSelectedAlarms">
-					<span>Add {{ alarmIds.length }} Alarms</span>
-				</FeatherButton>
+				<OnmsButton
+					class="add-alarms-btn"
+					:label="`Add ${alarmIds.length} Alarms`"
+					@click="addSelectedAlarms"
+				/>
 			</div>
 			<CommonFilters
 				:list="situationStore.unassignedAlarms"
@@ -89,12 +92,10 @@ const filterList = (alarmsFiltered: TAlarm[]) => {
 			</div>
 			<NoResults v-else />
 		</div>
-	</FeatherDrawer>
+	</OnmsDrawer>
 </template>
 
 <style lang="scss" scoped>
-@use '@/styles/variables.scss';
-
 .content {
 	padding: 10px;
 	width: 700px;
@@ -120,12 +121,13 @@ const filterList = (alarmsFiltered: TAlarm[]) => {
 	width: 325px;
 }
 .empty {
-	padding: var(variables.$spacing-xl);
+	padding: var(--onms-spacing-xl);
 }
 
 .add-alarms-btn {
 	height: 44px !important;
-	background-color: var(--feather-success) !important;
+	background-color: var(--onms-success) !important;
+	border-color: var(--onms-success) !important;
 	color: white !important;
 }
 </style>

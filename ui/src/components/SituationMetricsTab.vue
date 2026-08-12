@@ -2,14 +2,14 @@
 import { TSituation } from '@/types/TSituation'
 import { formatDistanceStrict } from 'date-fns'
 import { minBy, groupBy, sortBy, reverse } from 'lodash'
-import { FeatherSelect, ISelectItemType } from '@featherds/select'
-import { FeatherIcon } from '@featherds/icon'
-import AddCircleAlt from '@featherds/icon/action/AddCircleAlt'
+import { OnmsIconButton, OnmsSelect } from '@opennms/onms-ui'
+import AddCircleAlt from '@/components/icons/action/AddCircleAlt.vue'
 import TimeLine from '@/components/Timeline.vue'
-import Remove from '@featherds/icon/action/Remove'
-import Refresh from '@featherds/icon/navigation/Refresh'
-import ChevronRight from '@featherds/icon/navigation/ChevronRight'
-import ExpandMore from '@featherds/icon/navigation/ExpandMore'
+import Remove from '@/components/icons/action/Remove.vue'
+import Refresh from '@/components/icons/navigation/Refresh.vue'
+import ChevronRight from '@/components/icons/navigation/ChevronRight.vue'
+import ExpandMore from '@/components/icons/navigation/ExpandMore.vue'
+import FormField from '@/components/Common/FormField.vue'
 import { formatDate } from '@/helpers/utils'
 import { ref, watch } from 'vue'
 import EventsList from '@/components/EventsList.vue'
@@ -17,8 +17,13 @@ import EventsList from '@/components/EventsList.vue'
 import { useSituationsStore } from '@/store/useSituationsStore'
 const situationStore = useSituationsStore()
 
+type TSortOption = {
+	id: number
+	name: string
+}
+
 const panelShow = ref(0)
-const options = [
+const options: TSortOption[] = [
 	{ id: 1, name: 'Creation Time' },
 	{ id: 2, name: 'Severity' },
 	{ id: 3, name: 'Duration' }
@@ -64,7 +69,11 @@ watch(props, () => {
 	sortedOption.value = options[0]
 })
 
-const sortChanged = (sortObj: ISelectItemType | undefined) => {
+const sortChanged = (value: unknown) => {
+	const sortObj = value as TSortOption | undefined
+	if (sortObj) {
+		sortedOption.value = sortObj
+	}
 	//by creationTime (comes by default)
 	if (sortObj?.id === 1) {
 		relatedAlarms.value = props.situation.alarms
@@ -123,7 +132,7 @@ const closePanel = () => {
 	<div class="section detail">
 		<div
 			class="severity-line"
-			:class="[`${props.situation?.severity?.toLowerCase()}-bg dark`]"
+			:class="[props.situation?.severity?.toLowerCase()]"
 		></div>
 		<div>
 			<div class="id">Situation {{ props.situation.id }}</div>
@@ -137,31 +146,38 @@ const closePanel = () => {
 	<div v-if="relatedAlarms && relatedAlarms.length > 0" class="section">
 		<div class="id">Alarms</div>
 		<div class="action-btns">
-			<FeatherSelect
-				class="select"
-				label="Sort by:"
-				:options="options"
-				v-model="sortedOption"
-				text-prop="name"
-				data-test="select-sort"
-				@update:modelValue="sortChanged"
-			/>
+			<FormField label="Sort by:" for="metrics-sort-select" class="select">
+				<OnmsSelect
+					:modelValue="sortedOption"
+					:options="options"
+					optionLabel="name"
+					inputId="metrics-sort-select"
+					data-test="select-sort"
+					@update:modelValue="sortChanged"
+				/>
+			</FormField>
 			<div class="zoom">
 				Zoom
 				<div>
-					<FeatherIcon
+					<OnmsIconButton
 						:icon="AddCircleAlt"
+						iconSize="24px"
 						class="zoom-icon"
+						title="Zoom in"
 						@click="handleClickZoomIn"
 					/>
-					<FeatherIcon
+					<OnmsIconButton
 						:icon="Refresh"
+						iconSize="24px"
 						class="zoom-icon"
+						title="Reset zoom"
 						@click="handleClickZoomReset"
 					/>
-					<FeatherIcon
+					<OnmsIconButton
 						:icon="Remove"
+						iconSize="24px"
 						class="zoom-icon"
+						title="Zoom out"
 						@click="handleClickZoomOut"
 					/>
 				</div>
@@ -186,16 +202,20 @@ const closePanel = () => {
 				<div class="timeline" v-for="alarm in relatedAlarms" :key="alarm.id">
 					<div class="alarm-id">
 						{{ alarm.nodeLabel }} - {{ alarm.id }}
-						<FeatherIcon
+						<OnmsIconButton
 							v-if="panelShow === alarm.id"
 							:icon="ExpandMore"
-							class="zoom-icon expand"
+							iconSize="20px"
+							class="expand"
+							title="Collapse events"
 							@click="closePanel"
 						/>
-						<FeatherIcon
+						<OnmsIconButton
 							v-else
 							:icon="ChevronRight"
-							class="zoom-icon expand"
+							iconSize="20px"
+							class="expand"
+							title="Expand events"
 							@click="() => expandPanel(alarm.id)"
 						/>
 					</div>
@@ -215,16 +235,14 @@ const closePanel = () => {
 </template>
 
 <style scoped lang="scss">
-@import '@/styles/variables.scss';
-
 ::-webkit-scrollbar {
 	height: 5px;
 	width: 5px;
-	background-color: var(--feather-shade-2);
+	background-color: var(--onms-background);
 }
 
 ::-webkit-scrollbar-thumb {
-	background: var(--feather-shade-1);
+	background: var(--onms-shade-3);
 }
 
 .severity-line {
@@ -232,8 +250,8 @@ const closePanel = () => {
 	margin-right: 10px;
 }
 .section {
-	background-color: var(--feather-surface);
-	border: 1px solid $border-grey;
+	background-color: var(--onms-surface);
+	border: 1px solid var(--onms-border-on-surface);
 	margin-top: 10px;
 	padding: 15px;
 }
@@ -263,7 +281,7 @@ const closePanel = () => {
 	font-weight: 600;
 	display: flex;
 	align-items: center;
-	color: var(--feather-secondary-text-on-surface);
+	color: var(--onms-secondary-text-on-surface);
 	margin-bottom: 5px;
 }
 .container {
@@ -298,7 +316,7 @@ const closePanel = () => {
 .times {
 	display: flex;
 	flex-direction: row;
-	border-bottom: 1px solid var(--feather-border-on-surface);
+	border-bottom: 1px solid var(--onms-border-on-surface);
 	margin-bottom: 15px;
 	justify-content: space-between;
 }
@@ -317,20 +335,18 @@ const closePanel = () => {
 }
 
 .zoom {
-	border: 1px solid var(--feather-border-on-surface);
+	border: 1px solid var(--onms-border-on-surface);
 	padding: 6px 15px;
 	border-radius: 5px;
 	min-width: 160px;
 	display: flex;
+	align-items: center;
 	justify-content: space-between;
-	max-height: 40px;
+	gap: 10px;
 }
 
 .zoom-icon {
-	font-size: 24px;
 	margin-left: 5px;
-	color: var(--feather-primary-text-on-surface);
-	cursor: pointer;
 }
 
 .panel {
@@ -338,10 +354,6 @@ const closePanel = () => {
 	margin: 5px;
 }
 .expand {
-	font-size: 20px;
-	border: 1px solid var(--feather-primary-text-on-surface);
-	border-radius: 50px;
-	color: var(--feather-primary-text-on-surface);
-	background-color: var(--feather-shade-3);
+	margin-left: 5px;
 }
 </style>

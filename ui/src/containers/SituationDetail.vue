@@ -1,21 +1,23 @@
 <script setup lang="ts">
 import {
-	FeatherTab,
-	FeatherTabContainer,
-	FeatherTabPanel
-} from '@featherds/tabs'
+	OnmsButton,
+	OnmsIcon,
+	OnmsSpinner,
+	OnmsTab,
+	OnmsTabList,
+	OnmsTabPanel,
+	OnmsTabPanels,
+	OnmsTabs,
+	useOnmsToast
+} from '@opennms/onms-ui'
 import SituationDetailTab from '@/components/SituationDetailTab.vue'
 import SituationMetricsTab from '@/components/SituationMetricsTab.vue'
 import AISuggestionsTab from '@/components/AISuggestionsTab.vue'
 import { useSituationsStore } from '@/store/useSituationsStore'
 import { ref, watch, onMounted } from 'vue'
-import { FeatherIcon } from '@featherds/icon'
 import { TSituation } from '@/types/TSituation'
-import { FeatherButton } from '@featherds/button'
-import ArrowBack from '@featherds/icon/navigation/ArrowBack'
-import { FeatherSnackbar } from '@featherds/snackbar'
+import ArrowBack from '@/components/icons/navigation/ArrowBack.vue'
 import { useAppStore } from '@/store/useAppStore'
-import { FeatherSpinner } from '@featherds/progress'
 import { useRoute } from 'vue-router'
 import useRouter from '@/composables/useRouter'
 import { ROUTE } from '@/router/routeNames'
@@ -26,7 +28,8 @@ const paramId = parseInt(route.params.id as string)
 const situationId = ref(paramId)
 const situationStore = useSituationsStore()
 const appStore = useAppStore()
-const tabNumber = ref(0)
+const toast = useOnmsToast()
+const tabNumber = ref<string | number>(0)
 
 situationStore.getSituation(situationId.value)
 situationStore.getUnassignedAlarms()
@@ -43,7 +46,6 @@ const loading = ref(true)
 const filteredSituationsCurrentIndex = ref(
 	situationStore.filteredSituations.findIndex((id) => id === situationId.value)
 )
-const showError = ref(false)
 
 watch(
 	() => situationStore.situationDetail,
@@ -83,101 +85,104 @@ watch(route, () => {
 		situationStore.filteredSituations.findIndex((id) => id == situationId.value)
 })
 appStore.$subscribe((mutation, storeState) => {
-	showError.value = storeState.showError
+	if (storeState.showError && storeState.errorMessage) {
+		toast.showToast({
+			message: storeState.errorMessage,
+			severity: 'error',
+			timeout: 9000
+		})
+	}
 })
-
-const clickedTab = (tab: number | undefined) => {
-	tabNumber.value = tab || 0
-}
 </script>
 
 <template>
 	<div id="cont">
 		<div class="btns-navigation">
-			<FeatherButton primary @click="() => showSituationList()">
-				<FeatherIcon :icon="ArrowBack" aria-hidden="true" class="icon" />
+			<OnmsButton @click="() => showSituationList()">
+				<OnmsIcon :icon="ArrowBack" class="icon" />
 				<span>Situation List</span>
-			</FeatherButton>
-			<div>
-				<FeatherButton
+			</OnmsButton>
+			<div class="btns-prev-next">
+				<OnmsButton
 					:disabled="
 						!situationStore.filteredSituations[
 							filteredSituationsCurrentIndex - 1
 						]
 					"
-					primary
 					@click="() => showNextSituation(-1)"
-					><FeatherIcon :icon="ArrowBack" aria-hidden="true" class="icon" />
+				>
+					<OnmsIcon :icon="ArrowBack" class="icon" />
 					<span>Show Previous Situation </span>
-				</FeatherButton>
-				<FeatherButton
+				</OnmsButton>
+				<OnmsButton
 					:disabled="
 						!situationStore.filteredSituations[
 							filteredSituationsCurrentIndex + 1
 						]
 					"
-					primary
 					@click="() => showNextSituation(1)"
 				>
 					<span>Show Next Situation</span>
-					<FeatherIcon :icon="ArrowBack" aria-hidden="true" class="icon next" />
-				</FeatherButton>
+					<OnmsIcon :icon="ArrowBack" class="icon next" />
+				</OnmsButton>
 			</div>
 		</div>
-		<FeatherSpinner class="spinner" v-if="loading" />
+		<div class="spinner" v-if="loading"><OnmsSpinner /></div>
 		<div v-else>
 			<div v-if="situation" class="detail">
-				<FeatherTabContainer @update:modelValue="clickedTab">
-					<template v-slot:tabs>
-						<FeatherTab>Details</FeatherTab>
-						<FeatherTab>Metrics</FeatherTab>
-						<FeatherTab data-test="ai-suggestions-tab">AI Suggestions</FeatherTab>
-					</template>
-					<FeatherTabPanel class="panel">
-						<SituationDetailTab :situation-info="situation" />
-					</FeatherTabPanel>
-					<FeatherTabPanel class="panel"
-						><SituationMetricsTab
-							v-if="container && tabNumber == 1"
-							:situation="situation"
-							:width="container"
-						/>
-					</FeatherTabPanel>
-					<FeatherTabPanel class="panel">
-						<!-- Mount only when active so the polling loop in
-						     AISuggestionsTab doesn't run for users who never open it.
-						     :key forces a remount when the user navigates to another
-						     situation in place (next/prev) — without it the component
-						     keeps showing the previous situation's suggestions. -->
-						<AISuggestionsTab
-							v-if="tabNumber == 2"
-							:key="situation.id"
-							:situation-id="situation.id"
-						/>
-					</FeatherTabPanel>
-				</FeatherTabContainer>
+				<OnmsTabs v-model:value="tabNumber">
+					<OnmsTabList>
+						<OnmsTab :value="0">Details</OnmsTab>
+						<OnmsTab :value="1">Metrics</OnmsTab>
+						<OnmsTab :value="2" data-test="ai-suggestions-tab"
+							>AI Suggestions</OnmsTab
+						>
+					</OnmsTabList>
+					<OnmsTabPanels>
+						<OnmsTabPanel :value="0" class="panel">
+							<SituationDetailTab :situation-info="situation" />
+						</OnmsTabPanel>
+						<OnmsTabPanel :value="1" class="panel">
+							<SituationMetricsTab
+								v-if="container && tabNumber == 1"
+								:situation="situation"
+								:width="container"
+							/>
+						</OnmsTabPanel>
+						<OnmsTabPanel :value="2" class="panel">
+							<!-- Mount only when active so the polling loop in
+							     AISuggestionsTab doesn't run for users who never open it.
+							     :key forces a remount when the user navigates to another
+							     situation in place (next/prev) — without it the component
+							     keeps showing the previous situation's suggestions. -->
+							<AISuggestionsTab
+								v-if="tabNumber == 2"
+								:key="situation.id"
+								:situation-id="situation.id"
+							/>
+						</OnmsTabPanel>
+					</OnmsTabPanels>
+				</OnmsTabs>
 			</div>
 			<div v-else class="noSituation">
 				Error. The situation {{ paramId }} does not exist.
 			</div>
 		</div>
-		<FeatherSnackbar v-model="showError" right error :timeout="9000">
-			{{ appStore.errorMessage }}
-			<template v-slot:button>
-				<FeatherButton @click="showError = false" text>dismiss</FeatherButton>
-			</template>
-		</FeatherSnackbar>
 	</div>
 </template>
 <style scoped lang="scss">
-@import '@/styles/variables.scss';
-@import '@featherds/table/scss/table';
 .btns-navigation {
 	display: flex;
 	flex-direction: row;
 	justify-content: space-between;
 }
+.btns-prev-next {
+	display: flex;
+	gap: 8px;
+}
 .spinner {
+	display: flex;
+	justify-content: center;
 	margin: 100px auto;
 }
 .detail {
@@ -196,20 +201,10 @@ const clickedTab = (tab: number | undefined) => {
 	transform: rotateZ(180deg);
 }
 
-.link {
-	padding: 12px;
-	cursor: pointer;
-	font-size: 22px;
-	border: 1px solid var(--feather-border-on-surface);
-	background-color: var(--feather-shade-2);
-	width: fit-content;
-	margin-bottom: 20px;
-}
-
 .noSituation {
 	padding: 30px;
-	border: 1px solid var(--feather-border-on-surface);
-	background-color: var(--feather-surface);
+	border: 1px solid var(--onms-border-on-surface);
+	background-color: var(--onms-surface);
 	width: 600px;
 	text-align: center;
 	margin: 80px auto;

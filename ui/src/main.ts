@@ -1,6 +1,6 @@
 // Must stay the first import: bundles the Feather base styles the OpenNMS 37
 // (PrimeVue) host no longer provides, before any application CSS.
-import './feather-styles'
+import '@/styles/app.scss'
 import App from './App.vue'
 import { createApp } from 'vue'
 import router from './router'

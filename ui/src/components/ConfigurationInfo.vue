@@ -43,8 +43,6 @@ const isClustering = computed(
 </template>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
-
 .box-info {
 	display: flex;
 	flex-direction: column;
@@ -53,12 +51,12 @@ const isClustering = computed(
 	font-weight: 600;
 	line-height: 20px;
 	margin-left: 8px;
-	color: var(--feather-secondary-text-on-surface);
+	color: var(--onms-secondary-text-on-surface);
 }
 
 .info-engine {
 	display: flex;
-	border: 1px solid $border-grey;
+	border: 1px solid var(--onms-border-on-surface);
 	border-radius: 5px;
 	padding: 1px 7px;
 	cursor: pointer;
@@ -73,28 +71,11 @@ const isClustering = computed(
 .engine {
 	@extend .box-info;
 	.type {
-		color: var(--feather-secondary);
+		color: var(--onms-primary);
 
 		&.not-set {
-			color: var(--feather-error);
+			color: var(--onms-error);
 		}
-	}
-}
-
-.optin {
-	border: 1px solid $border-grey;
-	border-radius: 5px;
-	padding: 1px 7px;
-	cursor: pointer;
-
-	@extend .box-info;
-	.optin-on {
-		font-size: 18px;
-		color: var(--feather-success);
-	}
-	.optin-off {
-		font-size: 18px;
-		color: var(--feather-error);
 	}
 }
 </style>

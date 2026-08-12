@@ -4,27 +4,30 @@ import { useSituationsStore } from '@/store/useSituationsStore'
 import type { Ref } from 'vue'
 import { ref, watch, markRaw } from 'vue'
 import { remove, includes } from 'lodash'
-import ExitToApp from '@featherds/icon/action/ExitToApp'
-import { FeatherCheckbox } from '@featherds/checkbox'
-import { FeatherButton } from '@featherds/button'
-import { FeatherIcon } from '@featherds/icon'
+import ExitToApp from '@/components/icons/action/ExitToApp.vue'
+import {
+	OnmsButton,
+	OnmsCheckbox,
+	OnmsIcon,
+	OnmsSpinner,
+	useOnmsToast
+} from '@opennms/onms-ui'
 import DrawerSituations from '@/components/DrawerSituations.vue'
 import { assignAlarmsToSituation } from '@/services/AlecService'
-import ArrowBack from '@featherds/icon/navigation/ArrowBack'
+import ArrowBack from '@/components/icons/navigation/ArrowBack.vue'
 import NewSituationBtn from '@/elements/NewSituationBtn.vue'
-import { FeatherSnackbar } from '@featherds/snackbar'
 import { TAlarm } from '@/types/TSituation'
 import useRouter from '@/composables/useRouter'
 import { ROUTE } from '@/router/routeNames'
 import CommonFilters from '@/components/CommonFilters.vue'
 import NoResults from '@/elements/NoResults.vue'
-import { FeatherSpinner } from '@featherds/progress'
 
 const Icons = markRaw({
 	ArrowBack,
 	ExitToApp
 })
 const router = useRouter()
+const toast = useOnmsToast()
 const situationStore = useSituationsStore()
 situationStore.getUnassignedAlarms()
 situationStore.getSituations()
@@ -36,9 +39,6 @@ const alarms = ref([]) as Ref<TAlarm[]>
 const alarmIds = ref([]) as Ref<number[]>
 const selectAll = ref(false)
 const showSituations = ref(false)
-const showErrorMsg = ref('')
-const showError = ref(false)
-const isError = ref(false)
 const loading = ref(true)
 
 watch(
@@ -70,9 +70,11 @@ const handleMoveToSituation = async (situationId: number) => {
 	if (resultMove) {
 		situationStore.getUnassignedAlarms()
 	} else {
-		showError.value = true
-		isError.value = true
-		showErrorMsg.value = 'Error on moving the alarms :('
+		toast.showToast({
+			message: 'Error on moving the alarms :(',
+			severity: 'error',
+			timeout: 6000
+		})
 	}
 	showSituations.value = false
 }
@@ -87,9 +89,11 @@ const handleMoveClick = () => {
 	if (alarmIds.value.length) {
 		showSituations.value = true
 	} else {
-		showError.value = true
-		isError.value = false
-		showErrorMsg.value = 'You need to choose at least one alarm!'
+		toast.showToast({
+			message: 'You need to choose at least one alarm!',
+			severity: 'warn',
+			timeout: 6000
+		})
 	}
 }
 const filterList = (alarmsFiltered: TAlarm[]) => {
@@ -100,10 +104,10 @@ const filterList = (alarmsFiltered: TAlarm[]) => {
 <template>
 	<div class="container">
 		<div class="nav-btns">
-			<FeatherButton primary @click="() => showSituationList()">
-				<FeatherIcon :icon="Icons.ArrowBack" aria-hidden="true" class="icon" />
+			<OnmsButton @click="() => showSituationList()">
+				<OnmsIcon :icon="Icons.ArrowBack" aria-hidden="true" class="icon" />
 				<span>Situation List</span>
-			</FeatherButton>
+			</OnmsButton>
 			<NewSituationBtn />
 		</div>
 		<h2>List Unassociated Alarms</h2>
@@ -118,17 +122,18 @@ const filterList = (alarmsFiltered: TAlarm[]) => {
 
 			<div class="list">
 				<div class="action-btns">
-					<FeatherCheckbox
+					<OnmsCheckbox
 						v-model="selectAll"
-						label="selected"
+						inputId="select-all-unassigned-alarms"
+						aria-label="selected"
 						@update:modelValue="handleSelect"
 					/>
-					<FeatherButton @click="handleMoveClick">
-						<FeatherIcon :icon="Icons.ExitToApp" class="icon move" />
+					<OnmsButton variant="text" @click="handleMoveClick">
+						<OnmsIcon :icon="Icons.ExitToApp" class="icon move" />
 						<span>Move</span>
-					</FeatherButton>
+					</OnmsButton>
 				</div>
-				<FeatherSpinner class="spinner" v-if="loading" />
+				<div class="spinner" v-if="loading"><OnmsSpinner /></div>
 				<div v-else>
 					<div v-if="alarms.length" class="alarms">
 						<div v-for="alarm in alarms" :key="alarm.id" class="card">
@@ -149,21 +154,13 @@ const filterList = (alarmsFiltered: TAlarm[]) => {
 			@situation-selected="handleMoveToSituation"
 			@drawer-closed="() => (showSituations = false)"
 		/>
-		<FeatherSnackbar v-model="showError" right :error="isError" :timeout="6000">
-			{{ showErrorMsg }}
-			<template v-slot:button>
-				<FeatherButton @click="showError = false" text>dismiss</FeatherButton>
-			</template>
-		</FeatherSnackbar>
 	</div>
 </template>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
-
 .content {
 	display: flex;
-	margin-top: var($spacing-m);
+	margin-top: var(--onms-spacing-m);
 }
 
 .filters {
@@ -178,12 +175,14 @@ const filterList = (alarmsFiltered: TAlarm[]) => {
 .nav-btns {
 	display: flex;
 	justify-content: space-between;
-	margin-bottom: var($spacing-m);
+	margin-bottom: var(--onms-spacing-m);
 }
 .action-btns {
-	background-color: var(--feather-surface);
+	background-color: var(--onms-surface);
 	padding: 12px 15px;
-	border: 1px solid $border-grey;
+	border: 1px solid var(--onms-border-on-surface);
+	display: flex;
+	align-items: center;
 	> * {
 		margin-right: 10px;
 	}
@@ -197,7 +196,7 @@ const filterList = (alarmsFiltered: TAlarm[]) => {
 	width: 100%;
 	flex-wrap: wrap;
 	align-content: flex-start;
-	margin-top: var($spacing-m);
+	margin-top: var(--onms-spacing-m);
 	> div {
 		margin-right: 1%;
 	}
@@ -217,22 +216,21 @@ const filterList = (alarmsFiltered: TAlarm[]) => {
 	vertical-align: sub;
 
 	&.move {
-		color: var(--feather-secondary-variant);
+		color: var(--onms-primary);
 		font-size: 20px;
 	}
 }
 
 .filters {
 	min-width: 20%;
-	background-color: var(--feather-surface);
+	background-color: var(--onms-surface);
 	margin-right: 15px;
-	border: 1px solid $border-grey;
+	border: 1px solid var(--onms-border-on-surface);
 }
 
-.layout-container {
-	margin-bottom: 0 !important;
-}
 .spinner {
+	display: flex;
+	justify-content: center;
 	margin: 100px auto;
 }
 </style>

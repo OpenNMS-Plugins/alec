@@ -11,13 +11,11 @@ const props = defineProps({
 	<span
 		v-if="props?.severity"
 		class="circle"
-		:class="[`${props.severity.toLowerCase()}-bg dark`]"
+		:class="props.severity.toLowerCase()"
 	></span>
 </template>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
-
 .circle {
 	width: 12px;
 	height: 12px;

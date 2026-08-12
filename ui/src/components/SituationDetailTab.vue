@@ -2,14 +2,13 @@
 import SeverityStatus from '@/elements/SeverityStatus.vue'
 import InformationBox from '@/elements/InformationBox.vue'
 import { TSituation } from '@/types/TSituation'
-import { FeatherIcon } from '@featherds/icon'
-import Cancel from '@featherds/icon/action/Cancel'
+import { OnmsButton, OnmsIcon } from '@opennms/onms-ui'
+import Cancel from '@/components/icons/action/Cancel.vue'
 import { sendFeedbackAcceptSituation } from '@/services/AlecService'
 import AlarmsCountBySeverity from '@/components/AlarmsCountBySeverity.vue'
 import AlarmsListContainer from '@/components/AlarmsListContainer.vue'
 import MemoBox from '@/components/MemoBox.vue'
 
-import { FeatherButton } from '@featherds/button'
 import { computed, ref, watch } from 'vue'
 import { decodeHtmlEntities, sanitizeHtml, formatDate } from '@/helpers/utils'
 import CONST from '@/helpers/constants'
@@ -70,27 +69,27 @@ const handleFeedbackSituation = async (action: string) => {
 			/>
 
 			<div class="btn-row">
-				<FeatherButton
+				<OnmsButton
+					variant="text"
 					class="btn"
 					data-test="btn-reject"
 					:class="{ rejected: status == REJECTED }"
 					@click="handleFeedbackSituation(REJECTED)"
 				>
-					<FeatherIcon
+					<OnmsIcon
 						:icon="Cancel"
-						aria-hidden="true"
 						class="icon reject"
 						:class="{ rejected: status == REJECTED }"
 					/>
 					<span v-if="status == REJECTED"> {{ REJECTED }}</span>
 					<span v-else> REJECT</span>
-				</FeatherButton>
+				</OnmsButton>
 			</div>
 		</div>
 		<div v-if="situationInfo" class="situation-detail">
 			<div
 				class="severity-line"
-				:class="[`${situationInfo?.severity?.toLowerCase()}-bg dark`]"
+				:class="[situationInfo?.severity?.toLowerCase()]"
 			></div>
 			<div class="situation-info">
 				<div class="id">
@@ -147,13 +146,11 @@ const handleFeedbackSituation = async (action: string) => {
 	</div>
 </template>
 <style scoped lang="scss">
-@import '@/styles/variables.scss';
-
 .action-section {
 	padding: 15px;
-	border: 1px solid $border-grey;
+	border: 1px solid var(--onms-border-on-surface);
 	margin-bottom: 20px;
-	background-color: var(--feather-surface);
+	background-color: var(--onms-surface);
 	margin-top: 10px;
 	display: flex;
 	flex-direction: row;
@@ -206,48 +203,24 @@ const handleFeedbackSituation = async (action: string) => {
 	min-width: 180px;
 	display: flex;
 	padding-left: 20px;
-	border-left: 1px solid $border-grey;
-}
-.accept {
-	font-size: 16px;
-	margin-right: 3px;
-	color: var(--feather-success) !important;
+	border-left: 1px solid var(--onms-border-on-surface);
 }
 .reject {
 	font-size: 16px;
-	color: var(--feather-error) !important;
+	color: var(--onms-error) !important;
 }
 .situation-detail {
 	display: flex;
 	flex-direction: row;
-	background-color: var(--feather-surface);
+	background-color: var(--onms-surface);
 	padding: 15px;
-	border: 1px solid $border-grey;
+	border: 1px solid var(--onms-border-on-surface);
 	margin-bottom: 20px;
 }
-.alarm-list {
-	margin-top: 20px;
-	display: flex;
-	flex-direction: row;
-	justify-content: space-between;
-	flex-wrap: wrap;
-	> div {
-		width: 49%;
-		margin-bottom: 20px;
-	}
-}
-.clicked {
-	border: 2px solid var(--feather-secondary);
-}
 
-.accepted {
-	background-color: var(--feather-success) !important;
-	color: #ffffff !important;
-}
 .rejected {
-	background-color: var(--feather-error) !important;
+	background-color: var(--onms-error) !important;
 	margin-right: 3px;
-
 	color: #ffffff !important;
 }
 </style>

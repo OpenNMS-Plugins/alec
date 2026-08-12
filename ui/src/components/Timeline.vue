@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { TAlarm, TEvent } from '@/types/TSituation'
-import { FeatherTooltip } from '@featherds/tooltip'
 import { formatDate } from '@/helpers/utils'
 
 const props = defineProps<{
@@ -34,17 +33,11 @@ const getOffset = (alarmStart: Date | undefined): number => {
 				width: getOffset(props.events[0].createTime) + 'px'
 			}"
 		></div>
-		<FeatherTooltip
+		<div
+			class="circle"
 			:title="formatDate(alarm.firstEventTime)"
-			v-slot="{ attrs, on }"
-		>
-			<div
-				class="circle"
-				v-bind="attrs"
-				v-on="on"
-				:class="[`${alarm.severity.toLowerCase()}-bg dark`]"
-			></div>
-		</FeatherTooltip>
+			:class="[alarm.severity.toLowerCase()]"
+		></div>
 		<div
 			class="event-trim"
 			v-for="(event, key) in props.events"
@@ -53,29 +46,23 @@ const getOffset = (alarmStart: Date | undefined): number => {
 			<div
 				v-if="props.events[key + 1]"
 				class="line"
-				:class="[`${event.severity.toLowerCase()}-bg dark`]"
+				:class="[event.severity.toLowerCase()]"
 				:style="{
 					width:
 						getWidth(event.createTime, props.events[key + 1].createTime) + 'px'
 				}"
 			></div>
 
-			<FeatherTooltip
+			<div
+				v-if="props.events[key + 1]"
+				class="event"
 				:title="formatDate(alarm.firstEventTime)"
-				v-slot="{ attrs, on }"
-			>
-				<div
-					v-bind="attrs"
-					v-on="on"
-					v-if="props.events[key + 1]"
-					class="event"
-					:class="[`${event.severity.toLowerCase()}-bg dark`]"
-				></div>
-			</FeatherTooltip>
+				:class="[event.severity.toLowerCase()]"
+			></div>
 		</div>
 		<div
 			class="line"
-			:class="[`${events[events.length - 1].severity.toLowerCase()}-bg dark`]"
+			:class="[events[events.length - 1].severity.toLowerCase()]"
 			:style="{
 				width: getWidth(events[events.length - 1].createTime, nowDate) + 'px'
 			}"
@@ -84,7 +71,6 @@ const getOffset = (alarmStart: Date | undefined): number => {
 </template>
 
 <style scoped lang="scss">
-@import '@/styles/variables.scss';
 .row {
 	display: flex;
 	flex-direction: row;
@@ -93,12 +79,11 @@ const getOffset = (alarmStart: Date | undefined): number => {
 }
 .line {
 	height: 2px;
-	background-color: var(--feather-error);
 }
 
 .line-gray {
 	height: 1px;
-	background-color: var(--feather-shade-3);
+	background-color: var(--onms-shade-3);
 }
 
 .circle {

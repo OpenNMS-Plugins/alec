@@ -3,12 +3,11 @@ import SeverityStatus from '@/elements/SeverityStatus.vue'
 import { formatDate, sanitizeHtml } from '@/helpers/utils'
 import { TAlarm } from '@/types/TSituation'
 import AlarmActionBtns from '@/components/AlarmActionBtns.vue'
-import { FeatherCheckbox } from '@featherds/checkbox'
+import { OnmsCheckbox, OnmsIcon } from '@opennms/onms-ui'
 import { getAlarmById } from '@/services/AlarmService'
 import MemoBox from '@/components/MemoBox.vue'
 import { ref, watch } from 'vue'
-import CheckCircle from '@featherds/icon/action/CheckCircle'
-import { FeatherIcon } from '@featherds/icon'
+import CheckCircle from '@/components/icons/action/CheckCircle.vue'
 import { formatDistanceStrict } from 'date-fns'
 
 const props = defineProps<{
@@ -45,9 +44,10 @@ const actionClicked = async (id: number) => {
 	<div class="card" v-if="alarm">
 		<div>
 			<div class="row">
-				<FeatherCheckbox
+				<OnmsCheckbox
 					v-model="selected"
-					label="selected"
+					:inputId="`select-alarm-${alarm.id}`"
+					aria-label="selected"
 					@update:modelValue="updatedSelect"
 				/>
 				<div
@@ -64,11 +64,7 @@ const actionClicked = async (id: number) => {
 				<SeverityStatus :severity="alarm?.severity" />
 
 				<div v-if="alarm.ackTime" class="ack">
-					<FeatherIcon
-						:icon="CheckCircle"
-						aria-hidden="true"
-						class="icon-ack"
-					/>
+					<OnmsIcon :icon="CheckCircle" class="icon-ack" />
 				</div>
 			</div>
 			<div>
@@ -117,30 +113,19 @@ const actionClicked = async (id: number) => {
 </template>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
 .card {
 	padding: 15px;
-	border: 1px solid $border-grey;
+	border: 1px solid var(--onms-border-on-surface);
 	display: flex;
 	flex-direction: row;
 	justify-content: space-between;
-}
-.checkbox {
-	> label {
-		display: none !important;
-	}
 }
 .row {
 	display: flex;
 	flex-direction: row;
 	padding: 5px 0;
 	align-items: center;
-	> label {
-		display: none !important;
-	}
-	.layout-container {
-		margin: 0;
-	}
+	gap: 10px;
 }
 .title {
 	font-size: 18px;
@@ -156,7 +141,7 @@ const actionClicked = async (id: number) => {
 
 .ack {
 	font-size: 27px;
-	color: var(--feather-success);
+	color: var(--onms-success);
 	margin-left: 10px;
 }
 </style>

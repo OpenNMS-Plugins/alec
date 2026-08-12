@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, computed } from 'vue'
 import { useUserStore } from '@/store/useUserStore'
+import { OnmsToastHost } from '@opennms/onms-ui'
 
 // Poll the shared LLM token-budget status so any ALEC page can warn the user
 // when the daily/monthly cap has paused LLM requests (root cause analysis and,
@@ -22,10 +23,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-	<!-- feather-styles scopes the @featherds/styles base rules (typography,
-	     sr-text, links): Feather hosts stamp it on <body>, the PrimeVue-based
-	     OpenNMS 37 host does not, so carry it on our own root. -->
-	<div class="main feather-styles">
+	<div class="main">
 		<div
 			v-if="budgetBlocked"
 			class="llm-budget-banner"
@@ -36,6 +34,7 @@ onUnmounted(() => {
 			limit on the LLM Setup tab of the ALEC configuration to resume.
 		</div>
 		<router-view></router-view>
+		<OnmsToastHost />
 	</div>
 </template>
 
@@ -48,14 +47,14 @@ onUnmounted(() => {
 	margin-bottom: 16px;
 	padding: 10px 14px;
 	border-radius: 4px;
-	border: 1px solid var(--feather-warning);
-	background: var(--feather-surface);
-	color: var(--feather-primary-text-on-surface);
+	border: 1px solid var(--onms-warning);
+	background: var(--onms-surface);
+	color: var(--onms-primary-text-on-surface);
 	font-size: 13px;
 	line-height: 1.45;
 
 	strong {
-		color: var(--feather-warning);
+		color: var(--onms-warning);
 	}
 }
 </style>

@@ -1,20 +1,18 @@
 <script setup lang="ts">
-import { FeatherTextarea } from '@featherds/textarea'
-import Add from '@featherds/icon/action/Add'
-import Cancel from '@featherds/icon/navigation/Cancel'
+import Add from '@/components/icons/action/Add.vue'
+import Cancel from '@/components/icons/action/Cancel.vue'
 
-import { FeatherButton } from '@featherds/button'
+import { OnmsButton, OnmsIcon, OnmsTextarea, useOnmsToast } from '@opennms/onms-ui'
+import FormField from '@/components/Common/FormField.vue'
 import useRouter from '@/composables/useRouter'
 import { ROUTE } from '@/router/routeNames'
 
 import CommonFilters from '@/components/CommonFilters.vue'
 
 import { TNewSituation, TAlarm } from '@/types/TSituation'
-import { FeatherSnackbar } from '@featherds/snackbar'
-import { FeatherIcon } from '@featherds/icon'
 import { useSituationsStore } from '@/store/useSituationsStore'
 import UnassignedAlarmCard from '@/components/UnassignedAlarmCard.vue'
-import ArrowBack from '@featherds/icon/navigation/ArrowBack'
+import ArrowBack from '@/components/icons/navigation/ArrowBack.vue'
 import { remove, includes } from 'lodash'
 import { createSituations } from '@/services/AlecService'
 import type { Ref } from 'vue'
@@ -22,6 +20,7 @@ import { ref, watch } from 'vue'
 import NoResults from '@/elements/NoResults.vue'
 
 const router = useRouter()
+const toast = useOnmsToast()
 const situationStore = useSituationsStore()
 
 const descriptionText = ref()
@@ -32,7 +31,6 @@ const diagnosticError = ref('')
 
 const alarmIds = ref([]) as Ref<number[]>
 const errorAlarmList = ref(false)
-const errorSave = ref()
 
 const alarms = ref(situationStore.unassignedAlarms)
 
@@ -89,7 +87,11 @@ const createSituation = async () => {
 		}
 		const result = await createSituations(situationInfo)
 		if (!result) {
-			errorSave.value = true
+			toast.showToast({
+				message: 'Error on creating new situation :(',
+				severity: 'error',
+				timeout: 6000
+			})
 		} else {
 			router.push({
 				name: ROUTE.situations
@@ -112,37 +114,49 @@ const filterList = (list: TAlarm[]) => {
 
 <template>
 	<div class="container">
-		<FeatherButton primary @click="() => showSituationList()" class="back-btn">
-			<FeatherIcon :icon="ArrowBack" aria-hidden="true" class="icon" />
+		<OnmsButton class="back-btn" @click="() => showSituationList()">
+			<OnmsIcon :icon="ArrowBack" aria-hidden="true" class="icon" />
 			<span>Situation List</span>
-		</FeatherButton>
+		</OnmsButton>
 		<h2>New Situation</h2>
 		<div class="form">
 			<div class="fields">
-				<FeatherTextarea
-					v-model="descriptionText"
+				<FormField
 					label="Description"
-					rows="5"
+					for="new-situation-description"
 					:error="descriptionError"
-				></FeatherTextarea>
-				<FeatherTextarea
-					v-model="diagnosticText"
+				>
+					<OnmsTextarea
+						v-model="descriptionText"
+						id="new-situation-description"
+						:rows="5"
+						:invalid="!!descriptionError"
+					/>
+				</FormField>
+				<FormField
 					label="Diagnostic Text"
-					rows="5"
+					for="new-situation-diagnostic"
 					:error="diagnosticError"
-				></FeatherTextarea>
+				>
+					<OnmsTextarea
+						v-model="diagnosticText"
+						id="new-situation-diagnostic"
+						:rows="5"
+						:invalid="!!diagnosticError"
+					/>
+				</FormField>
 				<div v-if="errorAlarmList" class="errorList">
 					You must add at least 2 alarms.
 				</div>
 				<div class="footer">
-					<FeatherButton class="btn" @click="cleanFields">
-						<FeatherIcon :icon="Cancel" aria-hidden="true" class="icon" />
+					<OnmsButton variant="ghost" class="btn" @click="cleanFields">
+						<OnmsIcon :icon="Cancel" aria-hidden="true" class="icon" />
 						<span>Clear</span>
-					</FeatherButton>
-					<FeatherButton class="btn-add" @click="createSituation">
-						<FeatherIcon :icon="Add" aria-hidden="true" class="icon" />
+					</OnmsButton>
+					<OnmsButton class="btn-add" @click="createSituation">
+						<OnmsIcon :icon="Add" aria-hidden="true" class="icon" />
 						<span>Add Situation</span>
-					</FeatherButton>
+					</OnmsButton>
 				</div>
 			</div>
 			<div class="alarm-column">
@@ -176,26 +190,18 @@ const filterList = (list: TAlarm[]) => {
 				</div>
 			</div>
 		</div>
-		<FeatherSnackbar v-model="errorSave" right error :timeout="6000">
-			Error on creating new situation :(
-			<template v-slot:button>
-				<FeatherButton @click="errorSave = false" text>dismiss</FeatherButton>
-			</template>
-		</FeatherSnackbar>
 	</div>
 </template>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
-
 .back-btn {
 	margin-bottom: 20px;
 }
 
 .form {
 	display: flex;
-	background-color: var(--feather-surface);
-	border: 1px solid $border-grey;
+	background-color: var(--onms-surface);
+	border: 1px solid var(--onms-border-on-surface);
 	padding: 20px;
 	margin-top: 20px;
 	min-height: 750px;
@@ -204,7 +210,7 @@ const filterList = (list: TAlarm[]) => {
 .alarm-column {
 	width: 100%;
 	margin-left: 20px;
-	border: 1px solid gray;
+	border: 1px solid var(--onms-border-on-surface);
 	padding: 10px 15px;
 	border-radius: 5px;
 }
@@ -233,17 +239,6 @@ const filterList = (list: TAlarm[]) => {
 	}
 }
 
-.btn {
-	display: flex;
-	align-items: center;
-}
-
-.btn-add {
-	height: 36px !important;
-	background-color: var(--feather-success) !important;
-	color: white !important;
-}
-
 .icon {
 	font-size: 19px;
 	margin-right: 5px;
@@ -258,17 +253,14 @@ const filterList = (list: TAlarm[]) => {
 }
 
 .errorList {
-	color: var(--feather-error);
-}
-
-.layout-container {
-	margin: 0;
+	color: var(--onms-error);
 }
 
 .footer {
 	flex-grow: 1;
 	display: flex;
 	align-items: end;
+	gap: 12px;
 }
 
 .list {

@@ -20,7 +20,6 @@ const props = defineProps<{
 	</div>
 </template>
 <style scoped lang="scss">
-@import '@/styles/variables.scss';
 .alarms-list {
 	display: flex;
 	flex-direction: row;

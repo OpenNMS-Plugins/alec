@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { FeatherRadioGroup, FeatherRadio } from '@featherds/radio'
+import { OnmsRadioButton } from '@opennms/onms-ui'
 import { watch, ref } from 'vue'
 
 const props = defineProps<{
@@ -21,33 +21,42 @@ watch(props, () => {
 		selectedTimePeriod.value = props.preSelected
 	}
 })
+
+const onSelect = (id: number) => {
+	selectedTimePeriod.value = id
+	emit('filter-date-selected', id)
+}
 </script>
 
 <template>
-	<FeatherRadioGroup
-		:label="''"
-		v-model="selectedTimePeriod"
-		vertical
-		hodeLabel
-		class="radio-dates"
-		@update:modelValue="emit('filter-date-selected', selectedTimePeriod)"
-	>
-		<FeatherRadio v-for="item in timePeriods" :value="item.id" :key="item.id">{{
-			item.name
-		}}</FeatherRadio>
-	</FeatherRadioGroup>
+	<div class="radio-dates" role="radiogroup" aria-label="Filter by start date">
+		<div class="radio-option" v-for="item in timePeriods" :key="item.id">
+			<OnmsRadioButton
+				:modelValue="selectedTimePeriod"
+				:value="item.id"
+				:inputId="`filter-date-${item.id}`"
+				@update:modelValue="onSelect(item.id)"
+			/>
+			<label :for="`filter-date-${item.id}`">{{ item.name }}</label>
+		</div>
+	</div>
 </template>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
-
-.layout-container {
-	margin-bottom: 0 !important;
+.radio-dates {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin-top: 8px;
 }
 
-.radio-dates {
-	> :first-child {
-		margin-bottom: 8px !important;
+.radio-option {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+
+	label {
+		cursor: pointer;
 	}
 }
 </style>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import useRouter from '@/composables/useRouter'
 import { ROUTE } from '@/router/routeNames'
-import { FeatherButton } from '@featherds/button'
+import { OnmsButton } from '@opennms/onms-ui'
 
 const router = useRouter()
 
@@ -12,7 +12,7 @@ const reload = () => {
 
 <template>
 	<div class="main">Something bad is happening...</div>
-	<FeatherButton primary @click="reload"> Reload </FeatherButton>
+	<OnmsButton label="Reload" @click="reload" />
 </template>
 
 <style scoped>
@@ -20,9 +20,5 @@ const reload = () => {
 	margin-top: 20px;
 	font-size: 18px;
 	margin-bottom: 50px;
-}
-
-.link {
-	cursor: pointer;
 }
 </style>

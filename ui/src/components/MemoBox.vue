@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { FeatherIcon } from '@featherds/icon'
-import EditMode from '@featherds/icon/action/EditMode'
-import Cancel from '@featherds/icon/navigation/Cancel'
-import CheckCircle from '@featherds/icon/action/CheckCircle'
-import { FeatherTextarea } from '@featherds/textarea'
+import { OnmsIconButton, OnmsTextarea } from '@opennms/onms-ui'
+import EditMode from '@/components/icons/action/EditMode.vue'
+import Cancel from '@/components/icons/action/Cancel.vue'
+import CheckCircle from '@/components/icons/action/CheckCircle.vue'
 import { TMemo } from '@/types/TSituation'
 import { saveMemo, deleteMemo } from '@/services/AlarmService'
 import { useAppStore } from '@/store/useAppStore'
@@ -57,71 +56,64 @@ const saveMemoText = async () => {
 		<div class="row">
 			<div class="label">{{ label }}</div>
 			<div class="action-icons">
-				<div class="icon-btn">
-					<FeatherIcon
-						v-if="!isEdit"
-						:icon="EditMode"
-						aria-hidden="true"
-						class="icon edit"
-						@click="showEditInput"
-					/>
-				</div>
-				<div class="icon-btn" v-if="isEdit">
-					<FeatherIcon
-						:icon="CheckCircle"
-						aria-hidden="true"
-						class="icon save"
-						@click="saveMemoText"
-					/>
-				</div>
-				<div class="icon-btn" v-if="(memoText && memoText != '') || isEdit">
-					<FeatherIcon
-						:icon="Cancel"
-						aria-hidden="true"
-						class="icon cancel"
-						@click="removeMemo"
-					/>
-				</div>
+				<OnmsIconButton
+					v-if="!isEdit"
+					:icon="EditMode"
+					:iconSize="props.boxType === 'small' ? '18px' : '22px'"
+					class="icon-btn edit"
+					title="Edit memo"
+					@click="showEditInput"
+				/>
+				<OnmsIconButton
+					v-if="isEdit"
+					:icon="CheckCircle"
+					:iconSize="props.boxType === 'small' ? '18px' : '22px'"
+					class="icon-btn save"
+					title="Save memo"
+					@click="saveMemoText"
+				/>
+				<OnmsIconButton
+					v-if="(memoText && memoText != '') || isEdit"
+					:icon="Cancel"
+					:iconSize="props.boxType === 'small' ? '18px' : '22px'"
+					class="icon-btn cancel"
+					title="Remove memo"
+					@click="removeMemo"
+				/>
 			</div>
 		</div>
 		<div>
 			<div class="text" v-if="!isEdit && memoText != null">
 				{{ memoText }}
 			</div>
-			<FeatherTextarea
+			<OnmsTextarea
 				class="textarea"
 				v-if="isEdit"
 				v-model="memoText"
-				rows="2"
-				label=""
-				hideLabel
-			></FeatherTextarea>
+				:rows="2"
+			/>
 		</div>
 	</div>
 </template>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
 .row {
 	display: flex;
 	flex-direction: row;
 	align-items: start;
 }
 .box {
-	border: 1px solid $border-grey;
+	border: 1px solid var(--onms-border-on-surface);
 	padding: 15px;
 	width: 49%;
 	margin-bottom: 20px;
-	background-color: var(--feather-surface);
+	background-color: var(--onms-surface);
 
 	.label {
 		font-weight: 600;
 		font-size: 17px;
 	}
 
-	.icon {
-		font-size: 22px;
-	}
 	.text {
 		margin-top: 8px;
 		font-size: 14px;
@@ -138,17 +130,12 @@ const saveMemoText = async () => {
 		font-size: 14px;
 	}
 
-	.icon {
-		font-size: 18px;
-	}
 	.text {
 		width: fit-content;
 		font-size: 14px;
 	}
 }
 .icon-btn {
-	border-radius: 5px;
-	cursor: pointer;
 	margin-left: 8px;
 }
 .action-icons {
@@ -159,15 +146,15 @@ const saveMemoText = async () => {
 	margin-top: 3px;
 	width: 100%;
 }
-.icon {
+.icon-btn {
 	&.save {
-		color: var(--feather-success);
+		color: var(--onms-success) !important;
 	}
 	&.cancel {
-		color: var(--feather-error);
+		color: var(--onms-error) !important;
 	}
 	&.edit {
-		color: var(--feather-secondary);
+		color: var(--onms-primary) !important;
 	}
 }
 </style>

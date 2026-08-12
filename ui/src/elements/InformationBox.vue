@@ -15,9 +15,8 @@ const props = defineProps<{
 </template>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
 .box {
-	border: 1px solid $border-grey;
+	border: 1px solid var(--onms-border-on-surface);
 	padding: 5px 20px;
 	width: fit-content;
 	margin: 10px 0;

@@ -12,15 +12,13 @@ const props = defineProps<{
 	<div class="event-description" v-for="event in props.events" :key="event.id">
 		<div
 			class="mark"
-			:class="[`${event.severity.toLowerCase()}-bg dark`]"
+			:class="[event.severity.toLowerCase()]"
 		></div>
 		<div>{{ formatDate(event.createTime) }} - {{ event.source }}</div>
 	</div>
 </template>
 
 <style scoped lang="scss">
-@import '@/styles/variables.scss';
-
 .event-description {
 	margin-left: 30px;
 	display: flex;

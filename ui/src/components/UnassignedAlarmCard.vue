@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { FeatherCheckbox } from '@featherds/checkbox'
+import { OnmsCheckbox } from '@opennms/onms-ui'
 import { truncateText } from '@/helpers/utils'
 import { TAlarm } from '@/types/TSituation'
 import { formatDistanceStrict } from 'date-fns'
@@ -17,9 +17,10 @@ const props = defineProps<{
 	<div class="alarm" :class="{ selected: props.selected }">
 		<div class="alarmInfo">
 			<div class="triangle" :class="[`${alarm.severity.toLowerCase()}`]"></div>
-			<FeatherCheckbox
+			<OnmsCheckbox
 				:modelValue="props.selected"
-				label="selected"
+				:inputId="`select-unassigned-alarm-${alarm.id}`"
+				aria-label="selected"
 				@update:modelValue="emit('selected-alarm', alarm.id)"
 			/>
 
@@ -36,22 +37,21 @@ const props = defineProps<{
 </template>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
-
 .alarm {
 	margin-bottom: 15px;
 	padding: 15px;
-	border: 1px solid $border-grey;
+	border: 1px solid var(--onms-border-on-surface);
 	position: relative;
 	min-height: 140px;
-	background-color: var(--feather-surface);
+	background-color: var(--onms-surface);
 	&.selected {
-		border: 1px solid var(--feather-secondary);
+		border: 1px solid var(--onms-primary);
 	}
 }
 .alarmInfo {
 	display: flex;
 	align-items: center;
+	gap: 6px;
 }
 
 .alarm-title {
@@ -69,46 +69,49 @@ const props = defineProps<{
 	position: absolute;
 	top: 0%;
 	left: 88%;
+	// The global severity classes paint the whole element; only the rotated
+	// :before corner may carry the severity color here.
+	background-color: transparent !important;
 
 	&.critical {
 		&:before {
-			background-color: $severity-alarm-critical-border;
+			background-color: var(--onms-error);
 		}
 	}
 
 	&.major {
 		&:before {
-			background-color: $severity-alarm-major-border;
+			background-color: var(--onms-major);
 		}
 	}
 
 	&.minor {
 		&:before {
-			background-color: $severity-alarm-minor-border;
+			background-color: var(--onms-minor);
 		}
 	}
 
 	&.warning {
 		&:before {
-			background-color: $severity-alarm-warning-border;
+			background-color: var(--onms-warning);
 		}
 	}
 
 	&.indeterminate {
 		&:before {
-			background-color: $severity-alarm-indeterminate-border;
+			background-color: var(--onms-indeterminate);
 		}
 	}
 
 	&.normal {
 		&:before {
-			background-color: $severity-alarm-normal-border;
+			background-color: var(--onms-success);
 		}
 	}
 
 	&.cleared {
 		&:before {
-			background-color: $severity-alarm-cleared-border;
+			background-color: var(--onms-cleared);
 		}
 	}
 
@@ -122,9 +125,5 @@ const props = defineProps<{
 		transform-origin: 100% 100%;
 		transform: rotate(45deg);
 	}
-}
-
-.layout-container {
-	margin-bottom: 0;
 }
 </style>

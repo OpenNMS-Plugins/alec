@@ -3,25 +3,23 @@ import { TAlarm } from '@/types/TSituation'
 import { ref, watch, reactive } from 'vue'
 import { remove } from 'lodash'
 import AlarmDetail from '@/components/AlarmDetail.vue'
-import { FeatherButton } from '@featherds/button'
-import MarkComplete from '@featherds/icon/action/MarkComplete'
-import { FeatherIcon } from '@featherds/icon'
+import { OnmsButton, OnmsCheckbox, OnmsIcon } from '@opennms/onms-ui'
+import MarkComplete from '@/components/icons/action/MarkComplete.vue'
 import { useSituationsStore } from '@/store/useSituationsStore'
 import { sendActionMultiplyAlarms } from '@/services/AlarmService'
 import {
 	removeAlarmsFromSituation,
 	assignAlarmsToSituation
 } from '@/services/AlecService'
-import { FeatherCheckbox } from '@featherds/checkbox'
 
-import CheckCircle from '@featherds/icon/action/CheckCircle'
-import ExitToApp from '@featherds/icon/action/ExitToApp'
+import CheckCircle from '@/components/icons/action/CheckCircle.vue'
+import ExitToApp from '@/components/icons/action/ExitToApp.vue'
 import DrawerSituations from '@/components/DrawerSituations.vue'
 import DrawerAlarms from '@/components/DrawerAlarms.vue'
 
 import { useAppStore } from '@/store/useAppStore'
-import Delete from '@featherds/icon/action/Delete'
-import Add from '@featherds/icon/action/Add'
+import Delete from '@/components/icons/action/Delete.vue'
+import Add from '@/components/icons/action/Add.vue'
 import { markRaw } from 'vue'
 import CommonFilters from '@/components/CommonFilters.vue'
 import NoResults from '@/elements/NoResults.vue'
@@ -157,13 +155,13 @@ const filterList = (alarmsFiltered: TAlarm[]) => {
 	<div class="container">
 		<div class="header">
 			<div class="title">Alarms</div>
-			<FeatherButton
+			<OnmsButton
 				class="add-alarms-btn"
 				@click="showUnassignedAlarms = true"
 			>
-				<FeatherIcon :icon="Icons.Add" aria-hidden="true" class="icon add" />
+				<OnmsIcon :icon="Icons.Add" class="icon add" />
 				<span>Add Alarms</span>
-			</FeatherButton>
+			</OnmsButton>
 		</div>
 
 		<div class="alarms-container">
@@ -176,23 +174,33 @@ const filterList = (alarmsFiltered: TAlarm[]) => {
 			</div>
 			<div class="list">
 				<div class="row actions">
-					<FeatherCheckbox v-model="selectAll" label="selected" />
-					<FeatherButton @click="() => handleActionMultiplyAlarms('clear')">
-						<FeatherIcon :icon="MarkComplete" class="icon clear" />
+					<OnmsCheckbox
+						v-model="selectAll"
+						inputId="select-all-alarms"
+						aria-label="selected"
+					/>
+					<OnmsButton
+						variant="text"
+						@click="() => handleActionMultiplyAlarms('clear')"
+					>
+						<OnmsIcon :icon="Icons.MarkComplete" class="icon clear" />
 						<span>Clear</span>
-					</FeatherButton>
-					<FeatherButton @click="() => handleActionMultiplyAlarms('ack')">
-						<FeatherIcon :icon="CheckCircle" class="icon ack" />
+					</OnmsButton>
+					<OnmsButton
+						variant="text"
+						@click="() => handleActionMultiplyAlarms('ack')"
+					>
+						<OnmsIcon :icon="Icons.CheckCircle" class="icon ack" />
 						<span>Acknowledge</span>
-					</FeatherButton>
-					<FeatherButton @click="handleMoveClick">
-						<FeatherIcon :icon="ExitToApp" class="icon move" />
+					</OnmsButton>
+					<OnmsButton variant="text" @click="handleMoveClick">
+						<OnmsIcon :icon="Icons.ExitToApp" class="icon move" />
 						<span>Move</span>
-					</FeatherButton>
-					<FeatherButton @click="handleRemoveAlarm">
-						<FeatherIcon :icon="Delete" class="icon remove" />
+					</OnmsButton>
+					<OnmsButton variant="text" @click="handleRemoveAlarm">
+						<OnmsIcon :icon="Icons.Delete" class="icon remove" />
 						<span>Remove</span>
-					</FeatherButton>
+					</OnmsButton>
 				</div>
 
 				<div class="section">
@@ -226,12 +234,10 @@ const filterList = (alarmsFiltered: TAlarm[]) => {
 </template>
 
 <style scoped lang="scss">
-@import '@/styles/variables.scss';
-@import '@featherds/table/scss/table';
 .container {
-	border: 1px solid $border-grey;
+	border: 1px solid var(--onms-border-on-surface);
 	padding: 15px;
-	background-color: var(--feather-surface);
+	background-color: var(--onms-surface);
 }
 .header {
 	display: flex;
@@ -239,7 +245,7 @@ const filterList = (alarmsFiltered: TAlarm[]) => {
 .row {
 	display: flex;
 	flex-direction: row;
-	align-items: baseline;
+	align-items: center;
 }
 .list {
 	width: 100%;
@@ -247,13 +253,7 @@ const filterList = (alarmsFiltered: TAlarm[]) => {
 .actions {
 	margin-top: 20px;
 	padding-left: 15px;
-
-	> div {
-		margin-right: 10px;
-	}
-	> label {
-		display: none !important;
-	}
+	gap: 10px;
 }
 
 .alarms-container {
@@ -263,7 +263,8 @@ const filterList = (alarmsFiltered: TAlarm[]) => {
 .add-alarms-btn {
 	margin-left: auto;
 	height: 44px !important;
-	background-color: var(--feather-success) !important;
+	background-color: var(--onms-success) !important;
+	border-color: var(--onms-success) !important;
 	color: white !important;
 }
 
@@ -290,17 +291,17 @@ const filterList = (alarmsFiltered: TAlarm[]) => {
 	vertical-align: text-bottom !important;
 
 	&.clear {
-		color: var(--feather-secondary);
+		color: var(--onms-primary);
 	}
 	&.ack {
-		color: var(--feather-success);
+		color: var(--onms-success);
 	}
 	&.move {
-		color: var(--feather-secondary-variant);
+		color: var(--onms-indeterminate);
 		font-size: 20px;
 	}
 	&.remove {
-		color: var(--feather-error);
+		color: var(--onms-error);
 		font-size: 21px;
 	}
 	&.add {
@@ -310,7 +311,7 @@ const filterList = (alarmsFiltered: TAlarm[]) => {
 
 .filters {
 	min-width: 20%;
-	background-color: var(--feather-surface);
+	background-color: var(--onms-surface);
 	margin-right: 15px;
 	margin-top: 9px;
 }

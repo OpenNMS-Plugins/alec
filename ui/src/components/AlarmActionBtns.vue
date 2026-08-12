@@ -1,15 +1,14 @@
 <script setup lang="ts">
-import { FeatherButton } from '@featherds/button'
-import CheckCircle from '@featherds/icon/action/CheckCircle'
-import KeyboardArrowUp from '@featherds/icon/hardware/KeyboardArrowUp'
-import MarkComplete from '@featherds/icon/action/MarkComplete'
+import { OnmsButton, OnmsIcon } from '@opennms/onms-ui'
+import CheckCircle from '@/components/icons/action/CheckCircle.vue'
+import KeyboardArrowUp from '@/components/icons/hardware/KeyboardArrowUp.vue'
+import MarkComplete from '@/components/icons/action/MarkComplete.vue'
 import { sendAcknowledge, sendAction } from '@/services/AlarmService'
 import { sendFeedbackAcceptSituation } from '@/services/AlecService'
 
 import CONST from '@/helpers/constants'
 import { TAlarm, TSituation } from '@/types/TSituation'
 
-import { FeatherIcon } from '@featherds/icon'
 import { useSituationsStore } from '@/store/useSituationsStore'
 
 const props = defineProps<{
@@ -46,38 +45,37 @@ const handleAction = async (action: string) => {
 		class="action-btns-group"
 		:class="props.direction === 'horizontal' ? 'horizontal' : 'vertical'"
 	>
-		<FeatherButton
+		<OnmsButton
 			v-if="!alarm.ackTime"
+			variant="text"
 			class="acction-btn"
 			@click="() => handleAcknowledgeAction(true)"
 		>
-			<FeatherIcon :icon="CheckCircle" aria-hidden="true" class="icon ack" />
+			<OnmsIcon :icon="CheckCircle" class="icon ack" />
 			<span>Acknowledge</span>
-		</FeatherButton>
-		<FeatherButton
+		</OnmsButton>
+		<OnmsButton
 			v-if="alarm.severity != 'CRITICAL'"
+			variant="text"
 			class="acction-btn"
 			@click="() => handleAction(CONST.ESCALATE)"
 		>
-			<FeatherIcon
-				:icon="KeyboardArrowUp"
-				aria-hidden="true"
-				class="icon escalate"
-			/>
+			<OnmsIcon :icon="KeyboardArrowUp" class="icon escalate" />
 			<span>Escalate</span>
-		</FeatherButton>
-		<FeatherButton
+		</OnmsButton>
+		<OnmsButton
 			v-if="
 				props.showClear &&
 				alarm.severity != 'NORMAL' &&
 				alarm.severity != 'CLEARED'
 			"
+			variant="text"
 			class="acction-btn"
 			@click="() => handleAction(CONST.CLEAR)"
 		>
-			<FeatherIcon :icon="MarkComplete" aria-hidden="true" class="icon clear" />
+			<OnmsIcon :icon="MarkComplete" class="icon clear" />
 			<span>Clear</span>
-		</FeatherButton>
+		</OnmsButton>
 	</div>
 </template>
 
@@ -115,17 +113,17 @@ const handleAction = async (action: string) => {
 	vertical-align: sub;
 
 	&.ack {
-		color: var(--feather-success);
+		color: var(--onms-success);
 	}
 	&.unack {
-		color: var(--feather-error);
+		color: var(--onms-error);
 	}
 	&.escalate {
-		color: var(--feather-error);
+		color: var(--onms-error);
 		font-size: 20px;
 	}
 	&.clear {
-		color: var(--feather-secondary);
+		color: var(--onms-primary);
 	}
 }
 </style>
