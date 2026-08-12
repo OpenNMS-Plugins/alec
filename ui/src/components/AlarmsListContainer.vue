@@ -13,7 +13,6 @@ import {
 	assignAlarmsToSituation
 } from '@/services/AlecService'
 import { FeatherCheckbox } from '@featherds/checkbox'
-import ChipListByProperty from '@/components/ChipListByProperty.vue'
 
 import CheckCircle from '@featherds/icon/action/CheckCircle'
 import ExitToApp from '@featherds/icon/action/ExitToApp'

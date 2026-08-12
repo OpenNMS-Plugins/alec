@@ -22,7 +22,10 @@ onUnmounted(() => {
 </script>
 
 <template>
-	<div class="main">
+	<!-- feather-styles scopes the @featherds/styles base rules (typography,
+	     sr-text, links): Feather hosts stamp it on <body>, the PrimeVue-based
+	     OpenNMS 37 host does not, so carry it on our own root. -->
+	<div class="main feather-styles">
 		<div
 			v-if="budgetBlocked"
 			class="llm-budget-banner"
