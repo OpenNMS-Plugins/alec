@@ -124,10 +124,5 @@ const filterList = (alarmsFiltered: TAlarm[]) => {
 	padding: var(--onms-spacing-xl);
 }
 
-.add-alarms-btn {
-	height: 44px !important;
-	background-color: var(--onms-success) !important;
-	border-color: var(--onms-success) !important;
-	color: white !important;
-}
+
 </style>

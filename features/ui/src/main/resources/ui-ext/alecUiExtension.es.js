@@ -23664,7 +23664,7 @@ const wk = /* @__PURE__ */ ie(kZ, [["render", xZ]]), _Z = window.Vue.defineCompo
       _: 1
     }, 8, ["visible"]));
   }
-}), XZ = /* @__PURE__ */ ie(ZZ, [["__scopeId", "data-v-7503138a"]]), JZ = {}, ey = window.Vue.createElementVNode, QZ = window.Vue.openBlock, eX = window.Vue.createElementBlock, tX = {
+}), XZ = /* @__PURE__ */ ie(ZZ, [["__scopeId", "data-v-a4ee62f6"]]), JZ = {}, ey = window.Vue.createElementVNode, QZ = window.Vue.openBlock, eX = window.Vue.createElementBlock, tX = {
   xmlns: "http://www.w3.org/2000/svg",
   viewBox: "0 0 24 24"
 };
@@ -23837,7 +23837,7 @@ const oX = /* @__PURE__ */ ie(JZ, [["render", nX]]), rX = window.Vue.defineCompo
       }, null, 8, ["visible"])
     ], 64));
   }
-}), yX = /* @__PURE__ */ ie(vX, [["__scopeId", "data-v-b61862b0"]]), wX = window.Vue.defineComponent, Oo = window.Vue.createVNode, Bo = window.Vue.unref, Jp = window.Vue.normalizeClass, Id = window.Vue.toDisplayString, al = window.Vue.openBlock, sl = window.Vue.createElementBlock, ny = window.Vue.createCommentVNode, kX = window.Vue.withCtx, uo = window.Vue.createElementVNode, $X = window.Vue.Fragment, CX = { class: "section" }, SX = { class: "action-section" }, xX = { class: "btn-row" }, _X = { key: 0 }, OX = { key: 1 }, BX = {
+}), yX = /* @__PURE__ */ ie(vX, [["__scopeId", "data-v-4f2c6d31"]]), wX = window.Vue.defineComponent, Oo = window.Vue.createVNode, Bo = window.Vue.unref, Jp = window.Vue.normalizeClass, Id = window.Vue.toDisplayString, al = window.Vue.openBlock, sl = window.Vue.createElementBlock, ny = window.Vue.createCommentVNode, kX = window.Vue.withCtx, uo = window.Vue.createElementVNode, $X = window.Vue.Fragment, CX = { class: "section" }, SX = { class: "action-section" }, xX = { class: "btn-row" }, _X = { key: 0 }, OX = { key: 1 }, BX = {
   key: 0,
   class: "situation-detail"
 }, IX = { class: "situation-info" }, VX = { class: "id" }, TX = ["innerHTML"], EX = { class: "boxes" }, AX = { class: "parameters" }, LX = { class: "section memo-boxes" }, PX = { key: 0 }, RX = window.Vue.computed, oy = window.Vue.ref, DX = window.Vue.watch, NX = /* @__PURE__ */ wX({

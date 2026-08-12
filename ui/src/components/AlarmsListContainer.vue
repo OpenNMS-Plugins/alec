@@ -262,10 +262,6 @@ const filterList = (alarmsFiltered: TAlarm[]) => {
 
 .add-alarms-btn {
 	margin-left: auto;
-	height: 44px !important;
-	background-color: var(--onms-success) !important;
-	border-color: var(--onms-success) !important;
-	color: white !important;
 }
 
 .title {
