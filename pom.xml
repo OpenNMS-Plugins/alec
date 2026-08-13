@@ -453,7 +453,7 @@
                 <version>0.8.0</version>
                 <extensions>true</extensions>
                 <configuration>
-                    <serverId>alec-ossrh</serverId>
+                    <publishingServerId>alec-ossrh</publishingServerId>
                     <nexusUrl>https://central.sonatype.com/</nexusUrl>
                     <!--autoReleaseAfterClose>true</autoReleaseAfterClose-->
                 </configuration>
