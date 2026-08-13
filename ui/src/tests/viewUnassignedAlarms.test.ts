@@ -1,9 +1,8 @@
-import { test, expect, vi, beforeEach } from 'vitest'
+import { test, expect, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import ViewUnassignedAlarms from '@/containers/ViewUnassignedAlarms.vue'
 import { createTestingPinia } from '@pinia/testing'
 import { alarmsMock } from './Mock/alarms'
-import { useSituationsStore } from '@/store/useSituationsStore'
 
 let wrapper: any = null
 beforeEach(() => {

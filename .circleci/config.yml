@@ -437,10 +437,11 @@ jobs:
             mkdir -p ~/.m2
             echo "${GPG_SECRET_KEY}" | base64 -d > ~/.m2/sign-key.asc
             export SIGN_KEY_PASS="$(echo "${GPG_PASSPHRASE}" | base64 -d)"
-            mvn -s .circleci.settings.xml -DskipTests -Prelease deploy
+            mvn -s .circleci.settings.xml -DskipTests -Prelease clean deploy
 
   deploy-packages:
-      executor: cloudsmith/default
+      docker:
+        - image: cimg/python:3.10
       resource_class: small
       steps:
         - attach_workspace:

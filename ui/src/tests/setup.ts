@@ -6,9 +6,15 @@
 // mounted() hook. Provide no-op stubs so mounting those components in tests
 // doesn't throw. These are UI-only browser APIs with nothing to assert here.
 class NoopObserver {
-	observe() {}
-	unobserve() {}
-	disconnect() {}
+	observe() {
+		return undefined
+	}
+	unobserve() {
+		return undefined
+	}
+	disconnect() {
+		return undefined
+	}
 	takeRecords() {
 		return []
 	}

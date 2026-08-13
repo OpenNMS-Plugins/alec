@@ -3,7 +3,7 @@
     <groupId>org.opennms.alec</groupId>
     <artifactId>alec-parent</artifactId>
     <packaging>pom</packaging>
-    <version>3.0.4-SNAPSHOT</version>
+    <version>3.0.5-SNAPSHOT</version>
     <name>OpenNMS ALEC</name>
     <url>https://github.com/OpenNMS/alec</url>
     <description>Architecture for Learning Enabled Correlation</description>
@@ -453,7 +453,7 @@
                 <version>0.8.0</version>
                 <extensions>true</extensions>
                 <configuration>
-                    <serverId>alec-ossrh</serverId>
+                    <publishingServerId>alec-ossrh</publishingServerId>
                     <nexusUrl>https://central.sonatype.com/</nexusUrl>
                     <!--autoReleaseAfterClose>true</autoReleaseAfterClose-->
                 </configuration>
