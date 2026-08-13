@@ -1,36 +1,48 @@
 import { defineStore } from 'pinia'
 import { getUserRole } from '@/services/UserService'
 import {
-	getUserInfo,
-	savePermission,
 	getEngineInfo,
-	saveEngineParameter
+	saveEngineParameter,
+	getLLMConfig,
+	saveLLMConfig,
+	getLLMUsage,
+	getLLMBudget
 } from '@/services/AlecService'
 import CONST from '@/helpers/constants'
 
-import { TEngine } from '@/types/TUser'
+import {
+	TEngine,
+	TLLMConfigRequest,
+	TLLMConfigStatus,
+	TLLMUsage,
+	TLLMBudget
+} from '@/types/TUser'
 
 type TState = {
 	isAdmin: boolean
 	userId: string | null
-	firstTime: boolean
-	allowSave: boolean
 	engineInfo: TEngine | null
+	llmConfig: TLLMConfigStatus | null
+	llmUsage: TLLMUsage | null
+	llmBudget: TLLMBudget | null
 }
 
 const engineDefaultValues = {
-	alpha: 144.47117699,
-	beta: 0.55257784,
-	epsilon: 100
+	alpha: 145,
+	beta: 0.55,
+	epsilon: 150,
+	hellingerW: 4851.28,
+	hellingerBias: -1986.00
 }
 
 export const useUserStore = defineStore('userStore', {
 	state: (): TState => ({
 		isAdmin: false,
 		userId: null,
-		firstTime: true,
-		allowSave: true,
-		engineInfo: null
+		engineInfo: null,
+		llmConfig: null,
+		llmUsage: null,
+		llmBudget: null
 	}),
 	actions: {
 		async getUserRole() {
@@ -41,28 +53,39 @@ export const useUserStore = defineStore('userStore', {
 			}
 			return result
 		},
-		async getAlecInfo() {
-			const result = await getUserInfo()
-			if (result) {
-				this.firstTime = false
-				this.allowSave = result.agreed
-			}
-		},
 		async getEngineInfo() {
 			const result = await getEngineInfo()
 			if (result) {
 				this.engineInfo = result
 			}
 		},
-		async setEngineInfo(engine: string, isHellinger: boolean) {
+		async setEngineInfo(
+			engine: string,
+			isHellinger: boolean,
+			overrides?: Partial<
+				Pick<
+					TEngine,
+					| 'alpha'
+					| 'beta'
+					| 'epsilon'
+					| 'hellingerW'
+					| 'hellingerBias'
+					| 'clusterFrequencyMs'
+					| 'clusterPrompt'
+				>
+			>
+		) {
 			const engineData: TEngine = {
 				...engineDefaultValues,
-				...{
-					distanceMeasureName: isHellinger
-						? CONST.HELLINGER_OPTION
-						: CONST.SPACE_DISTANCE_OPTION,
-					engineName: engine
-				}
+				...overrides,
+				distanceMeasureName: isHellinger
+					? CONST.HELLINGER_OPTION
+					: CONST.SPACE_DISTANCE_OPTION,
+				engineName: engine
+			}
+			if (!isHellinger) {
+				engineData.hellingerW = null
+				engineData.hellingerBias = null
 			}
 			const result = await saveEngineParameter(engineData)
 			if (result) {
@@ -71,11 +94,34 @@ export const useUserStore = defineStore('userStore', {
 			}
 			return false
 		},
-		async savePermission(allowSaveValue: boolean) {
-			const result = await savePermission(allowSaveValue)
+		async getLLMConfig() {
+			const result = await getLLMConfig()
 			if (result) {
-				this.allowSave = allowSaveValue
+				this.llmConfig = result
 			}
+			return result
+		},
+		async setLLMConfig(config: TLLMConfigRequest) {
+			const result = await saveLLMConfig(config)
+			if (result) {
+				this.llmConfig = result
+				return true
+			}
+			return false
+		},
+		async getLLMUsage(days = 30) {
+			const result = await getLLMUsage(days)
+			if (result) {
+				this.llmUsage = result
+			}
+			return result
+		},
+		async getLLMBudget() {
+			const result = await getLLMBudget()
+			if (result) {
+				this.llmBudget = result
+			}
+			return result
 		}
 	}
 })

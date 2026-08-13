@@ -199,7 +199,31 @@ public class ActiveStandbySituationProcessor implements SituationProcessor, Role
      */
     void destroy() {
         LOG.debug("Deregistering service {}", ALEC_SERVICE_ID);
-        domainManager.deregister(ALEC_SERVICE_ID);
+        // The domain manager comes from a blueprint service-reference proxy
+        // (sentinel coordination). If its bundle has already stopped during a
+        // framework shutdown, a direct call blocks for Aries' full 5-minute
+        // service-damping timeout and stalls the bundle-stop cascade. Make the
+        // deregistration best-effort and bounded on a daemon thread: instant
+        // when the service is up, abandoned after 5s when it is gone (the
+        // coordination session is torn down with the JVM anyway).
+        Thread t = new Thread(() -> {
+            try {
+                domainManager.deregister(ALEC_SERVICE_ID);
+            } catch (Exception e) {
+                LOG.debug("Best-effort domain-manager deregistration failed: {}", e.getMessage());
+            }
+        }, "alec-destroy-deregister-domain-manager");
+        t.setDaemon(true);
+        t.start();
+        try {
+            t.join(TimeUnit.SECONDS.toMillis(5));
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        if (t.isAlive()) {
+            LOG.warn("Domain-manager deregistration did not complete within 5 seconds "
+                    + "(backing service likely already unregistered); abandoning it");
+        }
     }
 
     /**

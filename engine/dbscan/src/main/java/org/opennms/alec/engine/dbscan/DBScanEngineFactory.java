@@ -131,4 +131,37 @@ public class DBScanEngineFactory implements EngineFactory {
     public String getDistanceMeasureFactoryName() {
         return distanceMeasureFactoryName;
     }
+
+    // --- Hellinger-specific tunables (only meaningful when distanceMeasure == "hellinger") ---
+    // Delegate to the HellingerDistanceMeasureFactory looked up by name in the map so REST
+    // clients can adjust w/bias without needing direct access to the factory bean.
+
+    private HellingerDistanceMeasureFactory getHellingerFactory() {
+        DistanceMeasureFactory f = distanceMeasureFactoryMap.get("hellinger");
+        return f instanceof HellingerDistanceMeasureFactory ? (HellingerDistanceMeasureFactory) f : null;
+    }
+
+    public Double getHellingerW() {
+        HellingerDistanceMeasureFactory f = getHellingerFactory();
+        return f == null ? null : f.getW();
+    }
+
+    public void setHellingerW(double w) {
+        HellingerDistanceMeasureFactory f = getHellingerFactory();
+        if (f != null) {
+            f.setW(w);
+        }
+    }
+
+    public Double getHellingerBias() {
+        HellingerDistanceMeasureFactory f = getHellingerFactory();
+        return f == null ? null : f.getBias();
+    }
+
+    public void setHellingerBias(double bias) {
+        HellingerDistanceMeasureFactory f = getHellingerFactory();
+        if (f != null) {
+            f.setBias(bias);
+        }
+    }
 }

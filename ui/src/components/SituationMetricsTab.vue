@@ -220,11 +220,11 @@ const closePanel = () => {
 ::-webkit-scrollbar {
 	height: 5px;
 	width: 5px;
-	background-color: #e7e7e7;
+	background-color: var(--feather-shade-2);
 }
 
 ::-webkit-scrollbar-thumb {
-	background: #909090;
+	background: var(--feather-shade-1);
 }
 
 .severity-line {
@@ -232,7 +232,7 @@ const closePanel = () => {
 	margin-right: 10px;
 }
 .section {
-	background-color: #ffffff;
+	background-color: var(--feather-surface);
 	border: 1px solid $border-grey;
 	margin-top: 10px;
 	padding: 15px;
@@ -263,7 +263,7 @@ const closePanel = () => {
 	font-weight: 600;
 	display: flex;
 	align-items: center;
-	color: #686868;
+	color: var(--feather-secondary-text-on-surface);
 	margin-bottom: 5px;
 }
 .container {
@@ -298,7 +298,7 @@ const closePanel = () => {
 .times {
 	display: flex;
 	flex-direction: row;
-	border-bottom: 1px solid #b7b7b7;
+	border-bottom: 1px solid var(--feather-border-on-surface);
 	margin-bottom: 15px;
 	justify-content: space-between;
 }
@@ -317,7 +317,7 @@ const closePanel = () => {
 }
 
 .zoom {
-	border: 1px solid #57575ce6;
+	border: 1px solid var(--feather-border-on-surface);
 	padding: 6px 15px;
 	border-radius: 5px;
 	min-width: 160px;
@@ -329,7 +329,7 @@ const closePanel = () => {
 .zoom-icon {
 	font-size: 24px;
 	margin-left: 5px;
-	color: rgb(21, 26, 69);
+	color: var(--feather-primary-text-on-surface);
 	cursor: pointer;
 }
 
@@ -339,9 +339,9 @@ const closePanel = () => {
 }
 .expand {
 	font-size: 20px;
-	border: 1px solid #1b1b1b;
+	border: 1px solid var(--feather-primary-text-on-surface);
 	border-radius: 50px;
-	color: #1b1b1b;
-	background-color: #e8e8e8;
+	color: var(--feather-primary-text-on-surface);
+	background-color: var(--feather-shade-3);
 }
 </style>

@@ -91,7 +91,6 @@
                                 <feature>alec-engine</feature>
                                 <feature>alec-engine-cluster</feature>
                                 <feature>alec-engine-dbscan</feature>
-                                <feature>alec-engine-deeplearning</feature>
                                 <!-- Depends on a reference to a datasource impl.
                                 <feature>alec-driver-main</feature>
                                 -->
@@ -101,7 +100,13 @@
                                 <feature>alec-features-graph-graphml</feature>
                                 <feature>alec-features-graph-common</feature>
                                 <feature>alec-features-graph-shell</feature>
-                                <feature>alec-features-deeplearning</feature>
+                                <!-- Depends on a reference to a SituationDatasource impl
+                                     (used by /alec/llm/suggestions/{id}/reanalyze to
+                                     look up situations by id). Same reason
+                                     alec-driver-main / alec-processor-standalone are
+                                     commented out from this verify list.
+                                <feature>alec-features-llm-suggestions</feature>
+                                -->
                                 <feature>alec-integrations-opennms-sink</feature>
 
                                 <!-- Depends on blueprint common
@@ -127,7 +132,6 @@
                                 <feature>alec-dependency-javax.mail</feature>
                                 <feature>alec-dependency-moxy</feature>
                                 <feature>alec-dependency-jackson-jaxrs</feature>
-                                <feature>alec-dependency-tensorflow</feature>
                                 <feature>alec-dependency-groovy</feature>
                                 <feature>alec-dependency-dropwizard-metrics</feature>
                                 <feature>alec-dependency-asciitable</feature>
@@ -235,12 +239,6 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>org.opennms.alec.features</groupId>
-            <artifactId>org.opennms.alec.features.deeplearning</artifactId>
-            <version>${project.version}</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
             <groupId>org.opennms.alec.features.graph</groupId>
             <artifactId>org.opennms.alec.features.graph.rest</artifactId>
             <version>${project.version}</version>
@@ -255,6 +253,12 @@
         <dependency>
             <groupId>org.opennms.alec.features</groupId>
             <artifactId>org.opennms.alec.features.ui</artifactId>
+            <version>${project.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.opennms.alec.features</groupId>
+            <artifactId>org.opennms.alec.features.llm-suggestions</artifactId>
             <version>${project.version}</version>
             <scope>provided</scope>
         </dependency>

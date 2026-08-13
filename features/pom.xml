@@ -10,7 +10,7 @@
     <packaging>pom</packaging>
 
     <modules>
-        <module>deeplearning</module>
+        <module>llm-suggestions</module>
         <module>graph</module>
         <module>score</module>
         <module>shell</module>

@@ -13,7 +13,7 @@
         <module>api</module>
         <module>cluster</module>
         <module>dbscan</module>
-        <module>deeplearning</module>
+        <module>llm</module>
         <module>itest</module>
     </modules>
 </project>

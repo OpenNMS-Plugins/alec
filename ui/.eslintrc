@@ -23,6 +23,11 @@
     ],
     "rules": {
       "vue/script-setup-uses-vars": "error",
+      "vue/multi-word-component-names": [
+        "error", {
+          "ignores": ["Timeline"]
+        }
+      ],
       "indent": [
           "error", "tab", {
             "SwitchCase": 1

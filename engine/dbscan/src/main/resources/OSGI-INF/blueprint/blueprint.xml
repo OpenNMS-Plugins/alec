@@ -4,14 +4,19 @@
     <!-- Configuration properties -->
     <cm:property-placeholder id="dbscanProperties" persistent-id="org.opennms.alec.engine.dbscan" update-strategy="reload">
         <cm:default-properties>
-            <cm:property name="epsilon" value="100"/>
-            <cm:property name="alpha" value="144.47117699"/>
-            <cm:property name="beta" value="0.55257784"/>
-            <cm:property name="distanceMeasure" value="alarmInSpaceAndTimeDistanceMeasureFactory"/>
+            <cm:property name="epsilon" value="150"/>
+            <cm:property name="alpha" value="145"/>
+            <cm:property name="beta" value="0.55"/>
+            <cm:property name="distanceMeasure" value="hellinger"/>
+            <cm:property name="hellingerW" value="4851.28"/>
+            <cm:property name="hellingerBias" value="-1986.00"/>
         </cm:default-properties>
     </cm:property-placeholder>
 
-    <bean id="hellingerDistanceMeasureFactory" class="org.opennms.alec.engine.dbscan.HellingerDistanceMeasureFactory"/>
+    <bean id="hellingerDistanceMeasureFactory" class="org.opennms.alec.engine.dbscan.HellingerDistanceMeasureFactory">
+        <property name="w" value="${hellingerW}"/>
+        <property name="bias" value="${hellingerBias}"/>
+    </bean>
     <bean id="alarmInSpaceAndTimeDistanceMeasureFactory" class="org.opennms.alec.engine.dbscan.AlarmInSpaceAndTimeDistanceMeasureFactory"/>
 
     <!-- Create and expose the engine factory -->

@@ -1,7 +1,12 @@
 @import '@featherds/styles/themes/variables';
 
-$border-grey: #dfdfdf;
-$dark-blue: rgba(21, 26, 69, 1);
+// Theme-aware border colour. Resolves to the Feather "border on surface" token
+// so every border that uses $border-grey adapts to light/dark automatically.
+$border-grey: var(--feather-border-on-surface);
+// Accent border colour (used for selected/active cards & chips). The Feather
+// "secondary" token is dark on light surfaces and light on dark surfaces, so the
+// accent stays visible in both themes.
+$dark-blue: var(--feather-secondary);
 
 $severity-alarm-critical-text: black;
 $severity-alarm-critical-bg: #f5cdcd;
@@ -78,6 +83,21 @@ $severity-alarm-cleared-border: #999999;
 	&.dark {
 		background-color: $severity-alarm-cleared-border !important;
 	}
+}
+
+// Severity filter chips keep a fixed light pastel background in both light and
+// dark themes (severity colour is semantic). The label text must therefore stay
+// dark, otherwise dark mode's light text is unreadable on the pastel. The
+// selected (.clicked) state swaps to a themed background + themed text, so it is
+// excluded here.
+.critical-bg:not(.clicked),
+.major-bg:not(.clicked),
+.minor-bg:not(.clicked),
+.warning-bg:not(.clicked),
+.indeterminate-bg:not(.clicked),
+.normal-bg:not(.clicked),
+.cleared-bg:not(.clicked) {
+	color: $severity-alarm-critical-text !important; // all severity text colours are black
 }
 
 .critical-color {

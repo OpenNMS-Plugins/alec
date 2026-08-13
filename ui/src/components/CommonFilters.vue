@@ -4,7 +4,7 @@ import { TAlarm, TSituation } from '@/types/TSituation'
 import { FeatherAutocomplete } from '@featherds/autocomplete'
 import { useSituationsStore } from '@/store/useSituationsStore'
 import type { Ref } from 'vue'
-import { ref, reactive, markRaw, watch, onMounted } from 'vue'
+import { ref, reactive, markRaw, watch } from 'vue'
 import FilterByDate from '@/components/FilterByDate.vue'
 import { filterListByDate } from '@/helpers/utils'
 import { FeatherButton } from '@featherds/button'
@@ -263,7 +263,7 @@ const toogleFilters = () => {
 	border-radius: 0 !important;
 	margin-top: 10px;
 	border: 1px solid variables.$border-grey;
-	background-color: #eeeeee;
+	background-color: var(--feather-shade-3);
 	align-items: center;
 	padding: 0px 10px;
 	justify-content: space-between;
@@ -284,14 +284,14 @@ const toogleFilters = () => {
 	font-size: 16px;
 	font-weight: 600;
 	margin-left: 5px;
-	background-color: #cad4d4;
+	background-color: var(--feather-shade-2);
 	padding: 1px 7px;
 	border-radius: 20px;
 }
 
 .icon {
 	font-size: 22px;
-	color: #627272;
+	color: var(--feather-secondary-text-on-surface);
 	vertical-align: text-bottom;
 }
 

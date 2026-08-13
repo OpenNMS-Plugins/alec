@@ -1,0 +1,100 @@
+
+= LLM Root Cause Analysis
+:description: Configure LLM-assisted root cause analysis for situations in OpenNMS's Architecture for Learning Enabled Correlation (ALEC).
+
+ALEC can ask a large language model (LLM) to suggest probable root causes and resolutions for the situations it creates.
+When a new situation is created, ALEC sends the situation's clustered alarms to an LLM and asks it to return up to three probable root causes and up to three possible resolutions.
+The suggestions appear on the *AI Suggestions* tab of the situation detail page.
+
+This feature complements — it does not replace — the correlation engine.
+The engine (xref:reference:engines/clustering.adoc[DBSCAN] or xref:reference:engines/llm-clustering.adoc[LLM clustering]) still decides which alarms belong together; Root Cause Analysis only explains the situation the engine produced.
+
+NOTE: Root Cause Analysis (which *explains* a situation) is distinct from the xref:reference:engines/llm-clustering.adoc[LLM clustering engine] (which *forms* the situation by correlating alarms). Both use the same *LLM Setup*, but they are enabled independently.
+
+NOTE: LLM Root Cause Analysis is an optional, plugin-wide feature. The endpoint, model, system prompt, and API key are stored on the OpenNMS server and apply to every user of the ALEC plugin. The feature is disabled by default.
+
+== How it works
+
+ALEC talks to any service that implements the OpenAI-compatible `/chat/completions` API.
+This is the de-facto standard supported by OpenRouter, OpenAI, Anthropic's compatibility endpoint, Azure OpenAI, and local runtimes such as LM Studio, Ollama, and vLLM.
+
+ALEC uses *function (tool) calling* to constrain the model's response: the model must reply by calling a single reporting function whose arguments are schema-checked.
+This keeps responses structured and is the primary defense against prompt injection from untrusted alarm text.
+The model you choose must therefore support tool/function calling.
+
+== Enable and configure
+
+Open the configuration page to set up the feature:
+
+. Click *Plugins > ALEC* in the top menu bar.
+. Click the *gear* symbol in the top-right of the screen.
+. Configure the *LLM Root Cause Analysis* section, described below.
+. Click *Save Changes*.
+
+The configuration page exposes the following settings.
+
+LLM Enabled Root Cause Analysis:: Turns the feature on or off. ALEC ships with nothing pre-configured, so an endpoint, a model and a stored API key must all be set before the feature can be enabled.
+
+Automatically AI Evaluate new situations:: When enabled (the default), every new situation is analyzed automatically. When disabled, situations are not analyzed until you click *Re-evaluate* on the situation's *AI Suggestions* tab — useful for controlling cost or analyzing on demand only.
+
+Endpoint:: The OpenAI-compatible base URL of your provider. ALEC appends `/chat/completions` to this value. ALEC ships with no default, so this is blank until you configure it. The field is free-text (type any URL — required for locally hosted servers) and also offers a *▾* menu of common providers.
+
+Model:: The model identifier to use, as named by your provider. Free-text, with a *▾* menu that suggests models appropriate to the chosen endpoint (listed without price/capability labels). Use the provider's native spelling of the model id: Anthropic uses `claude-sonnet-4-6` (dashes, no vendor prefix), while OpenRouter names the same model `anthropic/claude-sonnet-4.6`.
+
+Set as default / Reset to default:: Next to the Endpoint and Model fields, *Set as default* records the current value as that field's default, and *Reset to default* restores it. They let you pin your site's preferred endpoint/model after first configuring them; *Reset to default* stays disabled until a default has been recorded.
+
+System prompt:: The instructions sent to the model for every analysis. Customize it to add site-specific context such as your topology, naming conventions, escalation policy, or the vendors you use. A *Reset to default* control restores the built-in prompt; clearing the field also falls back to the default. The situation's alarms are appended automatically — do not paste alarm data into this field.
+
+API key:: The credential used to authenticate to the endpoint. The key is write-only from the UI: it is stored on the OpenNMS server and is never returned to the browser after saving. The key must come from the same provider as the endpoint.
+
+Use the *Validate key* button to confirm — without saving — that the endpoint, model, and key all work and that the model supports function calling.
+
+== Choose a provider
+
+ALEC ships with no provider selected; pick one on the configuration page (the Endpoint/Model *▾* menus offer curated suggestions).
+A good hosted choice is https://www.anthropic.com/api[Anthropic's Claude API] (`https://api.anthropic.com/v1/`, model `claude-sonnet-4-6`): create a key at https://console.anthropic.com/[console.anthropic.com] (it starts with `sk-ant-`) and add a payment method.
+You can point ALEC at any other OpenAI-compatible provider instead — for example https://openrouter.ai/[OpenRouter] (one key, many models) at `https://openrouter.ai/api/v1` with a model like `anthropic/claude-sonnet-4.6`, or OpenAI at `https://api.openai.com/v1` with `gpt-4o`.
+
+Make sure the API key matches the endpoint's provider — for example, an Anthropic key (`sk-ant-…`) for `api.anthropic.com`, an OpenRouter key (`sk-or-…`) for `openrouter.ai`, or an OpenAI key for `api.openai.com`.
+
+[[local-llm]]
+== Use a locally run LLM
+
+Because ALEC only needs an OpenAI-compatible endpoint, you can run the model on your own hardware and keep all alarm data inside your network.
+A local model incurs no provider charges.
+Runtimes that work include https://lmstudio.ai/[LM Studio], https://ollama.com/[Ollama], and vLLM.
+
+The following example uses LM Studio:
+
+. In LM Studio, open the *Developer* tab, load a model that supports tool/function calling (for example, a recent Llama, Qwen, or Gemma instruct model), and toggle the local server to *Running*.
+. Set *Endpoint* to the local base URL the server reports — for LM Studio this is `http://127.0.0.1:1234/v1`.
++
+IMPORTANT: The OpenNMS server must be able to reach this host and port. If OpenNMS runs on a different machine than the LLM, use the model host's LAN address instead of `127.0.0.1`, and make sure the local server is configured to serve on the network rather than localhost only.
+. Set *Model* to the server's model identifier (for example, `google/gemma-4-e4b`). Copy it from the server's model list.
+. Local servers usually ignore the API key but still require the field to be non-empty. Paste any placeholder value (for example, `sk-local`).
+. Click *Validate key* to confirm that ALEC can reach the model and that the model supports function calling, then click *Save Changes*.
+
+NOTE: Not every local model implements function calling correctly. If validation succeeds but situations show no suggestions (or report that the model did not call the reporting function), try a different, function-calling-capable model.
+
+== Cost and usage
+
+When the feature is enabled against a hosted provider, each analyzed situation calls a third-party API using your stored key and may incur usage charges billed by that provider.
+You are responsible for any costs on the associated account.
+To avoid surprises, the configuration page warns you before saving whenever the integration is enabled against a remote endpoint; saving against a local endpoint shows no such warning because it bills nothing.
+
+A single situation analysis is typically a few hundred tokens.
+The configuration page shows a rolling 30-day usage summary — total tokens, an estimated cost, and a per-call breakdown — that refreshes after each save.
+
+To reduce or eliminate cost, you can:
+
+* Turn off *Automatically AI Evaluate new situations* and analyze only on demand.
+* Choose a less expensive model.
+* Use a xref:reference:llm-root-cause-analysis.adoc#local-llm[locally run LLM].
+
+== Data privacy
+
+When the feature is enabled, ALEC sends the affected situation's alarm data — including node, interface, service, severity, timing, and any embedded SNMP or syslog text — to the configured endpoint.
+For a hosted provider, this means that data leaves your network and is subject to that provider's data-handling policies.
+If this is a concern, use a xref:reference:llm-root-cause-analysis.adoc#local-llm[locally run LLM] so that no situation data leaves your infrastructure.
+
+ALEC treats all alarm content as untrusted data and instructs the model to analyze it only as evidence rather than follow any instructions it may contain.

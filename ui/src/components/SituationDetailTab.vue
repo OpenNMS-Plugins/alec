@@ -10,9 +10,8 @@ import AlarmsListContainer from '@/components/AlarmsListContainer.vue'
 import MemoBox from '@/components/MemoBox.vue'
 
 import { FeatherButton } from '@featherds/button'
-import { ref, watch } from 'vue'
-import { useUserStore } from '@/store/useUserStore'
-import { formatDate } from '@/helpers/utils'
+import { computed, ref, watch } from 'vue'
+import { decodeHtmlEntities, sanitizeHtml, formatDate } from '@/helpers/utils'
 import CONST from '@/helpers/constants'
 import { groupBy, size } from 'lodash'
 import AlarmActionBtns from '@/components/AlarmActionBtns.vue'
@@ -24,8 +23,6 @@ const situationStore = useSituationsStore()
 
 const REJECTED = CONST.REJECTED
 
-const userStore = useUserStore()
-
 const props = defineProps<{
 	situationInfo: TSituation
 }>()
@@ -36,6 +33,16 @@ watch(props, () => {
 	status.value = props.situationInfo.status || ''
 	situationInfo.value = props.situationInfo
 })
+
+// OpenNMS returns the situation description either as raw HTML or as
+// entity-encoded HTML; in the latter case the browser shows literal "<p>"
+// text instead of paragraphs when we drop it into v-html. Decoding entities
+// first lets v-html render the markup as intended. We then sanitize the result
+// (see sanitizeHtml) — v-html bypasses Vue's escaping, and the description is
+// server-supplied, so we must strip scripts/handlers before rendering.
+const renderedDescription = computed(() =>
+	sanitizeHtml(decodeHtmlEntities(situationInfo.value?.description || ''))
+)
 
 const handleFeedbackSituation = async (action: string) => {
 	const result = await sendFeedbackAcceptSituation(
@@ -62,7 +69,7 @@ const handleFeedbackSituation = async (action: string) => {
 				:situation-id="props.situationInfo.id"
 			/>
 
-			<div v-if="userStore.allowSave" class="btn-row">
+			<div class="btn-row">
 				<FeatherButton
 					class="btn"
 					data-test="btn-reject"
@@ -94,7 +101,7 @@ const handleFeedbackSituation = async (action: string) => {
 					</div>
 					<SeverityStatus :severity="situationInfo?.severity" />
 				</div>
-				<span v-html="situationInfo.description"></span>
+				<span v-html="renderedDescription" data-test="situation-description"></span>
 				<p></p>
 				<div class="boxes">
 					<InformationBox
@@ -146,7 +153,7 @@ const handleFeedbackSituation = async (action: string) => {
 	padding: 15px;
 	border: 1px solid $border-grey;
 	margin-bottom: 20px;
-	background-color: #ffffff;
+	background-color: var(--feather-surface);
 	margin-top: 10px;
 	display: flex;
 	flex-direction: row;
@@ -204,16 +211,16 @@ const handleFeedbackSituation = async (action: string) => {
 .accept {
 	font-size: 16px;
 	margin-right: 3px;
-	color: green !important;
+	color: var(--feather-success) !important;
 }
 .reject {
 	font-size: 16px;
-	color: red !important;
+	color: var(--feather-error) !important;
 }
 .situation-detail {
 	display: flex;
 	flex-direction: row;
-	background-color: #ffffff;
+	background-color: var(--feather-surface);
 	padding: 15px;
 	border: 1px solid $border-grey;
 	margin-bottom: 20px;
@@ -230,15 +237,15 @@ const handleFeedbackSituation = async (action: string) => {
 	}
 }
 .clicked {
-	border: 2px solid #4b5ad6;
+	border: 2px solid var(--feather-secondary);
 }
 
 .accepted {
-	background-color: green !important;
+	background-color: var(--feather-success) !important;
 	color: #ffffff !important;
 }
 .rejected {
-	background-color: red !important;
+	background-color: var(--feather-error) !important;
 	margin-right: 3px;
 
 	color: #ffffff !important;

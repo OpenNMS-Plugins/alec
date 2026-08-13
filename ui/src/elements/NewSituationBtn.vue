@@ -4,6 +4,7 @@ import { FeatherButton } from '@featherds/button'
 import { FeatherIcon } from '@featherds/icon'
 import { markRaw } from 'vue'
 import useRouter from '@/composables/useRouter'
+import { ROUTE } from '@/router/routeNames'
 
 const router = useRouter()
 
@@ -12,7 +13,7 @@ const Icons = markRaw({
 })
 const addNewSituation = () => {
 	router.push({
-		name: 'addSituation'
+		name: ROUTE.addSituation
 	})
 }
 </script>
@@ -27,7 +28,7 @@ const addNewSituation = () => {
 <style lang="scss" scoped>
 .new-situation-btn {
 	height: 44px !important;
-	background-color: #46ae46 !important;
+	background-color: var(--feather-success) !important;
 	color: white !important;
 }
 

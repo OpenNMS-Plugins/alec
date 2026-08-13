@@ -50,6 +50,7 @@ import org.opennms.alec.datasource.api.InventoryObject;
 import org.opennms.alec.datasource.api.Situation;
 import org.opennms.alec.datasource.api.SituationDatasource;
 import org.opennms.alec.datasource.api.SituationHandler;
+import org.opennms.alec.datasource.common.CompositeSituationHandler;
 import org.opennms.alec.engine.api.Engine;
 import org.opennms.alec.engine.api.EngineFactory;
 import org.opennms.alec.engine.api.EngineRegistry;
@@ -77,6 +78,13 @@ public class Driver implements EngineRegistry {
     private final SituationProcessor situationProcessor;
     private final SituationHandler confirmingSituationHandler;
     private SituationHandler deletingSituationHandler;
+    /**
+     * External SituationHandlers contributed by other bundles via an OSGi
+     * reference-list (see driver/main blueprint). Fanned out alongside the
+     * inline situationProcessor forwarder by {@link CompositeSituationHandler}
+     * in {@link #initAsync()}.
+     */
+    private final List<SituationHandler> externalSituationHandlers;
 
     private Thread initThread;
     private Engine engine;
@@ -94,6 +102,15 @@ public class Driver implements EngineRegistry {
                   AlarmFeedbackDatasource alarmFeedbackDatasource, InventoryDatasource inventoryDatasource,
                   SituationDatasource situationDatasource, EngineFactory engineFactory,
                   SituationProcessorFactory situationProcessorFactory) {
+        this(bundleContext, alarmDatasource, alarmFeedbackDatasource, inventoryDatasource,
+                situationDatasource, engineFactory, situationProcessorFactory, Collections.emptyList());
+    }
+
+    public Driver(BundleContext bundleContext, AlarmDatasource alarmDatasource,
+                  AlarmFeedbackDatasource alarmFeedbackDatasource, InventoryDatasource inventoryDatasource,
+                  SituationDatasource situationDatasource, EngineFactory engineFactory,
+                  SituationProcessorFactory situationProcessorFactory,
+                  List<SituationHandler> externalSituationHandlers) {
         this.bundleContext = Objects.requireNonNull(bundleContext);
         this.alarmDatasource = Objects.requireNonNull(alarmDatasource);
         this.alarmFeedbackDatasource = Objects.requireNonNull(alarmFeedbackDatasource);
@@ -103,6 +120,11 @@ public class Driver implements EngineRegistry {
         this.situationProcessor =
                 Objects.requireNonNull(situationProcessorFactory).getInstance();
         confirmingSituationHandler = SituationConfirmer.newInstance(situationProcessor);
+        // Held by reference (not copied) so an OSGi reference-list keeps growing/shrinking
+        // as services come and go; CompositeSituationHandler snapshots per callback.
+        this.externalSituationHandlers = externalSituationHandlers == null
+                ? Collections.emptyList()
+                : externalSituationHandlers;
 
         metrics = new MetricRegistry();
         jmxReporter = JmxReporter.forRegistry(metrics)
@@ -129,13 +151,25 @@ public class Driver implements EngineRegistry {
         // Register the handler that confirms situations that have come round trip back to this driver
         situationDatasource.registerHandler(confirmingSituationHandler);
         // Register the situation processor responsible for accepting and processing all situations generated via the
-        // engine
-        engine.registerSituationHandler(new SituationHandler() {
+        // engine. Wrap the core processor + any external listeners in a composite so multiple bundles can subscribe
+        // (the engine itself holds only a single-slot handler reference).
+        //
+        // We pass externalSituationHandlers DIRECTLY to the composite (not a snapshot) so external bundles whose
+        // SituationHandler services register after Driver init still get picked up — the OSGi reference-list is
+        // live, and the composite iterates it (with a per-callback defensive copy) at each callback.
+        SituationHandler coreProcessorForwarder = new SituationHandler() {
             @Override
             public void onSituation(Situation situation) {
                 situationProcessor.accept(situation);
             }
-        });
+        };
+        // Hold the OSGi reference-list live (not snapshotted) so external bundles whose
+        // SituationHandler services register after Driver init still get picked up — see
+        // CompositeSituationHandler for the per-callback snapshot semantics.
+        LOG.debug("Driver.initAsync: wiring CompositeSituationHandler with externalSituationHandlers.size={}",
+                externalSituationHandlers.size());
+        engine.registerSituationHandler(
+                new CompositeSituationHandler(coreProcessorForwarder, externalSituationHandlers));
 
         timer = new Timer();
         // The get methods on the datasources may block, so we do this on a separate thread
@@ -222,9 +256,25 @@ public class Driver implements EngineRegistry {
 
     public void destroy() {
         state = DriverState.DESTROYING;
-        situationDatasource.unregisterHandler(deletingSituationHandler);
-        situationDatasource.unregisterHandler(confirmingSituationHandler);
-        
+        // Stop the (non-daemon) tick timer FIRST so no new engine work starts
+        // while we tear down, and so it can never outlive a slow destroy.
+        if (timer != null) {
+            timer.cancel();
+            timer = null;
+        }
+        // situationDatasource is a blueprint reference proxy: when the
+        // datasource bundle has already stopped (bundle stop order during a
+        // framework shutdown), a direct call blocks for Aries' full 5-minute
+        // service-damping timeout PER CALL and stalls the entire bundle-stop
+        // cascade — the sentinel/OpenNMS JVM appears hung on shutdown. Make
+        // the unregistrations best-effort and bounded: instant when the
+        // service is up, abandoned after 5s when it is gone (the datasource is
+        // being torn down with its handler list anyway).
+        bestEffortServiceCall("unregister-deleting-handler",
+                () -> situationDatasource.unregisterHandler(deletingSituationHandler));
+        bestEffortServiceCall("unregister-confirming-handler",
+                () -> situationDatasource.unregisterHandler(confirmingSituationHandler));
+
         if (initThread != null && initThread.isAlive()) {
             initThread.interrupt();
             try {
@@ -242,10 +292,6 @@ public class Driver implements EngineRegistry {
         if (serviceRegistration != null) {
             serviceRegistration.unregister();
         }
-        if (timer != null) {
-            timer.cancel();
-            timer = null;
-        }
         if (engine != null) {
             engine.destroy();
             engine = null;
@@ -254,6 +300,34 @@ public class Driver implements EngineRegistry {
         jmxReporter.stop();
 
         state = DriverState.DESTROYED;
+    }
+
+    /**
+     * Run a best-effort cleanup call against a blueprint service-reference
+     * proxy on a bounded daemon thread. If the backing service is gone the
+     * proxy would otherwise block for Aries' 5-minute damping timeout and
+     * stall the framework's bundle-stop cascade; the daemon thread cannot keep
+     * the JVM alive, so shutdown proceeds after the bound.
+     */
+    private static void bestEffortServiceCall(String description, Runnable serviceCall) {
+        Thread t = new Thread(() -> {
+            try {
+                serviceCall.run();
+            } catch (Exception e) {
+                LOG.debug("Best-effort shutdown call '{}' failed: {}", description, e.getMessage());
+            }
+        }, "alec-destroy-" + description);
+        t.setDaemon(true);
+        t.start();
+        try {
+            t.join(TimeUnit.SECONDS.toMillis(5));
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        if (t.isAlive()) {
+            LOG.warn("Best-effort shutdown call '{}' did not complete within 5 seconds "
+                    + "(backing service likely already unregistered); abandoning it", description);
+        }
     }
 
     DriverState getState() {

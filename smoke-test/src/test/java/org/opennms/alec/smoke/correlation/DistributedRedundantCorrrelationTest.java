@@ -55,7 +55,12 @@ public class DistributedRedundantCorrrelationTest extends CorrelationTestBase {
         for (int i = 0; i < NUM_REDUNDANT_ALEC; i++) {
             ALECSentinelContainer alecSentinelContainer = null;
             try {
-                alecSentinelContainer = new ALECSentinelContainer(true, () -> "cluster");
+                // Deploy the DBSCAN engine: ALEC-305 removed the standalone
+                // ClusterEngineFactory, so alec-engine-cluster no longer
+                // registers an EngineFactory and the driver cannot resolve.
+                // DBSCAN pulls in the same cluster base infra and is the
+                // engine the standalone distributed test already exercises.
+                alecSentinelContainer = new ALECSentinelContainer(true, () -> "dbscan");
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }

@@ -6,27 +6,38 @@ import java.util.StringJoiner;
 import org.opennms.alec.engine.dbscan.AlarmInSpaceTimeDistanceMeasure;
 import org.opennms.alec.engine.dbscan.DBScanEngine;
 import org.opennms.alec.engine.dbscan.HellingerDistanceMeasure;
-import org.opennms.alec.engine.deeplearning.DeepLearningEngineConf;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 
 public class EngineParameterImpl implements EngineParameter {
 
     public static final String DBSCAN = "dbscan";
+    public static final String HELLINGER = "hellinger";
     private final Double alpha;
     private final Double beta;
     private final Double epsilon;
+    private final Double hellingerW;
+    private final Double hellingerBias;
     private final String distanceMeasureName;
     private final String engineName;
     private final String remoteUri;
     private final String token;
     private final boolean remote;
+    // LLM-based clustering (engineName "llm"): how often to ask the LLM to
+    // re-cluster, and the operator-editable clustering prompt. Null when unset.
+    private final Integer clusterFrequencyMs;
+    private final String clusterPrompt;
 
     private EngineParameterImpl(Builder builder) {
         alpha = builder.alpha;
         beta = builder.beta;
         epsilon = builder.epsilon;
+        hellingerW = builder.hellingerW;
+        hellingerBias = builder.hellingerBias;
         distanceMeasureName = builder.distanceMeasureName;
+        clusterFrequencyMs = builder.clusterFrequencyMs;
+        clusterPrompt = builder.clusterPrompt;
         engineName = builder.engineName;
         remoteUri = builder.remoteUri;
         token = builder.token;
@@ -42,11 +53,15 @@ public class EngineParameterImpl implements EngineParameter {
         builder.alpha = copy.getAlpha();
         builder.beta = copy.getBeta();
         builder.epsilon = copy.getEpsilon();
+        builder.hellingerW = copy.getHellingerW();
+        builder.hellingerBias = copy.getHellingerBias();
         builder.distanceMeasureName = copy.getDistanceMeasureName();
         builder.engineName = copy.getEngineName();
         builder.remoteUri = copy.getRemoteUri();
         builder.token = copy.getToken();
         builder.remote = copy.isRemote();
+        builder.clusterFrequencyMs = copy.getClusterFrequencyMs();
+        builder.clusterPrompt = copy.getClusterPrompt();
         return builder;
     }
 
@@ -83,14 +98,28 @@ public class EngineParameterImpl implements EngineParameter {
                 case "alarminspacetime":
                     return AlarmInSpaceTimeDistanceMeasure.DEFAULT_EPSILON;
                 default:
-                    if (engineName.equals("deeplearning")) {
-                        return DeepLearningEngineConf.DEFAULT_EPSILON;
-                    }
                     return null;
             }
         } else {
             return epsilon;
         }
+    }
+
+    @Override
+    public Double getHellingerW() {
+        // Deliberately NO default substitution (unlike alpha/beta/epsilon):
+        // EngineRestImpl applies these to the factory only when non-null, so a
+        // save that omits them must surface as null — substituting DEFAULT_W
+        // here would make every omitting save silently reset an operator's
+        // tuned value. The runtime default lives in the factory/blueprint; the
+        // UI supplies its own display default for a null.
+        return hellingerW;
+    }
+
+    @Override
+    public Double getHellingerBias() {
+        // See getHellingerW() — null means "not supplied", never substituted.
+        return hellingerBias;
     }
 
     @Override
@@ -124,16 +153,37 @@ public class EngineParameterImpl implements EngineParameter {
         return remote;
     }
 
+    @Override
+    public Integer getClusterFrequencyMs() {
+        return clusterFrequencyMs;
+    }
+
+    @Override
+    public String getClusterPrompt() {
+        return clusterPrompt;
+    }
+
+    /**
+     * The {@link JsonIgnoreProperties} is intentional: persisted JSON in the
+     * KV store may contain fields added by future versions (e.g. ALEC-297's
+     * {@code noPathDistance}) and we must be able to deserialize it instead
+     * of failing the bundle startup with an "Unrecognized field" error.
+     */
     @JsonPOJOBuilder(withPrefix = "")
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static final class Builder {
         private Double alpha;
         private Double beta;
         private Double epsilon;
+        private Double hellingerW;
+        private Double hellingerBias;
         private String distanceMeasureName;
         private String engineName;
         private String remoteUri;
         private String token;
         private boolean remote;
+        private Integer clusterFrequencyMs;
+        private String clusterPrompt;
 
         private Builder() {
         }
@@ -154,6 +204,16 @@ public class EngineParameterImpl implements EngineParameter {
 
         public Builder epsilon(Double val) {
             epsilon = val;
+            return this;
+        }
+
+        public Builder hellingerW(Double val) {
+            hellingerW = val;
+            return this;
+        }
+
+        public Builder hellingerBias(Double val) {
+            hellingerBias = val;
             return this;
         }
 
@@ -182,6 +242,16 @@ public class EngineParameterImpl implements EngineParameter {
             return this;
         }
 
+        public Builder clusterFrequencyMs(Integer val) {
+            clusterFrequencyMs = val;
+            return this;
+        }
+
+        public Builder clusterPrompt(String val) {
+            clusterPrompt = val;
+            return this;
+        }
+
         public EngineParameterImpl build() {
             return new EngineParameterImpl(this);
         }
@@ -193,6 +263,8 @@ public class EngineParameterImpl implements EngineParameter {
                 .add("alpha=" + alpha)
                 .add("beta=" + beta)
                 .add("epsilon=" + epsilon)
+                .add("hellingerW=" + hellingerW)
+                .add("hellingerBias=" + hellingerBias)
                 .add("distanceMeasureName='" + distanceMeasureName + "'")
                 .add("engineName='" + engineName + "'")
                 .add("remoteUri='" + remoteUri + "'")

@@ -13,7 +13,6 @@ import {
 	assignAlarmsToSituation
 } from '@/services/AlecService'
 import { FeatherCheckbox } from '@featherds/checkbox'
-import ChipListByProperty from '@/components/ChipListByProperty.vue'
 
 import CheckCircle from '@featherds/icon/action/CheckCircle'
 import ExitToApp from '@featherds/icon/action/ExitToApp'
@@ -232,7 +231,7 @@ const filterList = (alarmsFiltered: TAlarm[]) => {
 .container {
 	border: 1px solid $border-grey;
 	padding: 15px;
-	background-color: #ffffff;
+	background-color: var(--feather-surface);
 }
 .header {
 	display: flex;
@@ -264,7 +263,7 @@ const filterList = (alarmsFiltered: TAlarm[]) => {
 .add-alarms-btn {
 	margin-left: auto;
 	height: 44px !important;
-	background-color: #46ae46 !important;
+	background-color: var(--feather-success) !important;
 	color: white !important;
 }
 
@@ -291,17 +290,17 @@ const filterList = (alarmsFiltered: TAlarm[]) => {
 	vertical-align: text-bottom !important;
 
 	&.clear {
-		color: blue;
+		color: var(--feather-secondary);
 	}
 	&.ack {
-		color: green;
+		color: var(--feather-success);
 	}
 	&.move {
-		color: #7004f4;
+		color: var(--feather-secondary-variant);
 		font-size: 20px;
 	}
 	&.remove {
-		color: red;
+		color: var(--feather-error);
 		font-size: 21px;
 	}
 	&.add {
@@ -311,7 +310,7 @@ const filterList = (alarmsFiltered: TAlarm[]) => {
 
 .filters {
 	min-width: 20%;
-	background-color: white;
+	background-color: var(--feather-surface);
 	margin-right: 15px;
 	margin-top: 9px;
 }

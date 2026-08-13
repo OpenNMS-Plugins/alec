@@ -197,6 +197,50 @@ public class DirectInventoryDatasourceTest {
         assertThat(inventory, hasSize(0));
     }
 
+    /**
+     * The periodic refresh must reconcile edges whose delete callback was missed:
+     * an edge still held but no longer returned by the EdgeDao poll should have
+     * its inventory removed (otherwise it lingers forever).
+     */
+    @Test
+    public void refreshRemovesEdgesAbsentFromEdgeDao() {
+        assertThat(dic.getInventoryAndRegisterHandler(inventoryHandler), hasSize(0));
+
+        TopologyProtocol protocol = TopologyProtocol.CDP;
+        TopologySegment segment = mock(TopologySegment.class);
+        when(segment.getId()).thenReturn("segment.id");
+        when(segment.getProtocol()).thenReturn(protocol);
+        when(segment.getSegmentCriteria()).thenReturn("segment:criteria");
+
+        NodeCriteria nc1 = mock(NodeCriteria.class);
+        when(nc1.getId()).thenReturn(99);
+        TopologyPort port1 = mock(TopologyPort.class);
+        when(port1.getId()).thenReturn("port.id");
+        when(port1.getIfIndex()).thenReturn(1);
+        when(port1.getNodeCriteria()).thenReturn(nc1);
+        TopologyEdge edge1 = new EdgeImpl(protocol, "edge.id", port1, segment);
+
+        NodeCriteria nc2 = mock(NodeCriteria.class);
+        when(nc2.getId()).thenReturn(992);
+        TopologyPort port2 = mock(TopologyPort.class);
+        when(port2.getId()).thenReturn("port.id.2");
+        when(port2.getIfIndex()).thenReturn(2);
+        when(port2.getNodeCriteria()).thenReturn(nc2);
+        TopologyEdge edge2 = new EdgeImpl(protocol, "edge.id.2", port2, segment);
+
+        dic.onEdgeAddedOrUpdated(edge1);
+        dic.onEdgeAddedOrUpdated(edge2);
+        assertThat(inventory, hasSize(3));
+
+        // edge2 was deleted but its callback was missed — the poll now returns only edge1.
+        when(mockEdgeDao.getEdges()).thenReturn(Collections.singleton(edge1));
+        dic.refreshEdgeTopology();
+
+        // The refresh reconciles the missed deletion: edge2's link is removed,
+        // leaving the shared segment and edge1's link.
+        assertThat(inventory, hasSize(2));
+    }
+
     @Test
     public void testHandleNewAndDeletedNode() {
         assertThat(dic.getInventoryAndRegisterHandler(inventoryHandler), hasSize(0));

@@ -5,8 +5,8 @@ import Cancel from '@featherds/icon/navigation/Cancel'
 
 import { FeatherButton } from '@featherds/button'
 import useRouter from '@/composables/useRouter'
+import { ROUTE } from '@/router/routeNames'
 
-import ChipListByProperty from '@/components/ChipListByProperty.vue'
 import CommonFilters from '@/components/CommonFilters.vue'
 
 import { TNewSituation, TAlarm } from '@/types/TSituation'
@@ -49,7 +49,7 @@ watch(
 
 const showSituationList = () => {
 	router.push({
-		name: 'situations'
+		name: ROUTE.situations
 	})
 }
 
@@ -92,7 +92,7 @@ const createSituation = async () => {
 			errorSave.value = true
 		} else {
 			router.push({
-				name: 'situations'
+				name: ROUTE.situations
 			})
 		}
 	}
@@ -194,7 +194,7 @@ const filterList = (list: TAlarm[]) => {
 
 .form {
 	display: flex;
-	background-color: white;
+	background-color: var(--feather-surface);
 	border: 1px solid $border-grey;
 	padding: 20px;
 	margin-top: 20px;
@@ -240,7 +240,7 @@ const filterList = (list: TAlarm[]) => {
 
 .btn-add {
 	height: 36px !important;
-	background-color: #46ae46 !important;
+	background-color: var(--feather-success) !important;
 	color: white !important;
 }
 
@@ -258,7 +258,7 @@ const filterList = (list: TAlarm[]) => {
 }
 
 .errorList {
-	color: #d43d45;
+	color: var(--feather-error);
 }
 
 .layout-container {

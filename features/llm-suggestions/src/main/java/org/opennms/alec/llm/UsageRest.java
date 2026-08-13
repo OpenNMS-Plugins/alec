@@ -1,0 +1,65 @@
+/*******************************************************************************
+ * This file is part of OpenNMS(R).
+ *
+ * Copyright (C) 2026 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2026 The OpenNMS Group, Inc.
+ *
+ * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
+ *
+ * OpenNMS(R) is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License,
+ * or (at your option) any later version.
+ *
+ * OpenNMS(R) is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with OpenNMS(R).  If not, see:
+ *      http://www.gnu.org/licenses/
+ *
+ * For more information contact:
+ *     OpenNMS(R) Licensing <license@opennms.org>
+ *     http://www.opennms.org/
+ *     http://www.opennms.com/
+ *******************************************************************************/
+
+package org.opennms.alec.llm;
+
+import javax.ws.rs.Consumes;
+import javax.ws.rs.DefaultValue;
+import javax.ws.rs.GET;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+
+/**
+ * Aggregated 30-day (or other window) token-usage rollup for the config
+ * page. Same root path as the slice-1 configuration endpoint.
+ */
+@Path("alec/llm")
+@Produces({MediaType.APPLICATION_JSON})
+@Consumes({MediaType.APPLICATION_JSON})
+public interface UsageRest {
+
+    /**
+     * @param days lookback window in days; default 30, capped at the
+     *             retention horizon ({@link UsagePruner#RETENTION_DAYS}).
+     */
+    @GET
+    @Path("/usage")
+    Response getUsage(@QueryParam("days") @DefaultValue("30") int days);
+
+    /**
+     * Current shared token-budget status (configured daily/monthly limits, usage
+     * so far this UTC day/month, and whether LLM requests are currently blocked).
+     * The main ALEC page polls this to warn the user when the budget is reached.
+     */
+    @GET
+    @Path("/budget")
+    Response getBudget();
+}

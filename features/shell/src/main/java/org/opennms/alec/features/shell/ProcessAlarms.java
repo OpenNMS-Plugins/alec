@@ -51,7 +51,6 @@ import org.opennms.alec.driver.test.TestDriver;
 import org.opennms.alec.engine.api.DistanceMeasureFactory;
 import org.opennms.alec.engine.api.EngineFactory;
 import org.opennms.alec.engine.dbscan.DBScanEngineFactory;
-import org.opennms.alec.engine.deeplearning.DeepLearningEngineFactory;
 
 /**
  * Input an XML Document of Alarms and Output an XML document of Situations.
@@ -100,12 +99,6 @@ public class ProcessAlarms implements Action {
     @Option(name = "--beta", description = "Define beta")
     private double beta = 0.55257784d;
 
-    @Option(name = "--token", description = "Azure token for remote model")
-    private String token;
-
-    @Option(name = "--uri", description = "Azure uri for remote model")
-    private String uri;
-
     @Override
     public Object execute() throws Exception {
         EngineFactory engineFactory = getEngineFactory();
@@ -116,14 +109,6 @@ public class ProcessAlarms implements Action {
             ((DBScanEngineFactory) engineFactory).setEpsilon(epsilon);
             ((DBScanEngineFactory) engineFactory).setAlpha(alpha);
             ((DBScanEngineFactory) engineFactory).setBeta(beta);
-        } else if ("deeplearning".equals(engineFactory.getName()) && !token.isEmpty() && !uri.isEmpty()) {
-            ((DeepLearningEngineFactory) engineFactory).setToken(token);
-            ((DeepLearningEngineFactory) engineFactory).setUri(uri);
-            ((DeepLearningEngineFactory) engineFactory).setRemote(true);
-        } else if ("deeplearning".equals(engineFactory.getName())) {
-            ((DeepLearningEngineFactory) engineFactory).setToken("");
-            ((DeepLearningEngineFactory) engineFactory).setUri("");
-            ((DeepLearningEngineFactory) engineFactory).setRemote(false);
         }
         final List<Alarm> alarms = JaxbUtils.getAlarms(Paths.get(alarmsIn));
         final List<InventoryObject> inventory;

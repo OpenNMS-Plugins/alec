@@ -68,21 +68,12 @@
         </dependency>
         <dependency>
             <groupId>org.opennms.alec.engine</groupId>
-            <artifactId>org.opennms.alec.engine.deeplearning</artifactId>
+            <artifactId>org.opennms.alec.engine.llm</artifactId>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
             <version>${jackson.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.opennms.alec.wrap</groupId>
-            <artifactId>grpc</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.opennms.tsaas.alec</groupId>
-            <artifactId>alec-gateway</artifactId>
-            <version>${alec-gateway.version}</version>
         </dependency>
         <dependency>
             <groupId>com.google.guava</groupId>
