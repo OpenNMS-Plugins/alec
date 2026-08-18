@@ -17,8 +17,6 @@ const props = defineProps({
 </template>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
-
 .severity-status {
 	border: 1px solid;
 	padding: 0px 10px;

@@ -1,25 +1,18 @@
 <script setup lang="ts">
 import ChipListByProperty from '@/components/ChipListByProperty.vue'
 import { TAlarm, TSituation } from '@/types/TSituation'
-import { FeatherAutocomplete } from '@featherds/autocomplete'
+import { OnmsAutoComplete, OnmsButton, OnmsIcon } from '@opennms/onms-ui'
 import { useSituationsStore } from '@/store/useSituationsStore'
 import type { Ref } from 'vue'
-import { ref, reactive, markRaw, watch } from 'vue'
+import { ref, reactive, watch } from 'vue'
 import FilterByDate from '@/components/FilterByDate.vue'
 import { filterListByDate } from '@/helpers/utils'
-import { FeatherButton } from '@featherds/button'
-import { FeatherIcon } from '@featherds/icon'
-import FilterAlt from '@featherds/icon/action/FilterAlt'
-import ExpandLess from '@featherds/icon/navigation/ExpandLess'
-import ExpandMore from '@featherds/icon/navigation/ExpandMore'
-import Refresh from '@featherds/icon/navigation/Refresh'
+import FormField from '@/components/Common/FormField.vue'
+import FilterAlt from '@/components/icons/action/FilterAlt.vue'
+import ExpandLess from '@/components/icons/navigation/ExpandLess.vue'
+import ExpandMore from '@/components/icons/navigation/ExpandMore.vue'
+import Refresh from '@/components/icons/navigation/Refresh.vue'
 
-const Icons = markRaw({
-	FilterAlt,
-	ExpandLess,
-	ExpandMore,
-	Refresh
-})
 type TState = {
 	nodes: Record<string, string | number>[]
 	results: Record<string, string | number>[]
@@ -184,6 +177,13 @@ const saveFilters = () => {
 	}
 }
 
+const onNodeSelected = (value: unknown) => {
+	state.nodeSelectedValue = (value ?? undefined) as
+		| Record<string, string>
+		| undefined
+	updateList()
+}
+
 const toogleFilters = () => {
 	showFilters.value = !showFilters.value
 }
@@ -192,14 +192,11 @@ const toogleFilters = () => {
 <template>
 	<div class="btn-filter" v-if="!props.isOpen" v-on:click="toogleFilters">
 		<div>
-			<FeatherIcon :icon="Icons.FilterAlt" class="icon" /> Filters
+			<OnmsIcon :icon="FilterAlt" class="icon" /> Filters
 			<span class="count">{{ filtersCount }}</span>
 		</div>
 
-		<FeatherIcon
-			:icon="showFilters ? Icons.ExpandLess : Icons.ExpandMore"
-			class="icon"
-		/>
+		<OnmsIcon :icon="showFilters ? ExpandLess : ExpandMore" class="icon" />
 	</div>
 	<div
 		v-show="showFilters"
@@ -208,23 +205,25 @@ const toogleFilters = () => {
 	>
 		<div class="results">
 			<div class="total">Results: {{ list.length }}</div>
-			<FeatherButton class="btn-reset" @click="resetFilters">
-				<FeatherIcon :icon="Icons.Refresh" class="icon" />
+			<OnmsButton class="btn-reset" variant="text" @click="resetFilters">
+				<OnmsIcon :icon="Refresh" class="icon" />
 				Reset
-			</FeatherButton>
+			</OnmsButton>
 		</div>
 		<div>
-			<FeatherAutocomplete
-				ref="autocomplete"
-				label="Search by node"
-				:loading="loading"
-				v-model="state.nodeSelectedValue"
-				:results="state.results"
-				type="single"
-				@search="search"
-				@update:modelValue="updateList"
-			>
-			</FeatherAutocomplete>
+			<FormField label="Search by node" for="common-filters-node-search">
+				<OnmsAutoComplete
+					ref="autocomplete"
+					inputId="common-filters-node-search"
+					:modelValue="state.nodeSelectedValue"
+					:suggestions="state.results"
+					optionLabel="_text"
+					forceSelection
+					fluid
+					@complete="search"
+					@update:modelValue="onNodeSelected"
+				/>
+			</FormField>
 			<div class="title">By Severities:</div>
 			<ChipListByProperty
 				:alarms="props.list"
@@ -244,8 +243,6 @@ const toogleFilters = () => {
 </template>
 
 <style lang="scss" scoped>
-@use '@/styles/variables.scss';
-
 .title {
 	margin-top: 20px;
 	font-weight: 600;
@@ -262,8 +259,8 @@ const toogleFilters = () => {
 	height: 42px !important;
 	border-radius: 0 !important;
 	margin-top: 10px;
-	border: 1px solid variables.$border-grey;
-	background-color: var(--feather-shade-3);
+	border: 1px solid var(--onms-border-on-surface);
+	background-color: var(--onms-shade-3);
 	align-items: center;
 	padding: 0px 10px;
 	justify-content: space-between;
@@ -275,7 +272,7 @@ const toogleFilters = () => {
 	padding-top: 15px;
 
 	&.collapsed {
-		border: 1px solid variables.$border-grey;
+		border: 1px solid var(--onms-border-on-surface);
 		border-top: none;
 	}
 }
@@ -284,14 +281,14 @@ const toogleFilters = () => {
 	font-size: 16px;
 	font-weight: 600;
 	margin-left: 5px;
-	background-color: var(--feather-shade-2);
+	background-color: var(--onms-shade-3);
 	padding: 1px 7px;
 	border-radius: 20px;
 }
 
 .icon {
 	font-size: 22px;
-	color: var(--feather-secondary-text-on-surface);
+	color: var(--onms-secondary-text-on-surface);
 	vertical-align: text-bottom;
 }
 

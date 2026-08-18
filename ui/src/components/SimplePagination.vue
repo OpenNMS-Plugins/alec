@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { FeatherIcon } from '@featherds/icon'
+import { OnmsIconButton } from '@opennms/onms-ui'
 
-import FirstPage from '@featherds/icon/navigation/FirstPage'
-import LastPage from '@featherds/icon/navigation/LastPage'
-import ChevronLeft from '@featherds/icon/navigation/ChevronLeft'
-import ChevronRight from '@featherds/icon/navigation/ChevronRight'
+import FirstPage from '@/components/icons/navigation/FirstPage.vue'
+import LastPage from '@/components/icons/navigation/LastPage.vue'
+import ChevronLeft from '@/components/icons/navigation/ChevronLeft.vue'
+import ChevronRight from '@/components/icons/navigation/ChevronRight.vue'
 
 const props = defineProps<{
 	totalPages: number
@@ -20,32 +20,28 @@ const onGotoPage = (nextPage: number) => {
 </script>
 <template>
 	<div class="paginator">
-		<FeatherIcon
+		<OnmsIconButton
 			:icon="FirstPage"
-			aria-hidden="true"
-			class="icon nav"
-			:class="{ disable: props.currentPage == 0 }"
+			title="First page"
+			:disabled="props.currentPage == 0"
 			@click="onGotoPage(0)"
 		/>
-		<FeatherIcon
+		<OnmsIconButton
 			:icon="ChevronLeft"
-			aria-hidden="true"
-			class="icon nav"
-			:class="{ disable: props.currentPage == 0 }"
+			title="Previous page"
+			:disabled="props.currentPage == 0"
 			@click="onGotoPage(props.currentPage - 1)"
 		/>
-		<FeatherIcon
+		<OnmsIconButton
 			:icon="ChevronRight"
-			aria-hidden="true"
-			class="icon nav"
-			:class="{ disable: props.currentPage == props.totalPages - 1 }"
+			title="Next page"
+			:disabled="props.currentPage == props.totalPages - 1"
 			@click="onGotoPage(props.currentPage + 1)"
 		/>
-		<FeatherIcon
+		<OnmsIconButton
 			:icon="LastPage"
-			aria-hidden="true"
-			class="icon nav"
-			:class="{ disable: props.currentPage == props.totalPages - 1 }"
+			title="Last page"
+			:disabled="props.currentPage == props.totalPages - 1"
 			@click="onGotoPage(props.totalPages - 1)"
 		/>
 	</div>
@@ -55,19 +51,5 @@ const onGotoPage = (nextPage: number) => {
 	display: flex;
 	flex-direction: row;
 	justify-content: space-between;
-}
-
-.nav {
-	font-size: 28px;
-	color: var(--feather-secondary);
-	cursor: pointer;
-	&:hover {
-		border: 1px solid var(--feather-border-on-surface);
-		border-radius: 25px;
-		background-color: var(--feather-border-on-surface);
-	}
-	&.disable {
-		color: var(--feather-disabled-text-on-surface);
-	}
 }
 </style>

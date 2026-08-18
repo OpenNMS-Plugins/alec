@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import CheckCircle from '@featherds/icon/action/CheckCircle'
-import { FeatherIcon } from '@featherds/icon'
+import CheckCircle from '@/components/icons/action/CheckCircle.vue'
+import Cancel from '@/components/icons/action/Cancel.vue'
+import { OnmsIcon } from '@opennms/onms-ui'
 import { groupBy, keys } from 'lodash'
-import Cancel from '@featherds/icon/action/Cancel'
 import { TSituation } from '@/types/TSituation'
 import CONST from '@/helpers/constants'
 import { formatDate } from '@/helpers/utils'
@@ -50,7 +50,7 @@ onMounted(async () => {
 	>
 		<div
 			class="severity-line"
-			:class="[`${props.situationInfo?.severity?.toLowerCase()}-bg dark`]"
+			:class="[props.situationInfo?.severity?.toLowerCase()]"
 		></div>
 		<div class="content">
 			<div class="title-row">
@@ -71,18 +71,10 @@ onMounted(async () => {
 					AI{{ aiBadge === 'pending' ? '…' : '' }}
 				</span>
 				<div v-if="props.situationInfo.status == ACCEPTED" class="accepted">
-					<FeatherIcon
-						:icon="CheckCircle"
-						aria-hidden="true"
-						class="icon accepted"
-					/>
+					<OnmsIcon :icon="CheckCircle" class="icon accepted" />
 				</div>
 				<div v-if="props.situationInfo.status == REJECTED" class="rejected">
-					<FeatherIcon
-						:icon="Cancel"
-						aria-hidden="true"
-						class="icon rejected"
-					/>
+					<OnmsIcon :icon="Cancel" class="icon rejected" />
 				</div>
 			</div>
 			<div>
@@ -123,21 +115,20 @@ onMounted(async () => {
 	</div>
 </template>
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
 .card {
 	display: flex;
 	width: 100%;
 	flex-direction: row;
-	background-color: var(--feather-elevation-background-0);
+	background-color: var(--onms-surface);
 	cursor: pointer;
-	border: 1px solid $border-grey;
+	border: 1px solid var(--onms-border-on-surface);
 	height: 100%;
 	&:hover {
-		border: 1px solid $dark-blue;
+		border: 1px solid var(--onms-primary);
 	}
 
 	&.rejected {
-		background-color: var(--feather-shade-3);
+		background-color: var(--onms-shade-3);
 		opacity: 0.4;
 	}
 }
@@ -166,11 +157,11 @@ onMounted(async () => {
 	font-size: 24px;
 }
 .accepted {
-	color: var(--feather-success);
+	color: var(--onms-success);
 }
 
 .rejected {
-	color: var(--feather-error);
+	color: var(--onms-error);
 }
 
 .count {
@@ -178,7 +169,7 @@ onMounted(async () => {
 	font-weight: 600;
 	padding-right: 8px;
 	padding-left: 3px;
-	color: var(--feather-primary-text-on-surface);
+	color: var(--onms-primary-text-on-surface);
 }
 
 .info-title {
@@ -199,16 +190,16 @@ onMounted(async () => {
 	cursor: help;
 
 	&.pending {
-		background: var(--feather-shade-3);
-		color: var(--feather-secondary-text-on-surface);
+		background: var(--onms-shade-3);
+		color: var(--onms-secondary-text-on-surface);
 	}
 	&.ready {
-		background: var(--feather-elevation-background-2);
-		color: var(--feather-secondary);
+		background: var(--onms-background);
+		color: var(--onms-primary);
 	}
 	&.failed {
-		background: var(--feather-elevation-background-2);
-		color: var(--feather-error);
+		background: var(--onms-background);
+		color: var(--onms-error);
 	}
 }
 </style>

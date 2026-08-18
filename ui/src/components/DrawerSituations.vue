@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { FeatherDrawer } from '@featherds/drawer'
+import { OnmsDrawer } from '@opennms/onms-ui'
 import { useSituationsStore } from '@/store/useSituationsStore'
 import SituationCard from '@/components/SituationCard.vue'
 import { ref, watch } from 'vue'
@@ -48,10 +48,12 @@ const filterList = (list: TSituation[]) => {
 </script>
 
 <template>
-	<FeatherDrawer
-		v-model="visible"
-		:labels="{ close: 'close', title: 'Situations' }"
-		@update:modelValue="emit('drawer-closed')"
+	<OnmsDrawer
+		:visible="visible"
+		header="Situations"
+		width="760px"
+		@update:visible="visible = $event"
+		@hide="emit('drawer-closed')"
 	>
 		<div class="content">
 			<h4 class="title">CHOOSE THE SITUATION:</h4>
@@ -76,18 +78,16 @@ const filterList = (list: TSituation[]) => {
 			</div>
 			<NoResults v-else />
 		</div>
-	</FeatherDrawer>
+	</OnmsDrawer>
 </template>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
-
 .content {
 	padding: 10px;
 	width: 700px;
 }
 .title {
-	color: var(--feather-secondary-text-on-surface);
+	color: var(--onms-secondary-text-on-surface);
 }
 .situation-list {
 	margin-top: 20px;

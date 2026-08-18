@@ -4,28 +4,18 @@ import SituationCard from '@/components/SituationCard.vue'
 import SimplePagination from '@/components/SimplePagination.vue'
 import CommonFilters from '@/components/CommonFilters.vue'
 
-import { FeatherButton } from '@featherds/button'
-import { FeatherIcon } from '@featherds/icon'
-import Add from '@featherds/icon/action/Add'
-import View from '@featherds/icon/action/View'
-import Settings from '@featherds/icon/action/Settings'
-import { reactive, ref, watch, markRaw } from 'vue'
+import { OnmsButton, OnmsIcon, OnmsSpinner } from '@opennms/onms-ui'
+import View from '@/components/icons/action/View.vue'
+import { reactive, ref, watch } from 'vue'
 import { chunk } from 'lodash'
 import { TSituation } from '@/types/TSituation'
 import useRouter from '@/composables/useRouter'
 import { ROUTE } from '@/router/routeNames'
-import { FeatherSpinner } from '@featherds/progress'
 
 import NewSituationBtn from '@/elements/NewSituationBtn.vue'
 import ConfigurationInfo from '@/components/ConfigurationInfo.vue'
 import { useUserStore } from '@/store/useUserStore'
 import NoResults from '@/elements/NoResults.vue'
-
-const Icons = markRaw({
-	Add,
-	View,
-	Settings
-})
 
 const router = useRouter()
 const situationStore = useSituationsStore()
@@ -118,13 +108,14 @@ const filterList = (list: TSituation[]) => {
 		<div class="header">
 			<h2>Situation List</h2>
 			<div class="link-btns">
-				<FeatherButton
+				<OnmsButton
 					class="view-situation-btn"
+					variant="outlined"
 					@click="() => viewUnassignedAlarms()"
 				>
-					<FeatherIcon :icon="Icons.View" aria-hidden="true" class="icon" />
+					<OnmsIcon :icon="View" class="icon" />
 					<span>View Unassociated Alarms</span>
-				</FeatherButton>
+				</OnmsButton>
 				<NewSituationBtn />
 				<ConfigurationInfo />
 			</div>
@@ -147,7 +138,7 @@ const filterList = (list: TSituation[]) => {
 						{{ totalSituations }}
 					</div>
 				</div>
-				<FeatherSpinner class="spinner" v-if="loading" />
+				<OnmsSpinner class="spinner" v-if="loading" />
 				<div v-else>
 					<div v-if="state.situations && state.situations.length">
 						<div class="situation-list">
@@ -179,7 +170,6 @@ const filterList = (list: TSituation[]) => {
 </template>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
 .header {
 	display: flex;
 	justify-content: space-between;
@@ -191,58 +181,7 @@ const filterList = (list: TSituation[]) => {
 }
 
 .view-situation-btn {
-	background-color: var(--feather-secondary) !important;
-	color: white !important;
-	height: 44px !important;
-}
-
-.box-info {
-	display: flex;
-	flex-direction: column;
-	font-size: 10px;
-	align-items: center;
-	font-weight: 600;
-	line-height: 20px;
-	margin-left: 8px;
-	color: var(--feather-secondary-text-on-surface);
-}
-
-.info-engine {
-	display: flex;
-	border: 1px solid $border-grey;
-	border-radius: 5px;
-	padding: 1px 7px;
-	cursor: pointer;
-	margin-left: 8px;
-
-	.icon-type {
-		width: 28px;
-		filter: invert(12%) sepia(72%) saturate(8824%) hue-rotate(236deg)
-			brightness(100%) contrast(46%);
-	}
-}
-.engine {
-	@extend .box-info;
-	.type {
-		color: var(--feather-secondary);
-	}
-}
-
-.optin {
-	border: 1px solid $border-grey;
-	border-radius: 5px;
-	padding: 1px 7px;
-	cursor: pointer;
-
-	@extend .box-info;
-	.optin-on {
-		font-size: 18px;
-		color: var(--feather-success);
-	}
-	.optin-off {
-		font-size: 18px;
-		color: var(--feather-error);
-	}
+	margin-right: 8px;
 }
 
 .content {
@@ -273,16 +212,16 @@ h2 {
 
 .left-filters {
 	width: 25%;
-	background-color: var(--feather-surface);
+	background-color: var(--onms-surface);
 	margin-right: 15px;
-	border: 1px solid $border-grey;
+	border: 1px solid var(--onms-border-on-surface);
 }
 .container {
 	display: flex;
 	padding-top: 20px;
 	flex-direction: column;
-	border: 1px solid $border-grey;
-	background-color: var(--feather-surface);
+	border: 1px solid var(--onms-border-on-surface);
+	background-color: var(--onms-surface);
 	width: 100%;
 	min-height: 750px;
 }
@@ -311,11 +250,6 @@ h2 {
 	}
 }
 
-.empty {
-	padding-left: var($spacing-xl);
-	border: none;
-	font-size: 16px;
-}
 .spinner {
 	margin: 100px auto;
 }

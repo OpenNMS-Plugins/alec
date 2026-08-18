@@ -7,7 +7,7 @@ export default defineConfig({
 	resolve: {
 		alias: {
 			'@/': new URL('./src/', import.meta.url).pathname,
-			'~@featherds': '@featherds'
+			'@opennms/onms-ui': new URL('./src/onms-ui/index.ts', import.meta.url).pathname
 		},
 		// Ensure a single Vue/Pinia copy in the test graph — two copies make
 		// reactive objects from one instance hit another's private fields

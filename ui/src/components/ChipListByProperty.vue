@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { TAlarm, TSituation } from '@/types/TSituation'
-import { FeatherChipList, FeatherChip } from '@featherds/chips'
+import { OnmsChip } from '@opennms/onms-ui'
 import { ref, watch, computed, reactive } from 'vue'
 import { groupBy, keys } from 'lodash'
 import StatusColor from '@/elements/StatusColor.vue'
@@ -49,23 +49,22 @@ watch(props, () => {
 </script>
 
 <template>
-	<FeatherChipList
+	<div
 		:key="selectedFilters.toString()"
 		v-if="alarmFilters.length > 0"
-		condensed
-		label=""
+		class="chip-list"
 		:class="{ vertical: props.isVertical }"
 	>
-		<FeatherChip
+		<OnmsChip
 			:class="{ clicked: selectedFilters.includes('all') }"
 			@click="handleAlarmFilters('all')"
 		>
 			ALL
-		</FeatherChip>
-		<FeatherChip
+		</OnmsChip>
+		<OnmsChip
 			:class="[
 				{ clicked: selectedFilters.includes(option) },
-				`${option?.toLowerCase()}-bg`
+				`${option?.toLowerCase()}-color`
 			]"
 			v-for="option in alarmFilters"
 			:key="option"
@@ -74,25 +73,29 @@ watch(props, () => {
 			<StatusColor v-if="property == 'severity'" :severity="option" />{{
 				option
 			}}
-		</FeatherChip>
-	</FeatherChipList>
+		</OnmsChip>
+	</div>
 </template>
 
 <style scoped lang="scss">
-@import '@/styles/variables.scss';
-@import '@featherds/table/scss/table';
+.chip-list {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+
+	> * {
+		cursor: pointer;
+	}
+}
 
 .vertical {
-	display: flex;
 	flex-direction: column;
 	align-items: start;
 	margin-right: 20px;
-	> * {
-		margin-bottom: 15px;
-	}
 }
+
 .clicked {
-	border: 2px solid $dark-blue !important;
-	background-color: var(--feather-shade-3) !important;
+	border: 2px solid var(--onms-primary) !important;
+	background-color: var(--onms-shade-3) !important;
 }
 </style>

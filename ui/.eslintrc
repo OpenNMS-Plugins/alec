@@ -46,8 +46,47 @@
           "double", 
           { "avoidEscape": false } 
         ],
-        "@typescript-eslint/no-explicit-any": "off"
+        "@typescript-eslint/no-explicit-any": "off",
+        "no-restricted-imports": [
+          "error", {
+            "patterns": [
+              {
+                "group": ["primevue/*", "@featherds/*"],
+                "message": "Use the @opennms/onms-ui wrappers (or @/components/icons) instead of direct PrimeVue/Feather imports."
+              }
+            ]
+          }
+        ]
     },
+    "overrides": [
+      {
+        "files": [
+          "src/tests/**"
+        ],
+        "rules": {
+          "no-restricted-imports": "off"
+        }
+      },
+      {
+        "files": [
+          "src/onms-ui/**",
+          "src/theme/**",
+          "src/components/icons/**",
+          "src/components/Common/**"
+        ],
+        "rules": {
+          "no-restricted-imports": "off",
+          "indent": "off",
+          "quotes": "off",
+          "semi": "off",
+          "vue/html-quotes": "off",
+          "vue/multi-word-component-names": "off",
+          "@typescript-eslint/no-inferrable-types": "off",
+          "vue-scoped-css/enforce-style-type": "off",
+          "vue-scoped-css/no-unused-selector": "off"
+        }
+      }
+    ],
     "globals": {
       "defineProps": "readonly",
       "defineEmits": "readonly",

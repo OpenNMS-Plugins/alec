@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { FeatherSpinner } from '@featherds/progress'
-import { FeatherButton } from '@featherds/button'
+import { OnmsButton, OnmsSpinner } from '@opennms/onms-ui'
 import {
 	getLLMSuggestion,
 	reanalyzeLLMSuggestion
@@ -152,27 +151,24 @@ const canReanalyze = computed(
 		<div class="header">
 			<h3>AI Suggestions</h3>
 			<div class="header-actions">
-				<FeatherButton
+				<OnmsButton
 					v-if="canReanalyze"
-					primary
+					label="Re-evaluate"
 					data-test="ai-reanalyze"
 					:disabled="state === 'reanalyzing' || state === 'pending'"
 					@click="handleReanalyze"
-				>
-					Re-evaluate
-				</FeatherButton>
-				<FeatherButton
-					secondary
+				/>
+				<OnmsButton
+					variant="outlined"
+					label="Refresh"
 					data-test="ai-refresh"
 					@click="handleRefresh"
-				>
-					Refresh
-				</FeatherButton>
+				/>
 			</div>
 		</div>
 
 		<div v-if="state === 'loading'" class="state-row" data-test="ai-loading">
-			<FeatherSpinner />
+			<OnmsSpinner />
 			<span>Loading…</span>
 		</div>
 
@@ -181,7 +177,7 @@ const canReanalyze = computed(
 			class="state-row"
 			data-test="ai-reanalyzing"
 		>
-			<FeatherSpinner />
+			<OnmsSpinner />
 			<span>Requesting a fresh analysis…</span>
 		</div>
 
@@ -213,7 +209,7 @@ const canReanalyze = computed(
 		</div>
 
 		<div v-else-if="state === 'pending'" class="state-row" data-test="ai-pending">
-			<FeatherSpinner />
+			<OnmsSpinner />
 			<span>
 				Analyzing alarms with the LLM… requested at
 				{{ requestedAtFormatted }}.
@@ -229,18 +225,17 @@ const canReanalyze = computed(
 				The last LLM request failed:
 				<code>{{ record?.error || 'unknown error' }}</code>
 			</div>
-			<FeatherButton
-				secondary
+			<OnmsButton
+				variant="outlined"
+				label="Retry"
 				data-test="ai-retry"
 				@click="handleRefresh"
-			>
-				Retry
-			</FeatherButton>
+			/>
 		</div>
 
 		<div v-else-if="state === 'error'" class="state-row" data-test="ai-error">
 			Could not load suggestions. Please retry.
-			<FeatherButton secondary @click="handleRefresh">Retry</FeatherButton>
+			<OnmsButton variant="outlined" label="Retry" @click="handleRefresh" />
 		</div>
 
 		<div v-else-if="state === 'ready' && record" data-test="ai-ready">
@@ -286,11 +281,9 @@ const canReanalyze = computed(
 </template>
 
 <style lang="scss" scoped>
-@use '@/styles/variables.scss';
-
 .ai-panel {
-	background-color: var(--feather-surface);
-	border: 1px solid variables.$border-grey;
+	background-color: var(--onms-surface);
+	border: 1px solid var(--onms-border-on-surface);
 	padding: 20px;
 	margin-top: 10px;
 }
@@ -316,12 +309,12 @@ const canReanalyze = computed(
 	display: flex;
 	align-items: center;
 	gap: 12px;
-	color: var(--feather-secondary-text-on-surface);
+	color: var(--onms-secondary-text-on-surface);
 	font-size: 14px;
 
 	&.failed {
 		justify-content: space-between;
-		color: var(--feather-warning);
+		color: var(--onms-warning);
 	}
 
 	.failed-msg {
@@ -332,7 +325,7 @@ const canReanalyze = computed(
 	code {
 		font-family: monospace;
 		font-size: 12px;
-		background: var(--feather-elevation-background-1);
+		background: var(--onms-background);
 		padding: 1px 5px;
 		border-radius: 2px;
 	}
@@ -340,13 +333,13 @@ const canReanalyze = computed(
 
 .reanalyze-error {
 	margin-top: 8px;
-	color: var(--feather-error);
+	color: var(--onms-error);
 	font-size: 13px;
 }
 
 .meta {
 	font-size: 13px;
-	color: var(--feather-secondary-text-on-surface);
+	color: var(--onms-secondary-text-on-surface);
 	margin-bottom: 12px;
 }
 
@@ -370,7 +363,7 @@ const canReanalyze = computed(
 
 .empty {
 	font-style: italic;
-	color: var(--feather-disabled-text-on-surface);
+	color: var(--onms-secondary-text-on-surface);
 	font-size: 13px;
 }
 </style>

@@ -1,0 +1,8 @@
+// Global (unscoped) style layer for the ALEC extension, mirroring the OpenNMS
+// host's own layering. onms-theme defines the --onms-* tokens on :root (and
+// .open-dark): identical to the host's definitions, so on a PrimeVue host the
+// host's later-in-cascade copies win the tie, and on a Feather host these are
+// the only source. severities provides the shared severity classes.
+@use '@/styles/onms-theme.scss';
+@use '@/styles/severities';
+@use '@/theme/primevue-overrides.scss';
