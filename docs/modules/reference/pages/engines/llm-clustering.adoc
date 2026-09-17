@@ -26,7 +26,7 @@ The model you choose must support tool/function calling.
 == Enable and configure
 
 The LLM clustering engine requires a configured LLM.
-Set the endpoint, model, and API key on the *LLM Setup* tab first (these are the same settings described in xref:reference:llm-root-cause-analysis.adoc[LLM Root Cause Analysis]); the engine cannot be enabled until they are set.
+Set the endpoint, model, and API key on the *LLM Setup* tab first (see xref:reference:llm-root-cause-analysis.adoc#llm-setup[LLM Setup]); the engine cannot be enabled until they are set.
 
 . Click *Plugins > ALEC* in the top menu bar, then click the *gear* symbol.
 . On the *LLM Setup* tab, configure the endpoint, model, and API key (and, optionally, daily/monthly token budgets).

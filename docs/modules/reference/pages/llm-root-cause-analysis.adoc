@@ -22,20 +22,14 @@ ALEC uses *function (tool) calling* to constrain the model's response: the model
 This keeps responses structured and is the primary defense against prompt injection from untrusted alarm text.
 The model you choose must therefore support tool/function calling.
 
-== Enable and configure
+[[llm-setup]]
+== LLM Setup
 
-Open the configuration page to set up the feature:
+The LLM connection is configured once, on the *LLM Setup* tab, and shared by Root Cause Analysis and the LLM clustering engine:
 
-. Click *Plugins > ALEC* in the top menu bar.
-. Click the *gear* symbol in the top-right of the screen.
-. Configure the *LLM Root Cause Analysis* section, described below.
-. Click *Save Changes*.
-
-The configuration page exposes the following settings.
-
-LLM Enabled Root Cause Analysis:: Turns the feature on or off. ALEC ships with nothing pre-configured, so an endpoint, a model and a stored API key must all be set before the feature can be enabled.
-
-Automatically AI Evaluate new situations:: When enabled (the default), every new situation is analyzed automatically. When disabled, situations are not analyzed until you click *Re-evaluate* on the situation's *AI Suggestions* tab — useful for controlling cost or analyzing on demand only.
+. Click *Plugins > ALEC* in the top menu bar, then click the *gear* symbol.
+. Open the *LLM Setup* tab and set the fields below.
+. Click *Validate key*, then *Save Changes*.
 
 Endpoint:: The OpenAI-compatible base URL of your provider. ALEC appends `/chat/completions` to this value. ALEC ships with no default, so this is blank until you configure it. The field is free-text (type any URL — required for locally hosted servers) and also offers a *▾* menu of common providers.
 
@@ -43,11 +37,23 @@ Model:: The model identifier to use, as named by your provider. Free-text, with 
 
 Set as default / Reset to default:: Next to the Endpoint and Model fields, *Set as default* records the current value as that field's default, and *Reset to default* restores it. They let you pin your site's preferred endpoint/model after first configuring them; *Reset to default* stays disabled until a default has been recorded.
 
-System prompt:: The instructions sent to the model for every analysis. Customize it to add site-specific context such as your topology, naming conventions, escalation policy, or the vendors you use. A *Reset to default* control restores the built-in prompt; clearing the field also falls back to the default. The situation's alarms are appended automatically — do not paste alarm data into this field.
-
 API key:: The credential used to authenticate to the endpoint. The key is write-only from the UI: it is stored on the OpenNMS server and is never returned to the browser after saving. The key must come from the same provider as the endpoint.
 
 Use the *Validate key* button to confirm — without saving — that the endpoint, model, and key all work and that the model supports function calling.
+
+Token budget:: Optional *Daily* and *Monthly token limit* values (`0` = no limit) that cap the tokens ALEC may spend across both LLM features. When a limit is reached, ALEC stops sending requests and shows a warning on the main page until the day or month resets.
+
+Below the fields, a *Last 30 days* summary shows total tokens, an estimated cost, and a per-call breakdown; *show details* expands it. It refreshes after each save.
+
+== Enable and configure
+
+. On the *LLM Root Cause Analysis* tab, turn on *LLM Enabled Root Cause Analysis*. The switch stays disabled until *LLM Setup* holds a valid endpoint, model and key.
+. Choose automatic or on-demand evaluation and, optionally, edit the system prompt.
+. Click *Save Changes*.
+
+Automatically AI Evaluate new situations:: When enabled (the default), every new situation is analyzed automatically. When disabled, situations are not analyzed until you click *Re-evaluate* on the situation's *AI Suggestions* tab — useful for controlling cost or analyzing on demand only.
+
+System prompt:: The instructions sent to the model for every analysis. Customize it to add site-specific context such as your topology, naming conventions, escalation policy, or the vendors you use. A *Reset to default* control restores the built-in prompt; clearing the field also falls back to the default. The situation's alarms are appended automatically — do not paste alarm data into this field.
 
 == Choose a provider
 
@@ -88,6 +94,7 @@ The configuration page shows a rolling 30-day usage summary — total tokens, an
 To reduce or eliminate cost, you can:
 
 * Turn off *Automatically AI Evaluate new situations* and analyze only on demand.
+* Set a daily or monthly token budget on the *LLM Setup* tab.
 * Choose a less expensive model.
 * Use a xref:reference:llm-root-cause-analysis.adoc#local-llm[locally run LLM].
 

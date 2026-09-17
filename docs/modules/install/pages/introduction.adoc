@@ -29,9 +29,14 @@ A xref:admin:distributed_install.adoc[distributed deployment], which installs AL
 
 == System prerequisites
 
-ALEC requires the following:
+ALEC requires one of the following OpenNMS versions:
 
-* Horizon 30.0.1+ or Meridian 2022+ (see https://docs.opennms.com/horizon/latest/deployment/core/introduction.html[OpenNMS deployment] for help on getting started with OpenNMS).
-* https://www.elastic.co/products/elasticsearch[Elasticsearch] 6.7.0–7.6.2 to maintain event and alarm history for training purposes (see https://docs.opennms.com/horizon/latest/operation/deep-dive/elasticsearch/introduction.html[Elasticsearch integration]).
+* Horizon 32.0.0 or later.
+* Meridian 2025.1.0 or later.
 
+Both ship the OpenNMS Integration API 1.6 or newer, which ALEC {full-display-version} requires (it supports API versions 1.6 up to, but not including, 3.0).
+See https://docs.opennms.com/horizon/latest/deployment/core/introduction.html[OpenNMS deployment] for help on getting started with OpenNMS.
 
+ALEC stores its state inside OpenNMS and needs no database of its own.
+
+The optional LLM features need an OpenAI-compatible `/chat/completions` endpoint, hosted or local, whose model supports tool calling (see xref:reference:llm-root-cause-analysis.adoc[LLM Root Cause Analysis]).

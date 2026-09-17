@@ -3,40 +3,33 @@
 = Step 1: First-Time Login and Engine Configuration
 :description: View first-time login tasks and how to configure a correlation engine in OpenNMS's Architecture for Learning Enabled Correlation (ALEC).
 
-This section explains first-time login tasks and how to configure a correlation engine.
-ALEC includes a DBSCAN-based clustering engine (with an experimental LLM-based clustering engine also available).
-The engine that you choose determines how ALEC groups alerts into clusters.
+After you install ALEC, log in to the OpenNMS web UI and click *Plugins > ALEC* in the top menu bar.
+The situation list is displayed.
+ALEC starts with the xref:reference:engines/clustering.adoc[clustering] engine (DBSCAN) selected, so no configuration is needed to see situations.
 
-This Quick Start guide explains how to set up and configure the xref:reference:engines/clustering.adoc[clustering] engine.
+[[configuration-page]]
+== The ALEC Configuration page
 
-After you install ALEC, you can access it via the OpenNMS web UI.
-Log in to the web UI and click *Plugins > ALEC* in the top menu bar.
-An introduction to the ALEC plugin is displayed, explaining the plugin and its key benefits.
+All ALEC settings are on one page: click the *gear* symbol in the top-right of the ALEC screen.
+The page has three tabs, and *Save Changes* applies whichever tab you are on.
 
-== First-time login and data choices
+Correlation Engine:: Choose *Clustering* (the default, with an optional *Hellinger distance* refinement and tunable correlation variables) or *LLM Based (Experimental)*.
+See xref:reference:engines/clustering.adoc[Clustering Engine] and xref:reference:engines/llm-clustering.adoc[LLM Clustering Engine].
+LLM Root Cause Analysis:: Turn on AI suggestions for situations and edit the system prompt.
+See xref:reference:llm-root-cause-analysis.adoc[LLM Root Cause Analysis].
+LLM Setup:: The LLM connection shared by both LLM features: endpoint, model, API key, token budgets, and a 30-day usage summary.
+See xref:reference:llm-root-cause-analysis.adoc#llm-setup[LLM Setup].
 
-When you first log in and navigate to the ALEC plugin, OpenNMS prompts for permission to send usage data to The OpenNMS Group.
-We use this anonymized information to help determine product use and improve the ALEC plugin.
-We do not share it with third parties, and will not use it for sales purposes.
-
-.ALEC data permissions prompt
-image::data-permissions.png[ALEC data permissions prompt, 750]
-
-Select *Yes* or *No*, and click *Continue*.
-The correlation engine configuration screen is displayed.
+Two buttons at the bottom of every tab act on live data: *Re-Evaluate All Open Alarms* re-runs correlation with the current settings, and *Close All Open Situations* clears the current situations.
 
 [[clustering-engine-config]]
-== Configure clustering engine
+== Change the correlation engine
 
-When you access the ALEC plugin for the first time in the web UI, you are prompted to select a correlation engine.
+. Open the *Correlation Engine* tab.
+. Select *Clustering* or *LLM Based (Experimental)*; the LLM engine needs a working *LLM Setup* first.
+. Click *Save Changes*.
 
-.Correlation engine selection prompt
-image::engine-config.png[Correlation engine selection prompt for the ALEC clustering engine, 900]
-
-Choose *Clustering*, and click *Continue*.
-The clustering engine is now set.
-
-NOTE: After you select a correlation engine, you can change and update it only via the Karaf shell.
+The change takes effect when you save; no restart is needed.
 
 == Beyond Quick Start
 
