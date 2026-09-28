@@ -48,6 +48,7 @@ public class LlmValidationRestImplTest {
 
     private InMemoryKVStore kv;
     private LlmConfigReader configReader;
+    private LlmValidationRecordStore recordStore;
     private LlmSuggestionService service;
     private LlmValidationRestImpl rest;
 
@@ -55,8 +56,66 @@ public class LlmValidationRestImplTest {
     public void setUp() {
         kv = new InMemoryKVStore();
         configReader = new LlmConfigReader(kv, new ObjectMapper());
+        recordStore = new LlmValidationRecordStore(kv, new ObjectMapper());
         service = mock(LlmSuggestionService.class);
-        rest = new LlmValidationRestImpl(service, configReader);
+        rest = new LlmValidationRestImpl(service, configReader, recordStore);
+    }
+
+    // --- ALEC-310: a passed probe is remembered, a failed one is not ---
+
+    @Test
+    public void passedProbeWritesTheValidationRecord() throws Exception {
+        when(service.validate(eq("sk-typed"), eq("https://api.openai.com/v1/"), eq("openai/gpt-4o")))
+                .thenReturn(ValidationResult.ok("good"));
+        ValidationRequest req = new ValidationRequest();
+        req.setApiKey("sk-typed");
+        req.setBaseUrl("https://api.openai.com/v1/");
+        req.setModel("openai/gpt-4o");
+
+        rest.validate(req);
+
+        String raw = kv.get(LlmValidationRecordStore.RECORD_KEY, LlmValidationRecordStore.RECORD_CONTEXT)
+                .orElseThrow(() -> new AssertionError("record not written"));
+        com.fasterxml.jackson.databind.JsonNode node = new ObjectMapper().readTree(raw);
+        // Trailing slash normalized away, key stored as a hash only.
+        assertThat(node.path("baseUrl").asText(), equalTo("https://api.openai.com/v1"));
+        assertThat(node.path("model").asText(), equalTo("openai/gpt-4o"));
+        assertThat(node.path("apiKeyHash").asText(), equalTo(LlmValidationRecordStore.sha256("sk-typed")));
+        assertThat(raw.contains("sk-typed"), is(false));
+        assertThat(node.path("validatedAt").asLong() > 0, is(true));
+    }
+
+    @Test
+    public void failedProbeLeavesNoValidationRecord() {
+        when(service.validate(eq("sk-bad"), eq("https://api.openai.com/v1"), eq("openai/gpt-4o")))
+                .thenReturn(ValidationResult.fail("HTTP 401"));
+        ValidationRequest req = new ValidationRequest();
+        req.setApiKey("sk-bad");
+        req.setBaseUrl("https://api.openai.com/v1");
+        req.setModel("openai/gpt-4o");
+
+        rest.validate(req);
+
+        assertThat(kv.get(LlmValidationRecordStore.RECORD_KEY, LlmValidationRecordStore.RECORD_CONTEXT).isPresent(),
+                is(false));
+    }
+
+    @Test
+    public void probeAgainstTheStoredKeyRecordsThatKeysHash() {
+        kv.put(LlmConfigReader.CONFIG_KEY,
+                "{\"enabled\":false,\"apiKey\":\"sk-stored\",\"baseUrl\":\"https://api.openai.com/v1\",\"model\":\"m1\"}",
+                LlmConfigReader.CONFIG_CONTEXT);
+        when(service.validate(eq("sk-stored"), eq("https://api.openai.com/v1"), eq("m2")))
+                .thenReturn(ValidationResult.ok("good"));
+        ValidationRequest req = new ValidationRequest();
+        req.setModel("m2");
+
+        rest.validate(req);
+
+        String raw = kv.get(LlmValidationRecordStore.RECORD_KEY, LlmValidationRecordStore.RECORD_CONTEXT)
+                .orElseThrow(() -> new AssertionError("record not written"));
+        assertThat(raw.contains(LlmValidationRecordStore.sha256("sk-stored")), is(true));
+        assertThat(raw.contains("\"model\":\"m2\""), is(true));
     }
 
     @Test

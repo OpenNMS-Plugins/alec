@@ -49,6 +49,10 @@ export type TLLMConfigStatus = {
 	dailyTokenLimit: number
 	monthlyTokenLimit: number
 	apiKeyPresent: boolean
+	// True when the stored endpoint/model/key is exactly the combination that
+	// last passed "Validate key" (the server keeps that record; the UI cannot
+	// assert it). LLM features can only be enabled against a validated setup.
+	validated: boolean
 }
 
 // Wire shape for POST /alec/llm/configuration.

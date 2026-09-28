@@ -108,6 +108,17 @@ public class LlmConfigImplTest {
     }
 
     @Test
+    public void statusCarriesTheValidatedFlagAndDefaultsItToFalse() throws JsonProcessingException {
+        LlmConfig config = LlmConfigImpl.newBuilder().enabled(false).apiKey("sk-x").build();
+        assertThat(LlmConfigStatus.from(config).isValidated(), is(false));
+        assertThat(LlmConfigStatus.from(config, true).isValidated(), is(true));
+        assertThat(LlmConfigStatus.from(null).isValidated(), is(false));
+        String json = objectMapper.writeValueAsString(LlmConfigStatus.from(config, true));
+        assertThat(json.contains("\"validated\":true"), is(true));
+        assertThat(json.contains("sk-x"), is(false));
+    }
+
+    @Test
     public void statusFromConfigWithEmptyKeyReportsKeyAbsent() {
         LlmConfig config = LlmConfigImpl.newBuilder()
                 .enabled(false)

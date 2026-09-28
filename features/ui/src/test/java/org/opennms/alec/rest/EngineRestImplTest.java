@@ -159,10 +159,74 @@ public class EngineRestImplTest {
         assertThat(argumentCaptor.getValue(), equalTo(getParameterAsString(getParameter().build())));
     }
 
+    /**
+     * ALEC-310: selecting the LLM engine over REST requires a stored LLM
+     * configuration that matches the validation record. Stub both.
+     */
+    private void stubValidatedLlmConfig() throws JsonProcessingException {
+        String config = objectMapper.writeValueAsString(org.opennms.alec.data.LlmConfigImpl.newBuilder()
+                .baseUrl("http://10.0.0.137:8081/v1").model("qwen3.5-4b").apiKey("sk-typed").build());
+        when(kvStore.get(eq(KeyEnum.LLM_CONFIG.toString()), eq(ALECRestUtils.ALEC_CONFIG)))
+                .thenReturn(Optional.of(config));
+        when(kvStore.get(eq(KeyEnum.LLM_VALIDATION.toString()), eq(ALECRestUtils.ALEC_CONFIG)))
+                .thenReturn(Optional.of("{\"baseUrl\":\"http://10.0.0.137:8081/v1\",\"model\":\"qwen3.5-4b\","
+                        + "\"apiKeyHash\":\"" + org.opennms.alec.data.LlmValidationRecord.sha256("sk-typed") + "\"}"));
+    }
+
+    @Test
+    public void testSetLlmEngineRejectedWhenLlmConfigNotValidated() throws JsonProcessingException {
+        EngineRestImpl underTest = new EngineRestImpl(kvStore, engineRegistry, engineFactories);
+        // A stored config but no validation record (or, equivalently, a record
+        // for another key/endpoint) — the exact state the bug was reported in.
+        when(kvStore.get(eq(KeyEnum.LLM_CONFIG.toString()), eq(ALECRestUtils.ALEC_CONFIG)))
+                .thenReturn(Optional.of("{\"baseUrl\":\"http://10.0.0.137:8081/v1\",\"model\":\"qwen3.5-4b\","
+                        + "\"apiKey\":\"sk-typed\"}"));
+        when(kvStore.get(eq(KeyEnum.LLM_VALIDATION.toString()), eq(ALECRestUtils.ALEC_CONFIG)))
+                .thenReturn(Optional.empty());
+
+        try (Response result = underTest.setEngineConfiguration(
+                EngineParameterImpl.newBuilder().engineName("llm").build())) {
+            assertThat(result.getStatus(), equalTo(Response.Status.BAD_REQUEST.getStatusCode()));
+            assertThat((String) result.getEntity(), containsString("not been validated"));
+        }
+        verify(kvStore, times(0)).putAsync(eq(KeyEnum.ENGINE.toString()), anyString(), eq(ALECRestUtils.ALEC_CONFIG));
+    }
+
+    @Test
+    public void testSetLlmEngineRejectedWhenNoLlmConfigStored() {
+        EngineRestImpl underTest = new EngineRestImpl(kvStore, engineRegistry, engineFactories);
+        when(kvStore.get(eq(KeyEnum.LLM_CONFIG.toString()), eq(ALECRestUtils.ALEC_CONFIG)))
+                .thenReturn(Optional.empty());
+
+        try (Response result = underTest.setEngineConfiguration(
+                EngineParameterImpl.newBuilder().engineName("llm").build())) {
+            assertThat(result.getStatus(), equalTo(Response.Status.BAD_REQUEST.getStatusCode()));
+        }
+        verify(kvStore, times(0)).putAsync(eq(KeyEnum.ENGINE.toString()), anyString(), eq(ALECRestUtils.ALEC_CONFIG));
+    }
+
+    @Test
+    public void testStartupReplayOfLlmEngineBypassesTheValidationGate() throws JsonProcessingException {
+        // An installation that already runs the LLM engine must keep it after a
+        // restart even though nothing was ever validated (upgrade path).
+        when(kvStore.get(eq(KeyEnum.ENGINE.toString()), eq(ALECRestUtils.ALEC_CONFIG)))
+                .thenReturn(Optional.of("{\"engineName\":\"llm\",\"clusterFrequencyMs\":60000}"));
+        when(kvStore.putAsync(anyString(), anyString(), anyString())).thenReturn(future);
+        when(future.join()).thenReturn(1L);
+
+        new EngineRestImpl(kvStore, engineRegistry, engineFactories);
+
+        // The replay went through to persistence (and would have set the
+        // driver's factory had the engine/llm bundle been present).
+        verify(kvStore, times(1)).putAsync(eq(KeyEnum.ENGINE.toString()), anyString(), eq(ALECRestUtils.ALEC_CONFIG));
+        verify(kvStore, times(0)).get(eq(KeyEnum.LLM_VALIDATION.toString()), eq(ALECRestUtils.ALEC_CONFIG));
+    }
+
     @Test
     public void testSetLlmEngineClampsNullClusterFrequencyToDefault() throws JsonProcessingException {
         EngineRestImpl underTest = new EngineRestImpl(kvStore, engineRegistry, engineFactories);
         ArgumentCaptor<String> argumentCaptor = ArgumentCaptor.forClass(String.class);
+        stubValidatedLlmConfig();
         when(kvStore.putAsync(anyString(), anyString(), anyString())).thenReturn(future);
         when(future.join()).thenReturn(1L);
 
@@ -182,6 +246,7 @@ public class EngineRestImplTest {
     public void testSetLlmEngineClampsNonPositiveClusterFrequencyToDefault() throws JsonProcessingException {
         EngineRestImpl underTest = new EngineRestImpl(kvStore, engineRegistry, engineFactories);
         ArgumentCaptor<String> argumentCaptor = ArgumentCaptor.forClass(String.class);
+        stubValidatedLlmConfig();
         when(kvStore.putAsync(anyString(), anyString(), anyString())).thenReturn(future);
         when(future.join()).thenReturn(1L);
 

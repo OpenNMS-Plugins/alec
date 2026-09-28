@@ -186,6 +186,129 @@ public class LlmRestImplTest {
         assertThat(merged.getApiKey(), equalTo("sk-new"));
     }
 
+    // --- ALEC-310: enabling requires the validated combination ---
+
+    private static final String URL = "http://10.0.0.137:8081/v1";
+    private static final String MODEL = "qwen3.5-4b";
+
+    private static String record(String key) {
+        return "{\"baseUrl\":\"" + URL + "\",\"model\":\"" + MODEL + "\",\"apiKeyHash\":\""
+                + org.opennms.alec.data.LlmValidationRecord.sha256(key) + "\"}";
+    }
+
+    @SuppressWarnings("unchecked")
+    private static org.opennms.integration.api.v1.distributed.KeyValueStore<String> store(String configJson,
+                                                                                            String recordJson) {
+        org.opennms.integration.api.v1.distributed.KeyValueStore<String> kv =
+                org.mockito.Mockito.mock(org.opennms.integration.api.v1.distributed.KeyValueStore.class);
+        org.mockito.Mockito.when(kv.get(org.mockito.ArgumentMatchers.eq(org.opennms.alec.data.KeyEnum.LLM_CONFIG.toString()),
+                        org.mockito.ArgumentMatchers.eq(ALECRestUtils.ALEC_CONFIG)))
+                .thenReturn(java.util.Optional.ofNullable(configJson));
+        org.mockito.Mockito.when(kv.get(org.mockito.ArgumentMatchers.eq(org.opennms.alec.data.KeyEnum.LLM_VALIDATION.toString()),
+                        org.mockito.ArgumentMatchers.eq(ALECRestUtils.ALEC_CONFIG)))
+                .thenReturn(java.util.Optional.ofNullable(recordJson));
+        org.mockito.Mockito.when(kv.putAsync(org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString()))
+                .thenReturn(java.util.concurrent.CompletableFuture.completedFuture(1L));
+        return kv;
+    }
+
+    private static LlmConfig request(boolean enabled, String key) {
+        return LlmConfigImpl.newBuilder().enabled(enabled).baseUrl(URL).model(MODEL).apiKey(key).build();
+    }
+
+    @Test
+    public void enablingWithoutAValidationRecordIsRejectedAndNothingIsPersisted() {
+        org.opennms.integration.api.v1.distributed.KeyValueStore<String> kv = store(null, null);
+        LlmRestImpl rest = new LlmRestImpl(kv);
+        try (javax.ws.rs.core.Response resp = rest.setConfiguration(request(true, "sk-typed"))) {
+            assertThat(resp.getStatus(), is(400));
+            assertThat(((String) resp.getEntity()).contains("not been validated"), is(true));
+        }
+        org.mockito.Mockito.verify(kv, org.mockito.Mockito.never()).putAsync(
+                org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    public void enablingWithAMatchingValidationRecordIsAcceptedAndReportedValidated() {
+        org.opennms.integration.api.v1.distributed.KeyValueStore<String> kv = store(null, record("sk-typed"));
+        LlmRestImpl rest = new LlmRestImpl(kv);
+        try (javax.ws.rs.core.Response resp = rest.setConfiguration(request(true, "sk-typed"))) {
+            assertThat(resp.getStatus(), is(200));
+            org.opennms.alec.data.LlmConfigStatus status = (org.opennms.alec.data.LlmConfigStatus) resp.getEntity();
+            assertThat(status.isEnabled(), is(true));
+            assertThat(status.isValidated(), is(true));
+        }
+    }
+
+    @Test
+    public void aRecordForAnotherKeyDoesNotValidateTheStoredKey() {
+        // The key being saved differs from the one that was probed.
+        org.opennms.integration.api.v1.distributed.KeyValueStore<String> kv = store(null, record("sk-other"));
+        LlmRestImpl rest = new LlmRestImpl(kv);
+        try (javax.ws.rs.core.Response resp = rest.setConfiguration(request(true, "sk-typed"))) {
+            assertThat(resp.getStatus(), is(400));
+        }
+    }
+
+    @Test
+    public void savingDisabledNeedsNoValidationAndReportsNotValidated() {
+        org.opennms.integration.api.v1.distributed.KeyValueStore<String> kv = store(null, null);
+        LlmRestImpl rest = new LlmRestImpl(kv);
+        try (javax.ws.rs.core.Response resp = rest.setConfiguration(request(false, "sk-typed"))) {
+            assertThat(resp.getStatus(), is(200));
+            assertThat(((org.opennms.alec.data.LlmConfigStatus) resp.getEntity()).isValidated(), is(false));
+        }
+        org.mockito.Mockito.verify(kv).putAsync(
+                org.mockito.ArgumentMatchers.eq(org.opennms.alec.data.KeyEnum.LLM_CONFIG.toString()),
+                org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.eq(ALECRestUtils.ALEC_CONFIG));
+    }
+
+    @Test
+    public void clearingTheKeyDeletesTheValidationRecordAndReportsNotValidated() throws Exception {
+        String stored = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(request(true, "sk-stored"));
+        org.opennms.integration.api.v1.distributed.KeyValueStore<String> kv = store(stored, record("sk-stored"));
+        LlmRestImpl rest = new LlmRestImpl(kv);
+        LlmConfig clear = LlmConfigImpl.newBuilder().enabled(true).baseUrl(URL).model(MODEL).clearApiKey(true).build();
+        try (javax.ws.rs.core.Response resp = rest.setConfiguration(clear)) {
+            assertThat(resp.getStatus(), is(200));
+            org.opennms.alec.data.LlmConfigStatus status = (org.opennms.alec.data.LlmConfigStatus) resp.getEntity();
+            assertThat(status.isEnabled(), is(false));
+            assertThat(status.isApiKeyPresent(), is(false));
+            assertThat("the memory of the old key's validation goes with the key",
+                    status.isValidated(), is(false));
+        }
+        org.mockito.Mockito.verify(kv).delete(
+                org.mockito.ArgumentMatchers.eq(org.opennms.alec.data.KeyEnum.LLM_VALIDATION.toString()),
+                org.mockito.ArgumentMatchers.eq(ALECRestUtils.ALEC_CONFIG));
+    }
+
+    @Test
+    public void savingWithoutClearingLeavesTheValidationRecordAlone() {
+        org.opennms.integration.api.v1.distributed.KeyValueStore<String> kv = store(null, record("sk-typed"));
+        try (javax.ws.rs.core.Response resp = new LlmRestImpl(kv).setConfiguration(request(false, "sk-typed"))) {
+            assertThat(resp.getStatus(), is(200));
+        }
+        org.mockito.Mockito.verify(kv, org.mockito.Mockito.never()).delete(
+                org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    public void getReportsWhetherTheStoredConfigIsValidated() throws Exception {
+        String stored = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(request(false, "sk-stored"));
+        try (javax.ws.rs.core.Response resp = new LlmRestImpl(store(stored, record("sk-stored"))).getConfiguration()) {
+            assertThat(((org.opennms.alec.data.LlmConfigStatus) resp.getEntity()).isValidated(), is(true));
+        }
+        try (javax.ws.rs.core.Response resp = new LlmRestImpl(store(stored, null)).getConfiguration()) {
+            assertThat(((org.opennms.alec.data.LlmConfigStatus) resp.getEntity()).isValidated(), is(false));
+        }
+        try (javax.ws.rs.core.Response resp = new LlmRestImpl(store(null, record("sk-stored"))).getConfiguration()) {
+            assertThat("nothing stored → not validated",
+                    ((org.opennms.alec.data.LlmConfigStatus) resp.getEntity()).isValidated(), is(false));
+        }
+    }
+
     @Test
     public void mergeClearApiKeyPreservesStoredFieldsWhenRequestOmitsThem() {
         LlmConfig existing = LlmConfigImpl.newBuilder()

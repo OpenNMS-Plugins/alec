@@ -42,10 +42,13 @@ public class LlmValidationRestImpl implements LlmValidationRest {
 
     private final LlmSuggestionService suggestionService;
     private final LlmConfigReader configReader;
+    private final LlmValidationRecordStore recordStore;
 
-    public LlmValidationRestImpl(LlmSuggestionService suggestionService, LlmConfigReader configReader) {
+    public LlmValidationRestImpl(LlmSuggestionService suggestionService, LlmConfigReader configReader,
+                                 LlmValidationRecordStore recordStore) {
         this.suggestionService = Objects.requireNonNull(suggestionService);
         this.configReader = Objects.requireNonNull(configReader);
+        this.recordStore = Objects.requireNonNull(recordStore);
     }
 
     @Override
@@ -84,6 +87,12 @@ public class LlmValidationRestImpl implements LlmValidationRest {
                 baseUrl, model, !apiKey.isEmpty());
 
         ValidationResult result = suggestionService.validate(apiKey, baseUrl, model);
+        if (result.isOk()) {
+            // The server's own memory that THIS combination works: the
+            // configuration and engine endpoints compare it against what is
+            // being saved before letting an LLM feature be enabled.
+            recordStore.record(baseUrl, model, apiKey);
+        }
         return Response.ok().entity(result).build();
     }
 

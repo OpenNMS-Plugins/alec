@@ -107,9 +107,16 @@
     <!-- Validate the configured endpoint/model/key before saving (or after a
          failed call). Reuses the real suggestion client so the probe exercises
          the same function-calling path. -->
+    <!-- Remembers which endpoint/model/key last passed a probe; the config and
+         engine endpoints in features/ui read it to gate enabling LLM features. -->
+    <bean id="llmValidationRecordStore" class="org.opennms.alec.llm.LlmValidationRecordStore">
+        <argument ref="keyValueStore"/>
+        <argument ref="llmObjectMapper"/>
+    </bean>
     <bean id="llmValidationRest" class="org.opennms.alec.llm.LlmValidationRestImpl">
         <argument ref="llmSuggestionService"/>
         <argument ref="llmConfigReader"/>
+        <argument ref="llmValidationRecordStore"/>
     </bean>
     <service ref="llmValidationRest" interface="org.opennms.alec.llm.LlmValidationRest">
         <service-properties>

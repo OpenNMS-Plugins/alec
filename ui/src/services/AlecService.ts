@@ -33,14 +33,30 @@ export const getEngineInfo = async () => {
 	}
 }
 
+// The plain-text reason of the last rejected save (engine or LLM config), or ''.
+// A 400 carries the server's reason as a plain-text body (e.g. "the LLM
+// configuration has not been validated"); the UI shows it in the toast.
+let lastEngineError = ''
+let lastLlmConfigError = ''
+
+const reasonOf = (err: unknown): string => {
+	const data = (err as any)?.response?.data
+	return typeof data === 'string' && data.length > 0 ? data : ''
+}
+
 export const saveEngineParameter = async (engineData: TEngine) => {
+	lastEngineError = ''
 	try {
 		const resp = await rest.post(engineEndpoint, engineData)
 		return resp.status === 200
 	} catch (err) {
+		lastEngineError = reasonOf(err)
 		return false
 	}
 }
+
+export const getLastEngineError = () => lastEngineError
+export const getLastLlmConfigError = () => lastLlmConfigError
 
 export const getLLMConfig = async (): Promise<TLLMConfigStatus | false> => {
 	try {
@@ -57,6 +73,7 @@ export const getLLMConfig = async (): Promise<TLLMConfigStatus | false> => {
 export const saveLLMConfig = async (
 	config: TLLMConfigRequest
 ): Promise<TLLMConfigStatus | false> => {
+	lastLlmConfigError = ''
 	try {
 		const resp = await rest.post(llmConfigEndpoint, config)
 		if (resp.status === 200) {
@@ -64,6 +81,7 @@ export const saveLLMConfig = async (
 		}
 		return false
 	} catch (err) {
+		lastLlmConfigError = reasonOf(err)
 		return false
 	}
 }

@@ -38,6 +38,9 @@ import javax.ws.rs.core.Response;
 import org.opennms.alec.data.EngineParameter;
 import org.opennms.alec.data.EngineParameterImpl;
 import org.opennms.alec.data.KeyEnum;
+import org.opennms.alec.data.LlmConfig;
+import org.opennms.alec.data.LlmConfigImpl;
+import org.opennms.alec.data.LlmValidationRecord;
 import org.opennms.alec.driver.main.Driver;
 import org.opennms.alec.engine.api.EngineFactory;
 import org.opennms.alec.engine.api.EngineRegistry;
@@ -69,13 +72,50 @@ public class EngineRestImpl implements EngineRest {
 
         EngineParameter engineParameter = (EngineParameter) getEngineConfiguration().getEntity();
         if(engineParameter != null) {
-            setEngineConfiguration(engineParameter);
+            // Startup replay of the persisted choice: bypasses the REST-only
+            // validation gate below so an existing installation keeps the
+            // engine it had, whatever the state of the validation record.
+            applyEngineConfiguration(engineParameter);
         }
     }
 
     @Override
     public Response setEngineConfiguration(EngineParameter engineParameter) {
         LOG.debug("Set engine configuration: {}", engineParameter);
+        // ALEC-310: LLM-based clustering may only be selected against an LLM
+        // configuration that passed "Validate key" (the record is the server's
+        // own memory of the probe, so the UI cannot claim it).
+        if (engineParameter != null && "llm".equals(engineParameter.getEngineName())) {
+            Response rejected = requireValidatedLlm();
+            if (rejected != null) {
+                return rejected;
+            }
+        }
+        return applyEngineConfiguration(engineParameter);
+    }
+
+    /**
+     * @return a 400 when the stored LLM configuration is missing or is not the
+     *         combination that last passed validation, else null
+     */
+    private Response requireValidatedLlm() {
+        try {
+            Optional<String> raw = kvStore.get(KeyEnum.LLM_CONFIG.toString(), ALECRestUtils.ALEC_CONFIG);
+            LlmConfig config = raw.isPresent() ? objectMapper.readValue(raw.get(), LlmConfigImpl.class) : null;
+            if (config == null
+                    || !LlmValidationRecord.isValidated(kvStore, objectMapper, ALECRestUtils.ALEC_CONFIG, config)) {
+                return Response.status(Response.Status.BAD_REQUEST)
+                        .entity("Cannot select LLM-based clustering: the LLM configuration has not been "
+                                + "validated — use Validate key on the LLM Setup tab first")
+                        .build();
+            }
+            return null;
+        } catch (JsonProcessingException e) {
+            return ALECRestUtils.somethingWentWrong(e);
+        }
+    }
+
+    private Response applyEngineConfiguration(EngineParameter engineParameter) {
         try {
             String engineName = engineParameter.getEngineName();
             // LLM-based clustering: handled separately because its EngineFactory
