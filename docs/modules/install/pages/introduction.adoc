@@ -31,12 +31,16 @@ A xref:admin:distributed_install.adoc[distributed deployment], which installs AL
 
 ALEC requires one of the following OpenNMS versions:
 
-* Horizon 32.0.0 or later.
-* Meridian 2025.1.0 or later.
+* Horizon 33.0.0 or later.
+* Meridian 2024.1.0 or later.
 
-Both ship the OpenNMS Integration API 1.6 or newer, which ALEC {full-display-version} requires (it supports API versions 1.6 up to, but not including, 3.0).
+Both ship the OpenNMS Integration API 1.6 or newer, which ALEC {full-display-version} requires.
+ALEC supports API versions 1.6 up to, but not including, 3.0.
 See https://docs.opennms.com/horizon/latest/deployment/core/introduction.html[OpenNMS deployment] for help on getting started with OpenNMS.
 
 ALEC stores its state inside OpenNMS and needs no database of its own.
+
+The ALEC Configuration page and the LLM features are part of the basic deployment only.
+A distributed deployment does not install them.
 
 The optional LLM features need an OpenAI-compatible `/chat/completions` endpoint, hosted or local, whose model supports tool calling (see xref:reference:llm-root-cause-analysis.adoc[LLM Root Cause Analysis]).

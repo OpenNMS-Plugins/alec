@@ -20,7 +20,7 @@ Now, in 2022, we have revisited ALEC to improve it:
 * Added the situation timeline to visualize the lifecycle of a situation's alarms, for better root-cause analysis.
 * Included the option to use Hellinger distance calculations with the clustering engine, to better detect relationships between alarms.
 
-ALEC 3.0 adds LLM-assisted root cause analysis and an experimental LLM clustering engine, configured entirely from the web UI against the hosted or local model of your choice.
+ALEC 3.0 adds LLM-assisted root cause analysis and an experimental LLM clustering engine, configured entirely from the web UI against a hosted or local model.
 
 This guide assumes that readers have a basic understanding of OpenNMS.
 

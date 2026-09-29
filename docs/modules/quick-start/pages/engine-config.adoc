@@ -3,6 +3,8 @@
 = Step 1: First-Time Login and Engine Configuration
 :description: View first-time login tasks and how to configure a correlation engine in OpenNMS's Architecture for Learning Enabled Correlation (ALEC).
 
+NOTE: The ALEC Configuration page and the LLM features are available in a basic deployment only. A distributed deployment does not install them.
+
 After you install ALEC, log in to the OpenNMS web UI and click *Plugins > ALEC* in the top menu bar.
 The situation list is displayed.
 ALEC starts with the xref:reference:engines/clustering.adoc[clustering] engine (DBSCAN) selected, so no configuration is needed to see situations.
@@ -11,7 +13,7 @@ ALEC starts with the xref:reference:engines/clustering.adoc[clustering] engine (
 == The ALEC Configuration page
 
 All ALEC settings are on one page: click the *gear* symbol in the top-right of the ALEC screen.
-The page has three tabs, and *Save Changes* applies whichever tab you are on.
+The page has three tabs, and *Save Changes* applies the settings on all three tabs.
 
 Correlation Engine:: Choose *Clustering* (the default, with an optional *Hellinger distance* refinement and tunable correlation variables) or *LLM Based (Experimental)*.
 See xref:reference:engines/clustering.adoc[Clustering Engine] and xref:reference:engines/llm-clustering.adoc[LLM Clustering Engine].
@@ -26,7 +28,7 @@ Two buttons at the bottom of every tab act on live data: *Re-Evaluate All Open A
 == Change the correlation engine
 
 . Open the *Correlation Engine* tab.
-. Select *Clustering* or *LLM Based (Experimental)*; the LLM engine needs a working *LLM Setup* first.
+. Select *Clustering* or *LLM Based (Experimental)*; the LLM engine needs a validated *LLM Setup* first.
 . Click *Save Changes*.
 
 The change takes effect when you save; no restart is needed.
