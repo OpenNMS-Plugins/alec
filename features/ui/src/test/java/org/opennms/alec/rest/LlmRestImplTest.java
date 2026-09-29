@@ -284,6 +284,67 @@ public class LlmRestImplTest {
                 org.mockito.ArgumentMatchers.eq(ALECRestUtils.ALEC_CONFIG));
     }
 
+    private static org.opennms.integration.api.v1.distributed.KeyValueStore<String> storeWithEngine(
+            String engineName, String configJson, String recordJson) {
+        org.opennms.integration.api.v1.distributed.KeyValueStore<String> kv = store(configJson, recordJson);
+        org.mockito.Mockito.when(kv.get(org.mockito.ArgumentMatchers.eq(org.opennms.alec.data.KeyEnum.ENGINE.toString()),
+                        org.mockito.ArgumentMatchers.eq(ALECRestUtils.ALEC_CONFIG)))
+                .thenReturn(java.util.Optional.of("{\"engineName\":\"" + engineName + "\"}"));
+        return kv;
+    }
+
+    private static void assertRejectedUntouched(org.opennms.integration.api.v1.distributed.KeyValueStore<String> kv,
+                                                LlmConfig request, String reason) {
+        try (javax.ws.rs.core.Response resp = new LlmRestImpl(kv).setConfiguration(request)) {
+            assertThat(resp.getStatus(), is(400));
+            assertThat(((String) resp.getEntity()).contains(reason), is(true));
+        }
+        org.mockito.Mockito.verify(kv, org.mockito.Mockito.never()).putAsync(
+                org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString());
+        org.mockito.Mockito.verify(kv, org.mockito.Mockito.never()).delete(
+                org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    public void clearingTheKeyIsRejectedWhileTheLlmEngineIsSelected() throws Exception {
+        String stored = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(request(false, "sk-stored"));
+        LlmConfig clear = LlmConfigImpl.newBuilder().baseUrl(URL).model(MODEL).clearApiKey(true).build();
+        assertRejectedUntouched(storeWithEngine("llm", stored, record("sk-stored")), clear, "cleared");
+    }
+
+    @Test
+    public void anUnvalidatedKeyIsRejectedWhileTheLlmEngineIsSelected() throws Exception {
+        // Root Cause Analysis off, so only the engine rule can refuse it.
+        String stored = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(request(false, "sk-stored"));
+        assertRejectedUntouched(storeWithEngine("llm", stored, record("sk-stored")),
+                request(false, "sk-never-probed"), "not validated");
+    }
+
+    @Test
+    public void aValidatedKeyIsAcceptedWhileTheLlmEngineIsSelected() throws Exception {
+        String stored = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(request(false, "sk-stored"));
+        org.opennms.integration.api.v1.distributed.KeyValueStore<String> kv =
+                storeWithEngine("llm", stored, record("sk-new"));
+        try (javax.ws.rs.core.Response resp = new LlmRestImpl(kv).setConfiguration(request(false, "sk-new"))) {
+            assertThat(resp.getStatus(), is(200));
+        }
+    }
+
+    @Test
+    public void anotherEngineLeavesClearingAndUnvalidatedSavesAlone() throws Exception {
+        String stored = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(request(false, "sk-stored"));
+        LlmConfig clear = LlmConfigImpl.newBuilder().baseUrl(URL).model(MODEL).clearApiKey(true).build();
+        try (javax.ws.rs.core.Response resp = new LlmRestImpl(storeWithEngine("dbscan", stored, record("sk-stored")))
+                .setConfiguration(clear)) {
+            assertThat(resp.getStatus(), is(200));
+        }
+        try (javax.ws.rs.core.Response resp = new LlmRestImpl(storeWithEngine("dbscan", stored, record("sk-stored")))
+                .setConfiguration(request(false, "sk-never-probed"))) {
+            assertThat(resp.getStatus(), is(200));
+        }
+    }
+
     @Test
     public void savingWithoutClearingLeavesTheValidationRecordAlone() {
         org.opennms.integration.api.v1.distributed.KeyValueStore<String> kv = store(null, record("sk-typed"));

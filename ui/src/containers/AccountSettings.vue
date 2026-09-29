@@ -304,7 +304,10 @@ const llmValidationStale = computed(
 // True when the endpoint, model or key in the form differ from what is stored.
 const llmSetupDirty = computed(() => {
 	const stored = userStore.llmConfig
-	if (!stored) return true
+	// Nothing loaded (the fetch is in flight, or failed) means nothing to
+	// compare against — and Save does not post the LLM section then. Counting
+	// it as an edit would lock the other tabs with no way out.
+	if (!stored) return false
 	return (
 		llmBaseUrl.value.trim() !== (stored.baseUrl ?? '') ||
 		llmModel.value.trim() !== (stored.model ?? '') ||
@@ -551,6 +554,39 @@ const buildLLMRequest = (): TLLMConfigRequest => {
 	return request
 }
 
+type TEngineOverrides = {
+	alpha: number
+	beta: number
+	epsilon: number
+	hellingerW?: number
+	hellingerBias?: number
+	clusterFrequencyMs?: number
+	clusterPrompt?: string
+}
+
+// Saves the engine settings; on a rejection notifies the user and returns false.
+const saveEngine = async (overrides: TEngineOverrides, llmSaved = false) => {
+	const saved = await userStore.setEngineInfo(
+		engineName.value,
+		hellinger.value,
+		overrides
+	)
+	if (saved) {
+		userStore.getEngineInfo()
+		return true
+	}
+	const reason = getLastEngineError()
+	notify(
+		reason
+			? `The engine settings were rejected: ${reason}.`
+			: llmSaved
+				? 'The LLM configuration was saved, but the engine settings were rejected.'
+				: 'Error on saving the settings',
+		true
+	)
+	return false
+}
+
 const saveConfiguration = async () => {
 	// ALEC-310: both LLM features require a VALIDATED setup, and an edited
 	// setup must be validated (or discarded) before anything is saved. The
@@ -583,15 +619,7 @@ const saveConfiguration = async () => {
 			return
 		}
 	}
-	const overrides: {
-		alpha: number
-		beta: number
-		epsilon: number
-		hellingerW?: number
-		hellingerBias?: number
-		clusterFrequencyMs?: number
-		clusterPrompt?: string
-	} = {
+	const overrides: TEngineOverrides = {
 		alpha: Number(alpha.value),
 		beta: Number(beta.value),
 		epsilon: Number(epsilon.value)
@@ -607,9 +635,17 @@ const saveConfiguration = async () => {
 		)
 		overrides.clusterPrompt = clusterPrompt.value
 	}
-	// The LLM section is saved BEFORE the engine: if the server rejects the LLM
-	// configuration, the engine choice must not be persisted — otherwise an
-	// "llm" engine could be left running with no usable LLM behind it.
+	// Moving to a non-LLM engine saves the engine FIRST: while the stored
+	// engine is "llm" the server refuses an LLM configuration that is cleared
+	// or not validated, so the engine has to leave "llm" before the key can go.
+	const engineFirst = !isLlmEngine.value
+	if (engineFirst && !(await saveEngine(overrides))) {
+		return
+	}
+	// Selecting the LLM engine saves the LLM section BEFORE the engine: if the
+	// server rejects the LLM configuration, the engine choice must not be
+	// persisted — otherwise an "llm" engine could be left running with no
+	// usable LLM behind it.
 	// Never post the LLM section unless the stored config actually made it into
 	// the form — posting the blank initial values would wipe the stored
 	// endpoint/model/prompt when only engine settings were being saved.
@@ -651,33 +687,20 @@ const saveConfiguration = async () => {
 
 	if (!savedLLM) {
 		const reason = getLastLlmConfigError()
+		const outcome = engineFirst
+			? 'The engine settings were saved.'
+			: 'Nothing was saved.'
 		notify(
 			reason
-				? `The LLM configuration was rejected: ${reason}. Nothing was saved.`
-				: 'The LLM configuration was rejected — enabling the integration requires a validated endpoint, model and API key. Nothing was saved.',
+				? `The LLM configuration was rejected: ${reason}. ${outcome}`
+				: `The LLM configuration was rejected — enabling the integration requires a validated endpoint, model and API key. ${outcome}`,
 			true
 		)
 		return
 	}
 
-	const savedEngine = await userStore.setEngineInfo(
-		engineName.value,
-		hellinger.value,
-		overrides
-	)
-	if (savedEngine) {
-		userStore.getEngineInfo()
+	if (engineFirst || (await saveEngine(overrides, llmConfigLoaded.value))) {
 		notify('The settings were saved!', false)
-	} else {
-		const reason = getLastEngineError()
-		notify(
-			reason
-				? `The engine settings were rejected: ${reason}.`
-				: llmConfigLoaded.value
-					? 'The LLM configuration was saved, but the engine settings were rejected.'
-					: 'Error on saving the settings',
-			true
-		)
 	}
 }
 
@@ -854,56 +877,54 @@ const handleReEvaluate = async () => {
 				data-test="llm-cluster-section"
 			>
 				<div class="title">LLM-based clustering</div>
-				<template>
-					<div class="llm-help">
-						Instead of DBSCAN, ALEC asks the configured LLM to group active
-						alarms into situations using the network topology and the alarms
-						themselves. Only the topology graph and alarms are sent. Existing
-						situations are not modified.
+				<div class="llm-help">
+					Instead of DBSCAN, ALEC asks the configured LLM to group active
+					alarms into situations using the network topology and the alarms
+					themselves. Only the topology graph and alarms are sent. Existing
+					situations are not modified.
+				</div>
+				<div class="llm-field-block">
+					<FeatherSelect
+						label="How often to re-cluster"
+						:options="CLUSTER_FREQUENCY_OPTIONS"
+						v-model="clusterFrequencyOption"
+						text-prop="label"
+						class="llm-frequency-select"
+						data-test="llm-cluster-frequency"
+					/>
+					<div class="llm-prompt-help">
+						Each cycle sends the current alarms + topology to the LLM. More
+						frequent means fresher situations but more token usage (counts
+						against your LLM Setup budget).
 					</div>
-					<div class="llm-field-block">
-						<FeatherSelect
-							label="How often to re-cluster"
-							:options="CLUSTER_FREQUENCY_OPTIONS"
-							v-model="clusterFrequencyOption"
-							text-prop="label"
-							class="llm-frequency-select"
-							data-test="llm-cluster-frequency"
-						/>
-						<div class="llm-prompt-help">
-							Each cycle sends the current alarms + topology to the LLM. More
-							frequent means fresher situations but more token usage (counts
-							against your LLM Setup budget).
-						</div>
+				</div>
+				<div class="llm-prompt-block" data-test="llm-cluster-prompt-block">
+					<div class="llm-prompt-header">
+						<span class="llm-prompt-label">Clustering prompt</span>
+						<button
+							type="button"
+							class="llm-prompt-reset"
+							:disabled="!clusterPromptIsCustom"
+							data-test="llm-cluster-prompt-reset"
+							@click="resetClusterPromptToDefault"
+						>
+							<FeatherIcon :icon="Icons.Restore" class="reset-inline-icon" />
+							Reset to default
+						</button>
 					</div>
-					<div class="llm-prompt-block" data-test="llm-cluster-prompt-block">
-						<div class="llm-prompt-header">
-							<span class="llm-prompt-label">Clustering prompt</span>
-							<button
-								type="button"
-								class="llm-prompt-reset"
-								:disabled="!clusterPromptIsCustom"
-								data-test="llm-cluster-prompt-reset"
-								@click="resetClusterPromptToDefault"
-							>
-								<FeatherIcon :icon="Icons.Restore" class="reset-inline-icon" />
-								Reset to default
-							</button>
-						</div>
-						<div class="llm-prompt-help">
-							Instructions sent to the model for clustering. Customize it to add
-							site-specific context, or clear it to fall back to the default.
-						</div>
-						<FeatherTextarea
-							v-model="clusterPrompt"
-							label="Clustering prompt"
-							hideLabel
-							rows="10"
-							data-test="llm-cluster-prompt"
-							class="llm-prompt-textarea"
-						/>
+					<div class="llm-prompt-help">
+						Instructions sent to the model for clustering. Customize it to add
+						site-specific context, or clear it to fall back to the default.
 					</div>
-				</template>
+					<FeatherTextarea
+						v-model="clusterPrompt"
+						label="Clustering prompt"
+						hideLabel
+						rows="10"
+						data-test="llm-cluster-prompt"
+						class="llm-prompt-textarea"
+					/>
+				</div>
 			</div>
 
 			<!-- Correlation variables (Clustering only) -->

@@ -72,8 +72,10 @@ public class LlmValidationRecordStore {
     /**
      * Remember that {@code baseUrl}/{@code model}/{@code apiKey} passed a probe.
      * Replaces any previous record: exactly one combination is "validated".
+     *
+     * @return false when the record could not be written
      */
-    public void record(String baseUrl, String model, String apiKey) {
+    public boolean record(String baseUrl, String model, String apiKey) {
         ObjectNode node = objectMapper.createObjectNode();
         node.put("baseUrl", normalizeUrl(baseUrl));
         node.put("model", model == null ? "" : model.trim());
@@ -81,10 +83,16 @@ public class LlmValidationRecordStore {
         node.put("validatedAt", System.currentTimeMillis());
         try {
             kvStore.putAsync(RECORD_KEY, objectMapper.writeValueAsString(node), RECORD_CONTEXT).join();
+            return true;
         } catch (JsonProcessingException e) {
             // Nothing in the node is user-controlled free text except the URL
             // and model id, so the message is safe to log.
             LOG.warn("Could not persist the LLM validation record: {}", e.getOriginalMessage());
+            return false;
+        } catch (RuntimeException e) {
+            // join() reports a failed write as a CompletionException.
+            LOG.warn("Could not persist the LLM validation record: {}", e.toString());
+            return false;
         }
     }
 

@@ -118,6 +118,14 @@ public class LlmValidationRecordTest {
     }
 
     @Test
+    public void hashIsTheStandardSha256() {
+        // Fixed vector, asserted in llm-suggestions (LlmValidationRestImplTest)
+        // too: the two copies of sha256 must agree or no record ever matches.
+        assertThat(LlmValidationRecord.sha256("abc"),
+                is("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"));
+    }
+
+    @Test
     public void hashIsStableAndNeverTheKeyItself() {
         String h = LlmValidationRecord.sha256("sk-secret");
         assertThat(h.equals(LlmValidationRecord.sha256("sk-secret")), is(true));

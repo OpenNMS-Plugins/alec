@@ -159,6 +159,9 @@ test('LLM Based engine is selectable and gated on a valid LLM setup', async () =
 	expect(wrapper.find('[data-test="llm-engine-requires-validation"]').exists()).toBe(false)
 	expect(wrapper.find('[data-test="llm-cluster-frequency"]').exists()).toBe(true)
 	expect(wrapper.find('[data-test="llm-cluster-prompt"]').exists()).toBe(true)
+	// No bare <template> around the settings: it compiles to a real <template>
+	// element, which browsers do not render.
+	expect(wrapper.find('[data-test="llm-cluster-section"] template').exists()).toBe(false)
 
 	// A stored setup the server reports validated counts as well.
 	wrapper.vm.llmValidationResult = null
@@ -1560,6 +1563,36 @@ test('Save never POSTs the LLM section when the stored config failed to load', a
 	// Engine settings still save; the LLM POST is skipped entirely.
 	expect(store.setEngineInfo).toHaveBeenCalledTimes(1)
 	expect(store.setLLMConfig).not.toHaveBeenCalled()
+	// A config that never loaded is not an edit: the other tabs stay reachable.
+	expect(wrapper.vm.llmSetupDirty).toBe(false)
+	expect(wrapper.vm.llmSetupLocked).toBe(false)
+})
+
+test('Leaving the LLM Based engine saves the engine before the LLM section', async () => {
+	// While the stored engine is "llm" the server refuses a cleared key, so
+	// the engine has to be saved first.
+	const { wrapper, store } = buildWrapper()
+	seedValidatedStore(wrapper, store, 'http://10.0.0.137:8081/v1', 'qwen3.5-4b')
+	await wrapper.vm.$nextTick()
+	await wrapper.find('[data-test="llm-clear-key"]').trigger('click')
+	await wrapper.vm.saveConfiguration()
+	await flushPromises()
+
+	expect((store.setEngineInfo as any).mock.calls[0][0]).toBe(CONST.ENGINE_DBSCAN)
+	expect((store.setLLMConfig as any).mock.calls[0][0].clearApiKey).toBe(true)
+	expect((store.setEngineInfo as any).mock.invocationCallOrder[0]).toBeLessThan(
+		(store.setLLMConfig as any).mock.invocationCallOrder[0]
+	)
+	expect(wrapper.vm.isError).toBe(false)
+})
+
+test('A rejected engine save does not post the LLM section', async () => {
+	const { wrapper, store } = buildWrapper()
+	store.setEngineInfo = vi.fn().mockResolvedValue(false)
+	await wrapper.find('[data-test="save-btn"]').trigger('click')
+	await flushPromises()
+	expect(store.setLLMConfig).not.toHaveBeenCalled()
+	expect(wrapper.vm.isError).toBe(true)
 })
 
 test('Enable checkbox can always be turned OFF, even when re-enabling is blocked', async () => {
