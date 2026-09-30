@@ -42,7 +42,7 @@ The configuration page exposes inline help (the *?* icon) and a *Reset* control 
 TIP: Change one variable at a time and observe the effect on the situations that ALEC produces.
 After changing the correlation variables, you can use *Re-Evaluate All Open Alarms* on the configuration page to re-process active alarms with the new values.
 
-NOTE: After you select a correlation engine, you can change the engine itself only via the Karaf shell, but the correlation variables above can be tuned from the configuration page at any time.
+NOTE: The engine itself is selected on the same tab (see xref:quick-start:engine-config.adoc#configuration-page[The ALEC Configuration page]); both the engine and its variables can be changed at any time from the web UI.
 
 == Hellinger distance
 
