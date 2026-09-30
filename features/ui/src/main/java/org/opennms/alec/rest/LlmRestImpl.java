@@ -36,6 +36,7 @@ import javax.ws.rs.core.Response;
 import org.opennms.alec.data.LlmConfig;
 import org.opennms.alec.data.LlmConfigImpl;
 import org.opennms.alec.data.LlmConfigStatus;
+import org.opennms.alec.data.LlmValidationRecord;
 import org.opennms.alec.data.KeyEnum;
 import org.opennms.integration.api.v1.distributed.KeyValueStore;
 import org.slf4j.Logger;
@@ -61,7 +62,7 @@ public class LlmRestImpl implements LlmRest {
         LOG.debug("Get LLM configuration");
         try {
             LlmConfig persisted = readPersisted().orElse(null);
-            return Response.ok().entity(LlmConfigStatus.from(persisted)).build();
+            return Response.ok().entity(LlmConfigStatus.from(persisted, isValidated(persisted))).build();
         } catch (JsonProcessingException e) {
             return configIoError(e);
         }
@@ -104,8 +105,42 @@ public class LlmRestImpl implements LlmRest {
                             .build();
                 }
             }
+            // ALEC-310: the endpoint/model/key must have passed "Validate key"
+            // — the record is the server's own memory of a successful probe, so
+            // a UI cannot claim it. Compared against the MERGED config so a
+            // changed key (or a stored key validated with another endpoint)
+            // does not ride on an older validation.
+            boolean validated = isValidated(merged);
+            if (merged.isEnabled() && !validated) {
+                return Response.status(Response.Status.BAD_REQUEST)
+                        .entity("Cannot enable LLM Root Cause Analysis: the LLM configuration has not been "
+                                + "validated — use Validate key on the LLM Setup tab first")
+                        .build();
+            }
+            // A running LLM engine reads this configuration on every pass without
+            // looking at the record, so while the stored engine is "llm" a key
+            // that is cleared or not validated must not get in: a new key would
+            // start going out right away, and a cleared one would stop
+            // clustering silently with the engine still shown as "llm".
+            if ((request.isClearApiKey() || !validated) && isLlmEngineStored()) {
+                return Response.status(Response.Status.BAD_REQUEST)
+                        .entity("Cannot save an LLM configuration that is "
+                                + (request.isClearApiKey() ? "cleared" : "not validated")
+                                + " while LLM-based clustering is selected — switch the correlation "
+                                + "engine to Clustering, or use Validate key on the LLM Setup tab first")
+                        .build();
+            }
+            if (request.isClearApiKey()) {
+                // Erasing the key erases the memory of its validation too: the
+                // record holds the endpoint/model and the key's hash, and a
+                // cleared key must leave no trace. The UI tells the user to
+                // move to the non-LLM options (the engine endpoint refuses the
+                // LLM engine without a validated configuration).
+                kvStore.delete(KeyEnum.LLM_VALIDATION.toString(), ALECRestUtils.ALEC_CONFIG);
+                validated = false;
+            }
             persist(merged);
-            return Response.ok().entity(LlmConfigStatus.from(merged)).build();
+            return Response.ok().entity(LlmConfigStatus.from(merged, validated)).build();
         } catch (JsonProcessingException e) {
             return configIoError(e);
         }
@@ -205,6 +240,21 @@ public class LlmRestImpl implements LlmRest {
 
     private static String nz(String s) {
         return s == null ? "" : s;
+    }
+
+    /**
+     * Is {@code config} the endpoint/model/key combination that last passed
+     * "Validate key"? See {@link LlmValidationRecord}. False for a null config.
+     */
+    private boolean isValidated(LlmConfig config) {
+        return config != null
+                && LlmValidationRecord.isValidated(kvStore, objectMapper, ALECRestUtils.ALEC_CONFIG, config);
+    }
+
+    /** Is LLM-based clustering the persisted engine choice? */
+    private boolean isLlmEngineStored() throws JsonProcessingException {
+        Optional<String> raw = kvStore.get(KeyEnum.ENGINE.toString(), ALECRestUtils.ALEC_CONFIG);
+        return raw.isPresent() && "llm".equals(objectMapper.readTree(raw.get()).path("engineName").asText(""));
     }
 
     private Optional<LlmConfig> readPersisted() throws JsonProcessingException {

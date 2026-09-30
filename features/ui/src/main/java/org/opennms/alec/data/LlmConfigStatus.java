@@ -41,7 +41,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
  */
 @JsonPropertyOrder({"enabled", "autoEvaluate", "baseUrl", "model", "defaultBaseUrl",
         "defaultModel", "systemPrompt", "defaultSystemPrompt", "defaultClusterPrompt",
-        "dailyTokenLimit", "monthlyTokenLimit", "apiKeyPresent"})
+        "dailyTokenLimit", "monthlyTokenLimit", "apiKeyPresent", "validated"})
 public class LlmConfigStatus {
 
     private final boolean enabled;
@@ -63,11 +63,24 @@ public class LlmConfigStatus {
     private final long dailyTokenLimit;
     private final long monthlyTokenLimit;
     private final boolean apiKeyPresent;
+    // True when the stored endpoint/model/key is exactly the combination that
+    // last passed "Validate key" (see LlmValidationRecord). The LLM features
+    // can only be enabled against a validated configuration.
+    private final boolean validated;
 
     public LlmConfigStatus(boolean enabled, boolean autoEvaluate, String baseUrl, String model,
                            String defaultBaseUrl, String defaultModel,
                            String systemPrompt, String defaultSystemPrompt,
                            long dailyTokenLimit, long monthlyTokenLimit, boolean apiKeyPresent) {
+        this(enabled, autoEvaluate, baseUrl, model, defaultBaseUrl, defaultModel, systemPrompt,
+                defaultSystemPrompt, dailyTokenLimit, monthlyTokenLimit, apiKeyPresent, false);
+    }
+
+    public LlmConfigStatus(boolean enabled, boolean autoEvaluate, String baseUrl, String model,
+                           String defaultBaseUrl, String defaultModel,
+                           String systemPrompt, String defaultSystemPrompt,
+                           long dailyTokenLimit, long monthlyTokenLimit, boolean apiKeyPresent,
+                           boolean validated) {
         this.enabled = enabled;
         this.autoEvaluate = autoEvaluate;
         this.baseUrl = baseUrl;
@@ -79,6 +92,15 @@ public class LlmConfigStatus {
         this.dailyTokenLimit = dailyTokenLimit;
         this.monthlyTokenLimit = monthlyTokenLimit;
         this.apiKeyPresent = apiKeyPresent;
+        this.validated = validated;
+    }
+
+    /** Status of {@code config} with {@code validated} decided by the caller. */
+    public static LlmConfigStatus from(LlmConfig config, boolean validated) {
+        LlmConfigStatus s = from(config);
+        return new LlmConfigStatus(s.enabled, s.autoEvaluate, s.baseUrl, s.model, s.defaultBaseUrl,
+                s.defaultModel, s.systemPrompt, s.defaultSystemPrompt, s.dailyTokenLimit,
+                s.monthlyTokenLimit, s.apiKeyPresent, validated);
     }
 
     public static LlmConfigStatus from(LlmConfig config) {
@@ -167,5 +189,9 @@ public class LlmConfigStatus {
 
     public boolean isApiKeyPresent() {
         return apiKeyPresent;
+    }
+
+    public boolean isValidated() {
+        return validated;
     }
 }

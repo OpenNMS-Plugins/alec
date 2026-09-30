@@ -33,7 +33,13 @@ import java.util.stream.Stream;
 public enum KeyEnum {
     ENGINE("ENGINE"),
     SITUATION("SITUATION"),
-    LLM_CONFIG("LLM_CONFIG");
+    LLM_CONFIG("LLM_CONFIG"),
+    /**
+     * Written by the llm-suggestions bundle's validate endpoint: the
+     * endpoint/model/key hash that last passed "Validate key". See
+     * {@link LlmValidationRecord}.
+     */
+    LLM_VALIDATION("LLM_VALIDATION");
 
     private final String key;
 

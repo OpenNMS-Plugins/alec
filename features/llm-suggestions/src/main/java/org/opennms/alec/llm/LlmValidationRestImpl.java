@@ -42,10 +42,13 @@ public class LlmValidationRestImpl implements LlmValidationRest {
 
     private final LlmSuggestionService suggestionService;
     private final LlmConfigReader configReader;
+    private final LlmValidationRecordStore recordStore;
 
-    public LlmValidationRestImpl(LlmSuggestionService suggestionService, LlmConfigReader configReader) {
+    public LlmValidationRestImpl(LlmSuggestionService suggestionService, LlmConfigReader configReader,
+                                 LlmValidationRecordStore recordStore) {
         this.suggestionService = Objects.requireNonNull(suggestionService);
         this.configReader = Objects.requireNonNull(configReader);
+        this.recordStore = Objects.requireNonNull(recordStore);
     }
 
     @Override
@@ -84,20 +87,23 @@ public class LlmValidationRestImpl implements LlmValidationRest {
                 baseUrl, model, !apiKey.isEmpty());
 
         ValidationResult result = suggestionService.validate(apiKey, baseUrl, model);
+        if (result.isOk()) {
+            // The server's own memory that THIS combination works: the
+            // configuration and engine endpoints compare it against what is
+            // being saved before letting an LLM feature be enabled.
+            // A probe that cannot be remembered cannot enable anything, so it
+            // is reported as failed rather than as a pass that does not stick.
+            if (!recordStore.record(baseUrl, model, apiKey)) {
+                result = ValidationResult.fail("The LLM answered, but the validation could not be "
+                        + "recorded — try Validate key again.");
+            }
+        }
         return Response.ok().entity(result).build();
     }
 
     /** Endpoint equality for the stored-key rule: trim + ignore trailing slashes. */
     static boolean sameEndpoint(String a, String b) {
-        return normalizeUrl(a).equals(normalizeUrl(b));
-    }
-
-    private static String normalizeUrl(String url) {
-        String s = url == null ? "" : url.trim();
-        while (s.endsWith("/")) {
-            s = s.substring(0, s.length() - 1);
-        }
-        return s;
+        return LlmValidationRecordStore.normalizeUrl(a).equals(LlmValidationRecordStore.normalizeUrl(b));
     }
 
     private static String firstNonBlank(String a, String b) {

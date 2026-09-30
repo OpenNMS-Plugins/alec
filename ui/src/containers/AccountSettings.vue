@@ -22,6 +22,8 @@ import {
 import { FeatherSelect } from '@featherds/select'
 import {
 	closeAllOpenSituations,
+	getLastEngineError,
+	getLastLlmConfigError,
 	reEvaluateAllOpenAlarms,
 	validateLLMConfig
 } from '@/services/AlecService'
@@ -87,14 +89,7 @@ const showHellingerVars = computed(() => isClustering.value && hellinger.value)
 
 // --- LLM-based clustering engine (ALEC-301) ---
 const isLlmEngine = computed(() => engineName.value === CONST.ENGINE_LLM)
-// A "valid LLM setup" = endpoint + model + a stored API key (configured on the
-// LLM Setup tab). Read from the persisted config, not the unsaved form.
-const llmSetupValid = computed(
-	() =>
-		!!userStore.llmConfig?.baseUrl &&
-		!!userStore.llmConfig?.model &&
-		!!userStore.llmConfig?.apiKeyPresent
-)
+// Whether the LLM setup is usable by the engine: see llmValidated below.
 // How often ALEC asks the LLM to re-cluster. Stored in ms; chosen in minutes.
 const CLUSTER_FREQUENCY_OPTIONS = [
 	{ label: 'Every minute', value: 60000 },
@@ -252,7 +247,9 @@ const llmCannotValidate = computed(
 
 const validateLlm = async () => {
 	llmValidationResult.value = null
+	llmSetupCheckedFingerprint.value = null
 	llmValidating.value = true
+	const fingerprint = llmSetupFingerprint.value
 	try {
 		// Send the current form values. Send the typed key if present; otherwise
 		// omit it so the server validates the already-stored key.
@@ -267,28 +264,193 @@ const validateLlm = async () => {
 			req.apiKey = typedKey
 		}
 		llmValidationResult.value = await validateLLMConfig(req)
+		llmSetupCheckedFingerprint.value = fingerprint
 	} finally {
 		llmValidating.value = false
 	}
 }
 
-// True when there's nothing the server could persist as a key — neither one
-// already stored nor one freshly typed.
-const llmNoKeyAvailable = computed(
-	() =>
-		(!llmApiKeyPresent.value || llmApiKeyCleared.value) &&
-		llmApiKey.value.trim().length === 0
+// --- Validated LLM setup (ALEC-310) ---
+// Both LLM features (Root Cause Analysis, LLM-based clustering) require a
+// VALIDATED setup: the endpoint/model/key must have passed "Validate key".
+// Two sources count:
+//  * the stored setup, when the server reports it validated (the server keeps
+//    the record of the last successful probe — the UI cannot claim it) and the
+//    form still matches what is stored;
+//  * a probe run from this form, for exactly the values currently in it.
+// The fingerprint covers the fields the probe depends on, so editing any of
+// them invalidates a result until the probe is run again.
+const llmSetupFingerprint = computed(() =>
+	JSON.stringify([
+		llmBaseUrl.value.trim(),
+		llmModel.value.trim(),
+		llmApiKey.value.trim(),
+		llmApiKeyCleared.value
+	])
 )
-// The Enable checkbox guards on this: enabling requires an endpoint, a model AND
-// a key. Since ALEC ships no endpoint/model default, a fresh install must be
-// configured before the integration can be turned on (the server would reject an
-// enabled-but-incomplete config anyway).
-const llmCannotEnable = computed(
+const llmSetupCheckedFingerprint = ref<string | null>(null)
+const llmProbeValidated = computed(
 	() =>
-		llmNoKeyAvailable.value ||
-		llmBaseUrl.value.trim().length === 0 ||
-		llmModel.value.trim().length === 0
+		llmValidationResult.value?.ok === true &&
+		llmSetupCheckedFingerprint.value === llmSetupFingerprint.value
 )
+// A displayed validation result that no longer matches the form (a field was
+// edited after it ran).
+const llmValidationStale = computed(
+	() =>
+		llmValidationResult.value !== null &&
+		llmSetupCheckedFingerprint.value !== llmSetupFingerprint.value
+)
+// True when the endpoint, model or key in the form differ from what is stored.
+const llmSetupDirty = computed(() => {
+	const stored = userStore.llmConfig
+	// Nothing loaded (the fetch is in flight, or failed) means nothing to
+	// compare against — and Save does not post the LLM section then. Counting
+	// it as an edit would lock the other tabs with no way out.
+	if (!stored) return false
+	return (
+		llmBaseUrl.value.trim() !== (stored.baseUrl ?? '') ||
+		llmModel.value.trim() !== (stored.model ?? '') ||
+		llmApiKey.value.trim().length > 0 ||
+		llmApiKeyCleared.value
+	)
+})
+const llmStoredValidated = computed(() => userStore.llmConfig?.validated === true)
+const llmValidated = computed(
+	() =>
+		llmProbeValidated.value ||
+		(!llmSetupDirty.value && llmStoredValidated.value)
+)
+// The Enable checkbox (and the LLM Based engine radio) gray out on this until
+// the setup is validated; it also drives their "requires a validated LLM" hints.
+const llmCannotEnable = computed(() => !llmValidated.value)
+// An edited setup that has not been validated locks the user on the LLM Setup
+// tab (the other tabs are disabled) and blocks Save, until it is validated or
+// discarded. Clearing the key is exempt: there is nothing to validate and the
+// integration turns off on save.
+const llmSetupLocked = computed(
+	() =>
+		llmSetupDirty.value && !llmApiKeyCleared.value && !llmValidated.value
+)
+// "Go back to where I was": restore the stored endpoint/model/key state and
+// drop the validation result — used after a failed validation or a change of
+// mind.
+// The engine choice "Remove LLM configuration" replaced, so Discard can put it
+// back; null when the engine was not touched.
+const engineBeforeRemove = ref<string | null>(null)
+const discardLlmSetupChanges = () => {
+	const stored = userStore.llmConfig
+	llmBaseUrl.value = stored?.baseUrl ?? ''
+	llmModel.value = stored?.model ?? ''
+	llmDefaultBaseUrl.value = stored?.defaultBaseUrl ?? ''
+	llmDefaultModel.value = stored?.defaultModel ?? ''
+	llmApiKey.value = ''
+	llmApiKeyCleared.value = false
+	llmApiKeyPresent.value = stored?.apiKeyPresent ?? false
+	// Clear Key / Remove turned the feature off; "back to where I was" turns
+	// it on again only if it was stored on (Save re-checks validation anyway).
+	llmEnabled.value = stored?.enabled ?? false
+	llmValidationResult.value = null
+	llmSetupCheckedFingerprint.value = null
+	if (engineBeforeRemove.value !== null) {
+		engineName.value = engineBeforeRemove.value
+		engineBeforeRemove.value = null
+	}
+}
+// Capture-phase guard on the tab strip: while the setup is locked, swallow
+// any click on (or keyboard navigation from) the tab list that would leave
+// the LLM Setup tab, before Feather's own handlers see it. Clicks inside the
+// panels are untouched.
+const guardTabSwitch = (evt: Event) => {
+	if (!llmSetupLocked.value) return
+	const target = evt.target as HTMLElement | null
+	if (!target || !target.closest('[role="tablist"]')) return
+	if (evt.type === 'keydown') {
+		const key = (evt as KeyboardEvent).key
+		if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(key)) return
+	} else if (target.closest('[data-test="tab-llm-setup"]')) {
+		return
+	}
+	evt.stopPropagation()
+	evt.preventDefault()
+}
+// True while an LLM feature is selected but the setup it needs is not
+// validated — on load (the validation record is gone, or an upgrade) or
+// because the key is being cleared. The banner tells the user to pick the
+// non-LLM options; Save refuses until they do (or validate).
+const llmNotValidatedNotice = computed(() => {
+	if (llmValidated.value || (!llmEnabled.value && !isLlmEngine.value)) return ''
+	const features: string[] = []
+	if (llmEnabled.value) features.push('turn LLM Root Cause Analysis off')
+	if (isLlmEngine.value) {
+		features.push('switch the Correlation Engine to Clustering')
+	}
+	const choose = `Choose the non-LLM options: ${features.join(' and ')}.`
+	if (llmApiKeyCleared.value) {
+		return `The API key is being cleared, and the record of its validation with it, so the LLM features can no longer run. ${choose} Then save.`
+	}
+	return `The LLM configuration is not validated, so the LLM features cannot run. ${choose} Or validate the setup on the LLM Setup tab. Then save.`
+})
+// "Remove LLM configuration": everything back to the empty state in one step —
+// the key (and, server-side, its validation record), endpoint, model, the
+// recorded defaults, Root Cause Analysis off and the engine back to
+// Clustering. Nothing is persisted until Save.
+const llmSetupHasAnything = computed(
+	() =>
+		(llmApiKeyPresent.value && !llmApiKeyCleared.value) ||
+		llmBaseUrl.value.trim().length > 0 ||
+		llmModel.value.trim().length > 0 ||
+		llmDefaultBaseUrl.value.trim().length > 0 ||
+		llmDefaultModel.value.trim().length > 0
+)
+const removeLlmConfiguration = () => {
+	if (
+		!window.confirm(
+			'Remove the LLM configuration?\n\n' +
+				'This clears the API key (and the record of its validation), the endpoint, ' +
+				'the model and the recorded defaults, turns LLM Root Cause Analysis off and ' +
+				'switches the correlation engine to Clustering. Nothing is stored until you ' +
+				'click Save Changes.'
+		)
+	) {
+		return
+	}
+	llmApiKey.value = ''
+	llmApiKeyCleared.value = true
+	llmApiKeyPresent.value = false
+	llmEnabled.value = false
+	llmBaseUrl.value = ''
+	llmModel.value = ''
+	llmDefaultBaseUrl.value = ''
+	llmDefaultModel.value = ''
+	llmValidationResult.value = null
+	llmSetupCheckedFingerprint.value = null
+	if (isLlmEngine.value) {
+		engineBeforeRemove.value = engineName.value
+		engineName.value = CONST.ENGINE_DBSCAN
+	}
+}
+const LLM_VALIDATE_HINT =
+	'Set the endpoint, model and API key on the LLM Setup tab and click Validate key first.'
+// The reason a save is blocked by the LLM setup, or '' when it may proceed.
+const llmSetupSaveBlockedReason = computed(() => {
+	if (isLlmEngine.value && llmApiKeyCleared.value) {
+		return 'The API key is being cleared, so LLM-based clustering can no longer run. Switch the Correlation Engine to Clustering before saving.'
+	}
+	if (isLlmEngine.value && !llmValidated.value) {
+		return `LLM-based clustering needs a validated LLM. ${LLM_VALIDATE_HINT}`
+	}
+	// The LLM section is only posted once the stored config has loaded (see
+	// llmConfigLoaded); until then there is nothing else to gate.
+	if (!llmConfigLoaded.value) return ''
+	if (llmEnabled.value && !llmApiKeyCleared.value && !llmValidated.value) {
+		return `LLM Root Cause Analysis needs a validated LLM. ${LLM_VALIDATE_HINT}`
+	}
+	if (llmSetupLocked.value) {
+		return 'The LLM setup changed. Click Validate key on the LLM Setup tab (or discard the changes) before saving.'
+	}
+	return ''
+})
 
 const clearLLMApiKey = () => {
 	llmApiKey.value = ''
@@ -392,14 +554,45 @@ const buildLLMRequest = (): TLLMConfigRequest => {
 	return request
 }
 
+type TEngineOverrides = {
+	alpha: number
+	beta: number
+	epsilon: number
+	hellingerW?: number
+	hellingerBias?: number
+	clusterFrequencyMs?: number
+	clusterPrompt?: string
+}
+
+// Saves the engine settings; on a rejection notifies the user and returns false.
+const saveEngine = async (overrides: TEngineOverrides, llmSaved = false) => {
+	const saved = await userStore.setEngineInfo(
+		engineName.value,
+		hellinger.value,
+		overrides
+	)
+	if (saved) {
+		userStore.getEngineInfo()
+		return true
+	}
+	const reason = getLastEngineError()
+	notify(
+		reason
+			? `The engine settings were rejected: ${reason}.`
+			: llmSaved
+				? 'The LLM configuration was saved, but the engine settings were rejected.'
+				: 'Error on saving the settings',
+		true
+	)
+	return false
+}
+
 const saveConfiguration = async () => {
-	// LLM-based clustering requires a configured LLM (LLM Setup tab). Block the
-	// save and point the user there if they picked it without one.
-	if (isLlmEngine.value && !llmSetupValid.value) {
-		notify(
-			'LLM-based clustering needs a configured LLM. Set the endpoint, model and API key on the LLM Setup tab first.',
-			true
-		)
+	// ALEC-310: both LLM features require a VALIDATED setup, and an edited
+	// setup must be validated (or discarded) before anything is saved. The
+	// server enforces the same rules; this just fails fast with a pointer.
+	if (llmSetupSaveBlockedReason.value) {
+		notify(llmSetupSaveBlockedReason.value, true)
 		return
 	}
 	// Saving with the integration enabled means ALEC will start sending alarm
@@ -426,15 +619,7 @@ const saveConfiguration = async () => {
 			return
 		}
 	}
-	const overrides: {
-		alpha: number
-		beta: number
-		epsilon: number
-		hellingerW?: number
-		hellingerBias?: number
-		clusterFrequencyMs?: number
-		clusterPrompt?: string
-	} = {
+	const overrides: TEngineOverrides = {
 		alpha: Number(alpha.value),
 		beta: Number(beta.value),
 		epsilon: Number(epsilon.value)
@@ -450,11 +635,17 @@ const saveConfiguration = async () => {
 		)
 		overrides.clusterPrompt = clusterPrompt.value
 	}
-	const savedEngine = await userStore.setEngineInfo(
-		engineName.value,
-		hellinger.value,
-		overrides
-	)
+	// Moving to a non-LLM engine saves the engine FIRST: while the stored
+	// engine is "llm" the server refuses an LLM configuration that is cleared
+	// or not validated, so the engine has to leave "llm" before the key can go.
+	const engineFirst = !isLlmEngine.value
+	if (engineFirst && !(await saveEngine(overrides))) {
+		return
+	}
+	// Selecting the LLM engine saves the LLM section BEFORE the engine: if the
+	// server rejects the LLM configuration, the engine choice must not be
+	// persisted — otherwise an "llm" engine could be left running with no
+	// usable LLM behind it.
 	// Never post the LLM section unless the stored config actually made it into
 	// the form — posting the blank initial values would wipe the stored
 	// endpoint/model/prompt when only engine settings were being saved.
@@ -482,22 +673,34 @@ const saveConfiguration = async () => {
 		}
 		llmSystemPrompt.value =
 			userStore.llmConfig?.systemPrompt ?? llmSystemPrompt.value
+		// The scrub above changes the setup fingerprint (the typed key is gone);
+		// re-anchor a displayed validation result to the saved form so it is
+		// not reported as stale — what was validated is exactly what got stored.
+		if (llmValidationResult.value) {
+			llmSetupCheckedFingerprint.value = llmSetupFingerprint.value
+		}
 		// Refresh the usage rollup — enabling/disabling doesn't generate calls
 		// immediately, but the next render should reflect any usage that
 		// arrived since the page loaded.
 		userStore.getLLMUsage(30)
 	}
 
-	if (savedEngine && savedLLM) {
-		userStore.getEngineInfo()
-		notify('The settings were saved!', false)
-	} else if (savedEngine && !savedLLM) {
+	if (!savedLLM) {
+		const reason = getLastLlmConfigError()
+		const outcome = engineFirst
+			? 'The engine settings were saved.'
+			: 'Nothing was saved.'
 		notify(
-			'Engine settings saved, but the LLM configuration was rejected — enabling the integration requires an endpoint URL, a model and an API key.',
+			reason
+				? `The LLM configuration was rejected: ${reason}. ${outcome}`
+				: `The LLM configuration was rejected — enabling the integration requires a validated endpoint, model and API key. ${outcome}`,
 			true
 		)
-	} else {
-		notify('Error on saving the settings', true)
+		return
+	}
+
+	if (engineFirst || (await saveEngine(overrides, llmConfigLoaded.value))) {
+		notify('The settings were saved!', false)
 	}
 }
 
@@ -537,11 +740,40 @@ const handleReEvaluate = async () => {
 	<SituationListBtn />
 	<div class="container">
 		<h3 data-test="page-title">ALEC Configuration</h3>
+		<!-- ALEC-310: an LLM feature is selected but its setup is not validated
+		     (record gone, upgrade, or the key is being cleared): say what to do. -->
+		<div
+			v-if="llmNotValidatedNotice"
+			class="llm-not-validated-banner"
+			data-test="llm-not-validated-banner"
+		>
+			<FeatherIcon :icon="Icons.Help" class="result-icon" />
+			<span>{{ llmNotValidatedNotice }}</span>
+		</div>
 
-		<FeatherTabContainer data-test="config-tabs">
+		<!-- An edited, unvalidated LLM setup locks the user on the LLM Setup tab
+		     (ALEC-310): validate it, or discard the changes, to leave. The guard
+		     runs in the capture phase, ahead of Feather's own tab handlers.
+		     FeatherTab's `disabled` prop is read once at registration, so it
+		     cannot be toggled at runtime — the tabs are grayed with a class. -->
+		<FeatherTabContainer
+			data-test="config-tabs"
+			@click.capture="guardTabSwitch"
+			@keydown.capture="guardTabSwitch"
+		>
 			<template v-slot:tabs>
-				<FeatherTab data-test="tab-engine">Correlation Engine</FeatherTab>
-				<FeatherTab data-test="tab-llm">LLM Root Cause Analysis</FeatherTab>
+				<FeatherTab
+					:class="{ 'tab-locked': llmSetupLocked }"
+					data-test="tab-engine"
+				>
+					Correlation Engine
+				</FeatherTab>
+				<FeatherTab
+					:class="{ 'tab-locked': llmSetupLocked }"
+					data-test="tab-llm"
+				>
+					LLM Root Cause Analysis
+				</FeatherTab>
 				<FeatherTab data-test="tab-llm-setup">LLM Setup</FeatherTab>
 			</template>
 
@@ -614,81 +846,85 @@ const handleReEvaluate = async () => {
 						<strong>Hellinger distance</strong>
 					</div>
 				</FeatherCheckbox>
+				<!-- Grayed out until the LLM setup is validated (ALEC-310); stays
+				     operable while selected so the user can switch away. -->
 				<FeatherRadio
 					class="radio-item"
 					:value="CONST.ENGINE_LLM"
+					:disabled="!llmValidated && !isLlmEngine"
 					data-test="engine-llm"
 				>
 					LLM Based (Experimental)
 				</FeatherRadio>
 			</FeatherRadioGroup>
+			<div
+				v-if="!llmValidated"
+				class="caption llm-engine-hint"
+				data-test="llm-engine-requires-validation"
+			>
+				LLM Based clustering requires a validated LLM. Set the endpoint, model
+				and API key on the <strong>LLM Setup</strong> tab and click
+				<strong>Validate key</strong> first.
+			</div>
 			</div>
 
-			<!-- LLM-based clustering settings (only when that engine is selected) -->
+			<!-- LLM-based clustering settings (only when that engine is selected
+			     AND its LLM is validated; otherwise the banner above says what to
+			     do — no second message here). -->
 			<div
-				v-if="isLlmEngine"
+				v-if="isLlmEngine && llmValidated"
 				class="section"
 				data-test="llm-cluster-section"
 			>
 				<div class="title">LLM-based clustering</div>
-				<div
-					v-if="!llmSetupValid"
-					class="caption"
-					data-test="llm-cluster-no-setup"
-				>
-					No valid LLM is configured. Set the endpoint, model and API key on the
-					<strong>LLM Setup</strong> tab first, then choose LLM Based here.
+				<div class="llm-help">
+					Instead of DBSCAN, ALEC asks the configured LLM to group active
+					alarms into situations using the network topology and the alarms
+					themselves. Only the topology graph and alarms are sent. Existing
+					situations are not modified.
 				</div>
-				<template v-else>
-					<div class="llm-help">
-						Instead of DBSCAN, ALEC asks the configured LLM to group active
-						alarms into situations using the network topology and the alarms
-						themselves. Only the topology graph and alarms are sent. Existing
-						situations are not modified.
+				<div class="llm-field-block">
+					<FeatherSelect
+						label="How often to re-cluster"
+						:options="CLUSTER_FREQUENCY_OPTIONS"
+						v-model="clusterFrequencyOption"
+						text-prop="label"
+						class="llm-frequency-select"
+						data-test="llm-cluster-frequency"
+					/>
+					<div class="llm-prompt-help">
+						Each cycle sends the current alarms + topology to the LLM. More
+						frequent means fresher situations but more token usage (counts
+						against your LLM Setup budget).
 					</div>
-					<div class="llm-field-block">
-						<FeatherSelect
-							label="How often to re-cluster"
-							:options="CLUSTER_FREQUENCY_OPTIONS"
-							v-model="clusterFrequencyOption"
-							text-prop="label"
-							class="llm-frequency-select"
-							data-test="llm-cluster-frequency"
-						/>
-						<div class="llm-prompt-help">
-							Each cycle sends the current alarms + topology to the LLM. More
-							frequent means fresher situations but more token usage (counts
-							against your LLM Setup budget).
-						</div>
+				</div>
+				<div class="llm-prompt-block" data-test="llm-cluster-prompt-block">
+					<div class="llm-prompt-header">
+						<span class="llm-prompt-label">Clustering prompt</span>
+						<button
+							type="button"
+							class="llm-prompt-reset"
+							:disabled="!clusterPromptIsCustom"
+							data-test="llm-cluster-prompt-reset"
+							@click="resetClusterPromptToDefault"
+						>
+							<FeatherIcon :icon="Icons.Restore" class="reset-inline-icon" />
+							Reset to default
+						</button>
 					</div>
-					<div class="llm-prompt-block" data-test="llm-cluster-prompt-block">
-						<div class="llm-prompt-header">
-							<span class="llm-prompt-label">Clustering prompt</span>
-							<button
-								type="button"
-								class="llm-prompt-reset"
-								:disabled="!clusterPromptIsCustom"
-								data-test="llm-cluster-prompt-reset"
-								@click="resetClusterPromptToDefault"
-							>
-								<FeatherIcon :icon="Icons.Restore" class="reset-inline-icon" />
-								Reset to default
-							</button>
-						</div>
-						<div class="llm-prompt-help">
-							Instructions sent to the model for clustering. Customize it to add
-							site-specific context, or clear it to fall back to the default.
-						</div>
-						<FeatherTextarea
-							v-model="clusterPrompt"
-							label="Clustering prompt"
-							hideLabel
-							rows="10"
-							data-test="llm-cluster-prompt"
-							class="llm-prompt-textarea"
-						/>
+					<div class="llm-prompt-help">
+						Instructions sent to the model for clustering. Customize it to add
+						site-specific context, or clear it to fall back to the default.
 					</div>
-				</template>
+					<FeatherTextarea
+						v-model="clusterPrompt"
+						label="Clustering prompt"
+						hideLabel
+						rows="10"
+						data-test="llm-cluster-prompt"
+						class="llm-prompt-textarea"
+					/>
+				</div>
 			</div>
 
 			<!-- Correlation variables (Clustering only) -->
@@ -835,9 +1071,10 @@ const handleReEvaluate = async () => {
 					</li>
 				</ul>
 			</div>
-			<!-- Disable only when OFF: turning the integration off must always be
-			     possible, even after the endpoint/model/key that once allowed
-			     enabling it have been blanked or cleared. -->
+			<!-- Grayed out until the LLM setup is validated (ALEC-310). Only when
+			     OFF: turning the integration off must always be possible, even
+			     after the endpoint/model/key that once backed it were changed
+			     or cleared. -->
 			<FeatherCheckbox
 				v-model="llmEnabled"
 				:disabled="llmCannotEnable && !llmEnabled"
@@ -859,8 +1096,9 @@ const handleReEvaluate = async () => {
 				class="caption"
 				data-test="llm-no-key-hint"
 			>
-				No valid LLM is configured. Go to the <strong>LLM Setup</strong> tab and
-				set an endpoint, model and API key first.
+				Requires a validated LLM. Go to the <strong>LLM Setup</strong> tab, set
+				an endpoint, model and API key, and click
+				<strong>Validate key</strong> first.
 			</div>
 			<div class="llm-prompt-block" data-test="llm-prompt-block">
 				<div class="llm-prompt-header">
@@ -1111,6 +1349,20 @@ const handleReEvaluate = async () => {
 					Clear Key
 				</FeatherButton>
 			</div>
+			<!-- ALEC-310: back to the empty state in one step (confirmed, then Save). -->
+			<div v-if="llmSetupHasAnything" class="llm-remove-row">
+				<span class="caption llm-remove-caption">
+					Clears the key, endpoint, model and defaults, turns Root Cause Analysis
+					off and switches the engine to Clustering. Takes effect on Save.
+				</span>
+				<FeatherButton
+					secondary
+					data-test="llm-remove-config"
+					@click="removeLlmConfiguration"
+				>
+					Remove LLM configuration
+				</FeatherButton>
+			</div>
 			<div class="llm-validate-row">
 				<FeatherButton
 					secondary
@@ -1139,6 +1391,49 @@ const handleReEvaluate = async () => {
 					/>
 					{{ llmValidationResult.message }}
 				</span>
+				<span
+					v-if="llmValidationStale && !llmCannotValidate"
+					class="caption"
+					data-test="llm-validate-stale"
+				>
+					The settings changed since the last validation — validate again.
+				</span>
+			</div>
+			<!-- ALEC-310: always say whether the setup counts as validated. -->
+			<div
+				class="llm-validation-status"
+				:class="llmValidated ? 'is-ok' : 'is-warn'"
+				data-test="llm-validation-status"
+			>
+				<FeatherIcon
+					:icon="llmValidated ? Icons.MarkComplete : Icons.Help"
+					class="result-icon"
+				/>
+				<span v-if="llmValidated">
+					Validated — this endpoint, model and API key passed
+					<strong>Validate key</strong>. LLM features can be enabled.
+				</span>
+				<span v-else>
+					Not validated — click <strong>Validate key</strong> before enabling
+					LLM Root Cause Analysis or LLM Based clustering.
+				</span>
+			</div>
+			<div
+				v-if="llmSetupLocked"
+				class="llm-setup-locked"
+				data-test="llm-setup-locked-hint"
+			>
+				<span>
+					The LLM setup changed. Validate the key to keep the changes, or
+					discard them, before leaving this tab or saving.
+				</span>
+				<FeatherButton
+					secondary
+					data-test="llm-discard-setup"
+					@click="discardLlmSetupChanges"
+				>
+					Discard changes
+				</FeatherButton>
 			</div>
 			<div
 				v-if="llmApiKeyPresent && !llmApiKeyCleared"
@@ -1151,12 +1446,25 @@ const handleReEvaluate = async () => {
 					leave the field blank to keep it, or paste a new one to replace it.
 				</span>
 			</div>
+			<!-- A pending clear/remove: say what Save will do, and offer the way
+			     back (Discard restores the stored key, setup and engine). -->
 			<div
 				v-if="llmApiKeyCleared"
-				class="caption"
+				class="llm-setup-locked"
 				data-test="llm-cleared-hint"
 			>
-				Stored API key will be removed on save.
+				<span>
+					Stored API key will be removed on save, together with the record of
+					its validation. LLM Root Cause Analysis is now off; LLM Based
+					clustering must be switched to Clustering before saving.
+				</span>
+				<FeatherButton
+					secondary
+					data-test="llm-discard-setup"
+					@click="discardLlmSetupChanges"
+				>
+					Discard changes
+				</FeatherButton>
 			</div>
 
 			<!-- Token budget (shared across all LLM features) -->
@@ -1707,6 +2015,91 @@ const handleReEvaluate = async () => {
 			color: var(--feather-error); // red-600
 		}
 	}
+}
+
+// ALEC-310: the standing "validated / not validated" line under the key row.
+.llm-validation-status {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin-top: 8px;
+	font-size: 13px;
+
+	.result-icon {
+		font-size: 18px;
+	}
+
+	&.is-ok {
+		color: var(--feather-success);
+	}
+
+	&.is-warn {
+		color: var(--feather-warning);
+	}
+}
+
+// ALEC-310: the other tabs while an edited setup is unvalidated (clicks on
+// them are swallowed by guardTabSwitch; this is the grayed-out look).
+:deep(.tab-locked .tab) {
+	opacity: 0.45;
+	cursor: not-allowed;
+}
+
+// ALEC-310: an LLM feature is selected but its setup is not validated. The
+// single message for that state (the engine tab carries no second one).
+.llm-not-validated-banner {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin: 16px 0 20px;
+	padding: 12px 14px;
+	border-left: 3px solid var(--feather-error);
+	background: var(--feather-surface-light);
+	color: var(--feather-error);
+	font-size: 13px;
+	line-height: 1.5;
+
+	.result-icon {
+		font-size: 18px;
+		color: var(--feather-error);
+		flex-shrink: 0;
+	}
+}
+
+// ALEC-310: the hint under the LLM Based radio lines up with the radio's label
+// text (Feather draws the control 2.25rem wide, pulled 0.5rem left).
+.llm-engine-hint {
+	margin-left: 1.75rem;
+	margin-top: 2px;
+}
+
+// ALEC-310: "Remove LLM configuration" sits right under the Clear Key button
+// (right-aligned with it); its caption reads up to it from the left.
+.llm-remove-row {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	flex-wrap: wrap;
+	gap: 12px;
+	margin-top: 8px;
+
+	.llm-remove-caption {
+		margin: 0;
+		text-align: right;
+	}
+}
+
+// ALEC-310: shown while an edited setup is unvalidated (tabs + Save locked).
+.llm-setup-locked {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 12px;
+	margin-top: 8px;
+	padding: 8px 12px;
+	border-left: 3px solid var(--feather-warning);
+	background: var(--feather-surface-light);
+	font-size: 13px;
 }
 
 .llm-key-saved {
