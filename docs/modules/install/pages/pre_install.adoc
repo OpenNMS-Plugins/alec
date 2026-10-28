@@ -7,7 +7,8 @@ This section describes the configuration tasks that you must complete before ins
 
 == OpenNMS configuration
 
-Before you install ALEC, you must configure your OpenNMS instance.
+Complete these tasks on your OpenNMS server, for both basic and distributed installations.
+Sentinel-specific steps are in xref:admin:distributed_install.adoc[Distributed Installation].
 
 === Set \$OPENNMS_HOME variable
 
@@ -27,20 +28,11 @@ If it returns `Oh no, something is wrong`, you must address the underlying probl
 
 We recommend that you enable https://docs.opennms.com/horizon/latest/reference/daemons/daemon-config-files/syslogd.html[syslogd] to take advantage of the syslog patterns and event definitions that ALEC provides.
 
-Edit `$OPENNMS_HOME/etc/service-configuration.xml` and change the following code:
+Edit `$OPENNMS_HOME/etc/service-configuration.xml` and set the `enabled` attribute of the `OpenNMS:Name=Syslogd` service to `true`:
 
 [source, xml]
 ----
-<service enabled="false">
-    <name>OpenNMS:Name=Syslogd</name>
-----
-
-to:
-
-[source, xml]
-----
-<service>
-    <name>OpenNMS:Name=Syslogd</name>
+<service enabled="true"><name>OpenNMS:Name=Syslogd</name></service>
 ----
 
 This change occurs the next time OpenNMS restarts.
@@ -51,6 +43,7 @@ WARNING: Do not restart OpenNMS at this point; you will restart it as part of th
 
 Packages for ALEC are available in the same `yum` and `apt` repositories as OpenNMS, and as downloads on the https://github.com/OpenNMS-Plugins/alec/releases[ALEC releases page].
 If you already have the stable repository installed, you can skip this step.
+For a distributed installation, set up the repository on the OpenNMS server and on each Sentinel server.
 
 Install the repository using the commands that are appropriate for your system:
 

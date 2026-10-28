@@ -7,12 +7,12 @@ A distributed installation runs ALEC as a service on top of https://docs.opennms
 .Example distributed installation network architecture
 image::distributed_deployment.png["Network architecture graphic that displays the components of a distributed installation of ALEC.", 600]
 
-IMPORTANT: You must complete the xref:install:pre_install.adoc[pre-installation tasks] before proceeding.
+IMPORTANT: You must complete the xref:install:pre_install.adoc[pre-installation tasks] on your OpenNMS server and set up the package repository on each Sentinel server before proceeding.
 
 [[prerequisites]]
 == Prerequisites
 
-In addition to an existing instance of OpenNMS Horizon 30.0.1 or newer, these instructions assume that you have the following:
+In addition to an OpenNMS instance that meets the xref:install:introduction.adoc#_system_prerequisites[system prerequisites], these instructions assume that you have the following:
 
 * A Kafka broker (or cluster) running Kafka 0.11.x or greater.
 * One or more active Minions.
@@ -39,7 +39,11 @@ echo 'bootstrap.servers=127.0.0.1:9092' > "$OPENNMS_HOME/etc/org.opennms.feature
 [source, shell]
 echo 'suppressIncrementalAlarms=false' >> "$OPENNMS_HOME/etc/org.opennms.features.kafka.producer.cfg"
 
-. Edit `$OPENNMS_HOME/etc/org.apache.karaf.features.cfg` and add `opennms-kafka-producer` to the `featuresBoost` property.
+. Install the Kafka Producer feature when OpenNMS starts:
++
+[source, shell]
+echo 'opennms-kafka-producer' > "$OPENNMS_HOME/etc/featuresBoot.d/kafka-producer.boot"
+
 . Enable consumption of Kafka events:
 +
 [source, shell]
@@ -48,28 +52,23 @@ echo 'org.opennms.netmgt.eventd.sink.enable=true' > "$OPENNMS_HOME/etc/opennms.p
 
 == Install ALEC in OpenNMS
 
-Follow these steps to install ALEC on your OpenNMS instance.
-Make sure that you install the package repository on all systems that are running OpenNMS.
-
-. Install the plugin package on your OpenNMS server:
-+
-[source, shell]
-yum -y install opennms-alec-plugin
-
-. Configure the feature set to install when OpenNMS starts:
+. Install the `opennms-alec-plugin` package on your OpenNMS server as described in xref:install:basic_install.adoc[Basic Installation].
+. Configure the distributed feature set, instead of the standalone one, to install when OpenNMS starts:
 +
 [source, shell]
 echo 'alec-opennms-distributed wait-for-kar=opennms-alec-plugin' > "$OPENNMS_HOME/etc/featuresBoot.d/alec.boot"
 
 == Install ALEC in Sentinel
 
-Follow these steps to install ALEC on your Sentinel instance.
-Make sure that you install the package repository on all systems that are running Sentinel.
+Follow these steps on each Sentinel server.
+The Sentinel home directory is `/opt/sentinel`, so set `SENTINEL_HOME` first:
 
-. Install the plugin package on your Sentinel systems:
-+
 [source, shell]
-yum -y install sentinel-alec-plugin
+export SENTINEL_HOME=/opt/sentinel
+
+. Install the plugin package:
+** *RHEL/CentOS:* `yum -y install sentinel-alec-plugin`
+** *Ubuntu/Debian:* `apt install sentinel-alec-plugin`
 
 . Configure Kafka Stream (the Kafka consumer):
 +
@@ -99,7 +98,7 @@ echo 'connectString=127.0.0.1:2181' > "$SENTINEL_HOME/etc/org.opennms.features.d
 ----
 echo 'sentinel-core
 sentinel-coordination-zookeeper
-alec-sentinel-distributed wait-for-kar=opennms-alec-plugin' >> "$SENTINEL_HOME/etc/featuresBoot.d/alec.boot"
+alec-sentinel-distributed wait-for-kar=opennms-alec-plugin' > "$SENTINEL_HOME/etc/featuresBoot.d/alec.boot"
 ----
 
 == Verify installation
